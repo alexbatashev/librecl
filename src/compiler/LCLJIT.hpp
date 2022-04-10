@@ -18,12 +18,14 @@ namespace lcl {
 class LCLJIT {
 public:
   LCLJIT(std::unique_ptr<llvm::orc::ExecutionSession> ES,
-                  llvm::orc::JITTargetMachineBuilder JTMB, llvm::DataLayout DL)
+         llvm::orc::JITTargetMachineBuilder JTMB, llvm::DataLayout DL)
       : mES(std::move(ES)), mDL(std::move(DL)), mMangle(*mES, mDL),
-        mObjectLayer(*mES,
-                    []() { return std::make_unique<llvm::SectionMemoryManager>(); }),
-        mCompileLayer(*mES, mObjectLayer,
-                     std::make_unique<llvm::orc::ConcurrentIRCompiler>(std::move(JTMB))),
+        mObjectLayer(
+            *mES,
+            []() { return std::make_unique<llvm::SectionMemoryManager>(); }),
+        mCompileLayer(
+            *mES, mObjectLayer,
+            std::make_unique<llvm::orc::ConcurrentIRCompiler>(std::move(JTMB))),
         MainJD(mES->createBareJITDylib("<main>")) {
     MainJD.addGenerator(
         cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(
@@ -50,14 +52,15 @@ public:
       return DL.takeError();
 
     return std::make_unique<LCLJIT>(std::move(ES), std::move(JTMB),
-                                             std::move(*DL));
+                                    std::move(*DL));
   }
 
   const llvm::DataLayout &getDataLayout() const { return mDL; }
 
   llvm::orc::JITDylib &getMainJITDylib() { return MainJD; }
 
-  llvm::Error addModule(llvm::orc::ThreadSafeModule TSM, llvm::orc::ResourceTrackerSP RT = nullptr) {
+  llvm::Error addModule(llvm::orc::ThreadSafeModule TSM,
+                        llvm::orc::ResourceTrackerSP RT = nullptr) {
     if (!RT)
       RT = MainJD.getDefaultResourceTracker();
     return mCompileLayer.add(RT, std::move(TSM));
@@ -66,6 +69,7 @@ public:
   llvm::Expected<llvm::JITEvaluatedSymbol> lookup(llvm::StringRef Name) {
     return mES->lookup({&MainJD}, mMangle(Name.str()));
   }
+
 private:
   std::unique_ptr<llvm::orc::ExecutionSession> mES;
   llvm::orc::RTDyldObjectLinkingLayer mObjectLayer;
@@ -77,4 +81,4 @@ private:
 
   llvm::orc::JITDylib &MainJD;
 };
-}
+} // namespace lcl

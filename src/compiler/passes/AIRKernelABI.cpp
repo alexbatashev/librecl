@@ -19,4 +19,4 @@ llvm::PreservedAnalyses AIRKernelABI::run(llvm::Function &func,
 
   return llvm::PreservedAnalyses::all();
 }
-}
+} // namespace lcl

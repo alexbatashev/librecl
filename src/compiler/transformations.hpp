@@ -1,9 +1,8 @@
 #pragma once
 
-#include "llvm/IR/Module.h"
-#include "llvm/Analysis/LoopAnalysisManager.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
-
+#include "llvm/Analysis/LoopAnalysisManager.h"
+#include "llvm/IR/Module.h"
 
 namespace lcl {
 class IRTransformation {
@@ -36,4 +35,4 @@ private:
   llvm::ModuleAnalysisManager MAM;
   llvm::ModulePassManager MPM;
 };
-}
+} // namespace lcl

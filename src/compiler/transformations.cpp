@@ -16,12 +16,11 @@ IRCleanup::IRCleanup() {
   PB.registerLoopAnalyses(LAM);
   PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
-  MPM = PB.buildModuleSimplificationPipeline(llvm::OptimizationLevel::O2, llvm::ThinOrFullLTOPhase::None);
+  MPM = PB.buildModuleSimplificationPipeline(llvm::OptimizationLevel::O2,
+                                             llvm::ThinOrFullLTOPhase::None);
 }
 
-void IRCleanup::apply(llvm::Module &module) {
-  MPM.run(module, MAM);
-}
+void IRCleanup::apply(llvm::Module &module) { MPM.run(module, MAM); }
 
 AIRLegalize::AIRLegalize() {
   llvm::PassBuilder PB;
@@ -33,11 +32,10 @@ AIRLegalize::AIRLegalize() {
   PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
   MPM = PB.buildO0DefaultPipeline(llvm::OptimizationLevel::O0);
-  MPM.addPass(llvm::createModuleToFunctionPassAdaptor(llvm::InferAddressSpacesPass()));
+  MPM.addPass(
+      llvm::createModuleToFunctionPassAdaptor(llvm::InferAddressSpacesPass()));
   MPM.addPass(llvm::createModuleToFunctionPassAdaptor(AIRKernelABI()));
 }
 
-void AIRLegalize::apply(llvm::Module &module) {
-  MPM.run(module, MAM);
-}
-}
+void AIRLegalize::apply(llvm::Module &module) { MPM.run(module, MAM); }
+} // namespace lcl

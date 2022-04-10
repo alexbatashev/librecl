@@ -6,19 +6,13 @@
 namespace lcl {
 void initializeTargets();
 
-enum class BuildTarget {
-  NVPTX,
-  CPU,
-  Metal
-};
+enum class BuildTarget { NVPTX, CPU, Metal };
 
 class CompileResult {
 public:
   bool success() const { return mSuccess; }
 
-  const std::string_view moduleName() const {
-    return mKey;
-  }
+  const std::string_view moduleName() const { return mKey; }
 
 private:
   std::string mErrorLog;
@@ -32,10 +26,12 @@ class Compiler {
 public:
   Compiler(BuildTarget target);
 
-  void addModuleFromSource(const std::string_view source, const std::string_view options);
+  void addModuleFromSource(const std::string_view source,
+                           const std::string_view options);
 
   ~Compiler();
+
 private:
   std::unique_ptr<CompilerImpl> mCompiler;
 };
-}
+} // namespace lcl
