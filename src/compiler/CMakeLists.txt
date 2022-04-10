@@ -1,0 +1,24 @@
+add_library(lcl_compiler SHARED
+  lib.cpp
+)
+
+list(APPEND CMAKE_MODULE_PATH
+  "${PROJECT_SOURCE_DIR}/third_party/llvm-project/llvm/cmake/modules")
+
+include(AddLLVM)
+
+llvm_map_components_to_libnames(llvm_libs all native target orcjit orcshared
+  orctargetprocess executionengine support instcombine support transformutils
+  runtimedyld scalaropts)
+
+target_include_directories(lcl_compiler PRIVATE ${LLVM_INCLUDE_DIRS}
+  ${CLANG_INCLUDE_DIRS})
+target_link_libraries(lcl_compiler PRIVATE
+  -Wl,--start-group
+  ${llvm_libs}
+  clangBasic
+  clangCodeGen
+  clangFrontend
+  clangFrontendTool
+  -Wl,--end-group
+)
