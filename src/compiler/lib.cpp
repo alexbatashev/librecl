@@ -23,7 +23,7 @@
 #include "clang/FrontendTool/Utils.h"
 
 #include "compiler.hpp"
-#include "LCLJIT.hpp"
+#include "transformations.hpp"
 
 namespace lcl {
 void initializeTargets() {
@@ -40,10 +40,6 @@ class CompilerImpl {
     mDiagOpts = new clang::DiagnosticOptions();
 
     mDiagOpts->ShowPresumedLoc = true;
-
-    auto JIT = LCLJIT::create();
-    if (JIT)
-      mJIT = std::move(JIT.get());
   }
 
   void addModuleFromSource(const std::string_view source, const std::string_view options) {
@@ -77,7 +73,7 @@ class CompilerImpl {
     clang::CompilerInvocation::CreateFromArgs(mCompiler->getInvocation(),
         {"-cl-std=CL3.0", "-emit-llvm-bc", "-fdeclare-opencl-builtins",
         "sample.cl", "-o", "-", "-disable-llvm-passes", "-cl-ext=all",
-        "-cl-kernel-arg-info", "-triple", "nvptx64-unknown-unknown"},
+        "-cl-kernel-arg-info", "-triple", "spir64-unknown-unknown"},
       *diags);
 
     MemFS->addFile(
@@ -106,6 +102,13 @@ class CompilerImpl {
     if (M) {
       llvm::Error err = M->materializeAll();
       if (!err) {
+        IRCleanup cleanup;
+        AIRLegalize legalize;
+
+        M->setTargetTriple("air64-apple-macosx12.0.0");
+        M->setDataLayout("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v24:32:32-v32:32:32-v48:64:64-v64:64:64-v96:128:128-v128:128:128-v192:256:256-v256:256:256-v512:512:512-v1024:1024:1024-n8:16:32");
+        cleanup.apply(*M);
+        legalize.apply(*M);
         M->print(llvm::outs(), nullptr);
       }
     }
@@ -116,8 +119,6 @@ private:
   std::unique_ptr<clang::CompilerInstance> mCompiler;
   llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs> mDiagID;
   llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> mDiagOpts;
-
-  std::unique_ptr<LCLJIT> mJIT;
 };
 
 Compiler::Compiler(BuildTarget target) {
