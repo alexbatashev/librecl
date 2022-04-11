@@ -1,34 +1,15 @@
 #include <CL/cl.h>
 #include <cuda.h>
 
+#include "common.hpp"
+#include "platform.hpp"
+
 #include <string_view>
 #include <vector>
 
-struct _cl_platform_id {
-  std::vector<CUdevice> mDevices;
-};
-
+// TODO thread safety
 bool gInitialized = false;
 _cl_platform_id *gPlatform;
-
-cl_int translateError(CUresult res) {
-  switch (res) {
-  case CUDA_SUCCESS:
-    return CL_SUCCESS;
-
-  default:
-    return CL_OUT_OF_RESOURCES;
-  }
-}
-
-#define CHECK(call)                                                            \
-  do {                                                                         \
-    CUresult res = call;                                                       \
-    if (res != CUDA_SUCCESS) {                                                 \
-      cl_int err = translateError(res);                                        \
-      return err;                                                              \
-    }                                                                          \
-  } while (0)
 
 extern "C" {
 cl_int clGetPlatformIDs(cl_uint num_entries, cl_platform_id *platforms,
@@ -62,7 +43,8 @@ cl_int clGetPlatformIDs(cl_uint num_entries, cl_platform_id *platforms,
         CUdevice device;
         CUresult res = cuDeviceGet(&device, i);
         if (res == CUDA_SUCCESS) {
-          gPlatform->mDevices.push_back(device);
+          // All CUDA devices are GPUs for now
+          gPlatform->mDevices.emplace_back(device, CL_DEVICE_TYPE_GPU);
         }
         // else log: error
       }

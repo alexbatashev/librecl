@@ -1,7 +1,9 @@
 #pragma once
 
 #include <memory>
+#include <span>
 #include <string>
+#include <string_view>
 
 namespace lcl {
 void initializeTargets();
@@ -27,11 +29,11 @@ public:
   Compiler(BuildTarget target);
 
   void addModuleFromSource(const std::string_view source,
-                           const std::string_view options);
+                           const std::span<std::string_view> options);
 
   ~Compiler();
 
 private:
-  std::unique_ptr<CompilerImpl> mCompiler;
+  std::shared_ptr<CompilerImpl> mCompiler;
 };
 } // namespace lcl

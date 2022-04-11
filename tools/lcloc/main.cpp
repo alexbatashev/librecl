@@ -19,7 +19,7 @@ const char *kernelSource =
 
 int main() {
   lcl::Compiler compiler(lcl::BuildTarget::NVPTX);
-  compiler.addModuleFromSource(kernelSource, "");
+  compiler.addModuleFromSource(kernelSource, {});
 
   return 0;
 }

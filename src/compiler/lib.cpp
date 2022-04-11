@@ -43,7 +43,7 @@ public:
   }
 
   void addModuleFromSource(const std::string_view source,
-                           const std::string_view options) {
+                           const llvm::ArrayRef<llvm::StringRef> options) {
     std::string errString;
     llvm::raw_string_ostream errStream(errString);
 
@@ -71,12 +71,26 @@ public:
 
     llvm::cl::ResetAllOptionOccurrences();
 
-    clang::CompilerInvocation::CreateFromArgs(
-        mCompiler->getInvocation(),
-        {"-cl-std=CL3.0", "-emit-llvm-bc", "-fdeclare-opencl-builtins",
-         "sample.cl", "-o", "-", "-disable-llvm-passes", "-cl-ext=all",
-         "-cl-kernel-arg-info", "-triple", "spir64-unknown-unknown"},
-        *diags);
+    llvm::SmallVector<std::string, 15> storage;
+    llvm::SmallVector<const char *, 15> allOpts;
+    for (llvm::StringRef opt : options) {
+      storage.push_back(opt.str());
+      auto &str = storage.back();
+      allOpts.push_back(str.data());
+    }
+    allOpts.push_back("-x");
+    allOpts.push_back("cl");
+    allOpts.push_back("-emit-llvm-bc");
+    allOpts.push_back("-fdeclare-opencl-builtins");
+    allOpts.push_back("-disable-llvm-passes");
+    allOpts.push_back("-cl-ext=all");
+    allOpts.push_back("sample.cl");
+    allOpts.push_back("-o");
+    allOpts.push_back("-");
+    allOpts.push_back("-cl-kernel-arg-info");
+
+    clang::CompilerInvocation::CreateFromArgs(mCompiler->getInvocation(),
+                                              allOpts, *diags);
 
     MemFS->addFile("sample.cl", (time_t)0,
                    llvm::MemoryBuffer::getMemBuffer(
@@ -104,6 +118,7 @@ public:
     if (M) {
       llvm::Error err = M->materializeAll();
       if (!err) {
+        /*
         IRCleanup cleanup;
         AIRLegalize legalize;
 
@@ -115,6 +130,7 @@ public:
             "v1024:1024:1024-n8:16:32");
         cleanup.apply(*M);
         legalize.apply(*M);
+        */
         M->print(llvm::outs(), nullptr);
       }
     } else
@@ -132,8 +148,12 @@ Compiler::Compiler(BuildTarget target) {
 }
 
 void Compiler::addModuleFromSource(const std::string_view source,
-                                   const std::string_view options) {
-  mCompiler->addModuleFromSource(source, options);
+                                   std::span<std::string_view> options) {
+  llvm::SmallVector<llvm::StringRef, 15> opts;
+  for (std::string_view opt : options) {
+    opts.push_back(llvm::StringRef{opt});
+  }
+  mCompiler->addModuleFromSource(source, opts);
 }
 
 Compiler::~Compiler() = default;
