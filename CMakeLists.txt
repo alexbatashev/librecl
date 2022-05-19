@@ -44,6 +44,10 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   include(HandleLLVMOptions)
 endif()
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
+include(FileEmbed)
+FileEmbedSetup()
+
 add_subdirectory(src)
 add_subdirectory(tools)
 add_subdirectory(third_party)

@@ -118,9 +118,8 @@ public:
     if (M) {
       llvm::Error err = M->materializeAll();
       if (!err) {
-        /*
         IRCleanup cleanup;
-        AIRLegalize legalize;
+        AIRLegalize legalize{M->getContext()};
 
         M->setTargetTriple("air64-apple-macosx12.0.0");
         M->setDataLayout(
@@ -128,9 +127,8 @@ public:
             "32-f64:64:64-v16:16:16-v24:32:32-v32:32:32-v48:64:64-v64:64:64-"
             "v96:128:128-v128:128:128-v192:256:256-v256:256:256-v512:512:512-"
             "v1024:1024:1024-n8:16:32");
-        cleanup.apply(*M);
-        legalize.apply(*M);
-        */
+        // cleanup.apply(*M);
+        M = legalize.apply(std::move(M));
         M->print(llvm::outs(), nullptr);
       }
     } else

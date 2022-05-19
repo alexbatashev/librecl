@@ -4,4 +4,4 @@ endif()
 add_subdirectory(cpu)
 add_subdirectory(metal)
 
-add_subdirectory(libclc)
+add_subdirectory(devicelib)

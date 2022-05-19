@@ -3,6 +3,7 @@
 const char *kernelSource =
     "\n"
     "#pragma OPENCL EXTENSION cl_khr_fp64 : enable                    \n"
+    "void foo() {}                                                    \n"
     "__kernel void vecAdd(  __global double *a,                       \n"
     "                       __global double *b,                       \n"
     "                       __global double *c,                       \n"
@@ -14,6 +15,7 @@ const char *kernelSource =
     "    //Make sure we do not go out of bounds                      \n"
     "    if (id < n)                                                 \n"
     "        c[id] = a[id] + b[id];                                  \n"
+    "    foo();                                                      \n"
     "}                                                               \n"
     "\n";
 
