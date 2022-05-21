@@ -1,9 +1,11 @@
+#include "ClangFrontend.hpp"
+#include "MetalBackend.hpp"
 #include "compiler.hpp"
 
 const char *kernelSource =
     "\n"
     "#pragma OPENCL EXTENSION cl_khr_fp64 : enable                    \n"
-    "void foo() {}                                                    \n"
+    // "void foo() {}                                                    \n"
     "__kernel void vecAdd(  __global double *a,                       \n"
     "                       __global double *b,                       \n"
     "                       __global double *c,                       \n"
@@ -15,13 +17,22 @@ const char *kernelSource =
     "    //Make sure we do not go out of bounds                      \n"
     "    if (id < n)                                                 \n"
     "        c[id] = a[id] + b[id];                                  \n"
-    "    foo();                                                      \n"
+    // "    foo();                                                      \n"
     "}                                                               \n"
     "\n";
 
 int main() {
-  lcl::Compiler compiler(lcl::BuildTarget::NVPTX);
-  compiler.addModuleFromSource(kernelSource, {});
+  // lcl::Compiler compiler(lcl::BuildTarget::NVPTX);
+  // compiler.addModuleFromSource(kernelSource, {});
+  lcl::ClangFrontend FE;
+  auto IR = FE.process(kernelSource, {});
+
+  if (!IR)
+    return -1;
+
+  lcl::MetalBackend BE;
+  IR->print(llvm::errs(), nullptr);
+  BE.compile(std::move(IR));
 
   return 0;
 }
