@@ -133,7 +133,6 @@ AIRFunctionArguments::run(llvm::Module &module,
       llvm::CallInst *newCall = llvm::CallInst::Create(
           newFuncType, newFunc, newCallArgs, newFunc->getName(), callInst);
       if (!newFunc->getReturnType()->isVoidTy()) {
-        llvm::errs() << newFunc->getName() << "\n";
         callInst->replaceAllUsesWith(newCall);
       }
       callInst->removeFromParent();

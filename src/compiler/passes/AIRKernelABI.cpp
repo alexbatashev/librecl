@@ -4,11 +4,15 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/IR/Attributes.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
@@ -43,7 +47,7 @@ llvm::PreservedAnalyses AIRKernelABI::run(llvm::Module &module,
       llvm::SmallVector<llvm::Metadata *, 8> argMDs;
       auto attr = k->getAttributeAtIndex(arg.index() + 1, "opencl.arg_type");
       auto argNo = llvm::ConstantInt::get(module.getContext(),
-                                          llvm::APInt(64, arg.index()));
+                                          llvm::APInt(32, arg.index()));
       argMDs.push_back(builder.createConstant(argNo));
 
       if (attr.isValid()) {
@@ -59,7 +63,7 @@ llvm::PreservedAnalyses AIRKernelABI::run(llvm::Module &module,
             llvm::MDString::get(module.getContext(), "air.location_index"));
         argMDs.push_back(builder.createConstant(argNo));
         auto idx =
-            llvm::ConstantInt::get(module.getContext(), llvm::APInt(64, 1));
+            llvm::ConstantInt::get(module.getContext(), llvm::APInt(32, 1));
         argMDs.push_back(builder.createConstant(idx));
         argMDs.push_back(
             llvm::MDString::get(module.getContext(), "air.read_write"));
@@ -79,7 +83,43 @@ llvm::PreservedAnalyses AIRKernelABI::run(llvm::Module &module,
   for (auto &f : module.functions()) {
     for (auto &arg : llvm::enumerate(f.args())) {
       f.removeParamAttr(arg.index(), "opencl.arg_type");
+      f.removeParamAttr(arg.index(), llvm::Attribute::NoUndef);
     }
+    // Remove unsupported attributes
+    f.removeFnAttr(llvm::Attribute::AttrKind::ArgMemOnly);
+    f.removeFnAttr(llvm::Attribute::AttrKind::NoCallback);
+    f.removeFnAttr(llvm::Attribute::AttrKind::NoFree);
+    f.removeFnAttr(llvm::Attribute::AttrKind::NoSync);
+    f.removeFnAttr(llvm::Attribute::AttrKind::NoUnwind);
+    f.removeFnAttr(llvm::Attribute::AttrKind::WillReturn);
+    f.removeFnAttr(llvm::Attribute::AttrKind::Convergent);
+    f.removeFnAttr((llvm::Attribute::AttrKind)71);
+    f.removeFnAttr("frame-pointer");
+    f.removeFnAttr("min-legal-vector-width");
+    f.removeFnAttr("no-trapping-math");
+    f.removeFnAttr("uniform-work-group-size");
+
+    llvm::errs() << "Kind: " << (int)llvm::Attribute::InAlloca << "\n";
+  }
+
+  llvm::SmallVector<llvm::CallInst *, 30> lifetime;
+  for (auto &f : module.functions()) {
+    for (auto &bb : f) {
+      for (auto &inst : bb) {
+        if (inst.getOpcode() == llvm::Instruction::Call) {
+          auto &callInst = static_cast<llvm::CallInst &>(inst);
+          if (callInst.getCalledFunction() &&
+              callInst.getCalledFunction()->getName().startswith(
+                  "llvm.lifetime")) {
+            lifetime.push_back(&callInst);
+          }
+        }
+      }
+    }
+  }
+
+  for (auto &callInst : lifetime) {
+    callInst->removeFromParent();
   }
 
   return llvm::PreservedAnalyses::none();
