@@ -1,6 +1,7 @@
 add_library(lcl_compiler SHARED
   ClangFrontend.cpp
   MetalBackend.cpp
+  passes/mlir/AIRKernelABIPass.cpp
 )
 
 list(APPEND CMAKE_MODULE_PATH

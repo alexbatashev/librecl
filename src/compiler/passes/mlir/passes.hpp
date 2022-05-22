@@ -8,4 +8,5 @@ class Pass;
 
 namespace lcl {
 std::unique_ptr<mlir::Pass> createSPIRToGPUPass();
+std::unique_ptr<mlir::Pass> createAIRKernelABIPass();
 }
