@@ -1,4 +1,5 @@
 #include "MetalBackend.hpp"
+#include "passes/mlir/passes.hpp"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -27,6 +28,7 @@ public:
     mlir::registerAllPasses();
 
     mPM.addPass(mlir::createCanonicalizerPass());
+    mPM.addNestedPass<mlir::LLVM::LLVMFuncOp>(createAIRKernelABIPass());
   }
   std::vector<unsigned char> compile(std::unique_ptr<llvm::Module> module) {
     if (!module) {
