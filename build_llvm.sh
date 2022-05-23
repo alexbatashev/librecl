@@ -2,7 +2,7 @@
 
 if "$CI"; then
   echo "enabling ccache for GitHub Actions"
-  export CACHE_LOC=$GITHUB_WORKSPACE/cache
+  export CACHE_LOC="-DLLVM_CCACHE_DIR=\"$GITHUB_WORKSPACE/cache\""
 fi
 
 cd third_party/llvm-project
@@ -14,7 +14,7 @@ cmake -GNinja -DLLVM_ENABLE_PROJECTS="mlir;clang;lld" \
   -DLLVM_ENABLE_ASSERTIONS=OFF \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-  -DLLVM_CCACHE_MAX_SIZE="8G" \
+  -DLLVM_CCACHE_MAXSIZE="8G" \
   $CACHE_LOC \
   -DLLVM_CCACHE_BUILD=ON ../llvm/
 
