@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ $CI -eq true ]; then
+if "$CI"; then
   echo "enabling ccache for GitHub Actions"
   export CACHE_LOC=$GITHUB_WORKSPACE/cache
 fi
