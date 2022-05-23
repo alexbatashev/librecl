@@ -14,15 +14,15 @@ jobs:
   build_test:
     strategy:
       matrix:
-       os: ["ubuntu-latest", "macos-latest"]
+       os: ['ubuntu-latest', 'macOS-latest']
     runs-on: ${{ matrix.os }}
     steps:
       - name: Install Ubuntu dependencies
-        if: ${{ matrix.os == "ubuntu-latest" }}
+        if: matrix.os == 'ubuntu-latest'
         run:
           sudo apt install -yqq ccache
       - name: Install macOS dependencies
-        if: ${{ matrix.os == "macos-latest" }}
+        if: matrix.os == 'macOS-latest'
         run:
           brew install ccache
       - uses: actions/checkout@v3
