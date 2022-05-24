@@ -21,14 +21,13 @@ namespace detail {
 class MetalBackendImpl {
 public:
   MetalBackendImpl() : mPM(&mContext) {
-    mlir::DialectRegistry registry;
-    // registry.insert<mlir::LLVM::LLVMDialect>();
-    mlir::registerAllDialects(registry);
-    mContext.appendDialectRegistry(registry);
+    mlir::registerAllDialects(mContext);
+    mContext.loadAllAvailableDialects();
     mlir::registerAllPasses();
 
     mPM.addPass(mlir::createCanonicalizerPass());
-    mPM.addNestedPass<mlir::LLVM::LLVMFuncOp>(createAIRKernelABIPass());
+    mPM.addPass(createSPIRToGPUPass());
+    // mPM.addNestedPass<mlir::LLVM::LLVMFuncOp>(createAIRKernelABIPass());
   }
   std::vector<unsigned char> compile(std::unique_ptr<llvm::Module> module) {
     if (!module) {

@@ -113,13 +113,19 @@ public:
     auto E = llvm::getOwningLazyBitcodeModule(std::move(MB), mContext,
                                               /*ShouldLazyLoadMetadata=*/
                                               true);
-    llvm::logAllUnhandledErrors(E.takeError(), errStream, "error: ");
-    errStream << E.takeError() << "\n";
-    errStream.flush();
-    llvm::errs() << errString << "\n";
+    if (auto err = E.takeError()) {
+      errStream << toString(std::move(err)) << "\n";
+      errStream.flush();
+      llvm::errs() << errString << "\n";
+    }
 
     std::unique_ptr<llvm::Module> M = std::move(*E);
     llvm::Error err = M->materializeAll();
+    if (err) {
+      errStream << toString(std::move(err)) << "\n";
+      errStream.flush();
+      llvm::errs() << errString << "\n";
+    }
     //M->print(llvm::errs(), nullptr);
 
     // TODO return error
