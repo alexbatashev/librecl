@@ -1,3 +1,5 @@
+add_subdirectory(dialects/RawMemory)
+
 add_library(lcl_compiler SHARED
   ClangFrontend.cpp
   MetalBackend.cpp
@@ -13,8 +15,8 @@ include(AddLLVM)
 llvm_map_components_to_libnames(llvm_libs
   aggressiveinstcombine
   #amdgpu amdgpuasmparser amdgpucodegen amdgpudesc amdgpudisassembler amdgpuinfo amdgputargetmca amdgpuutils 
-  analysis 
-  asmparser asmprinter 
+  analysis
+  asmparser asmprinter
   binaryformat bitreader bitstreamreader bitwriter
   cfguard
   codegen
@@ -23,15 +25,15 @@ llvm_map_components_to_libnames(llvm_libs
   coverage
   debuginfocodeview debuginfodwarf debuginfogsym debuginfomsf debuginfopdb
   # demangle
-  dlltooldriver dwarflinker 
+  dlltooldriver dwarflinker
   dwp
   #engine executionengine
   extensions
-  #filecheck 
+  #filecheck
   #frontendopenacc
   frontendopenmp
   #fuzzercli
-  #fuzzmutate 
+  #fuzzmutate
   globalisel
   instcombine
   #instrumentation
