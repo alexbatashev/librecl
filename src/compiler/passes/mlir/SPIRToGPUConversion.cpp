@@ -7,6 +7,7 @@
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/SPIRV/IR/TargetAndABI.h"
 #include "mlir/Dialect/GPU/GPUDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -119,12 +120,19 @@ struct FuncConversionPattern : public OpConversionPattern<LLVM::LLVMFuncOp> {
       auto gpuFunc =
           rewriter.create<gpu::GPUFuncOp>(func.getLoc(), name, gpuType);
       rewriter.inlineRegionBefore(func.getBody(), gpuFunc.getBody(),
-                                  gpuFunc.getBody().end());
-      // gpuFunc.body().back().erase();
+                                  gpuFunc.getBody().begin());
+      gpuFunc.body().back().erase();
       if (failed(rewriter.convertRegionTypes(&gpuFunc.getBody(), typeConverter,
                                              &signatureConverter))) {
 
         return failure();
+      }
+
+      if (func.getCConv() == LLVM::CConv::SPIR_KERNEL) {
+        gpuFunc->setAttr(gpu::GPUDialect::getKernelFuncAttrName(), rewriter.getUnitAttr());
+
+        auto abi = spirv::getEntryPointABIAttr(ArrayRef<int32_t>{1, 1, 1}, func.getContext());
+        gpuFunc->setAttr(spirv::getEntryPointABIAttrName(), abi);
       }
     } else {
       rewriter.create<func::FuncOp>(func.getLoc(), name, gpuType,

@@ -10,6 +10,7 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Import.h"
 #include "mlir/Transforms/Passes.h"
+#include "mlir/Dialect/GPU/GPUDialect.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
 #include "llvm/IR/Module.h"
@@ -33,9 +34,16 @@ public:
     mContext.loadAllAvailableDialects();
     mlir::registerAllPasses();
 
+    mContext.disableMultithreading();
+    mPM.enableVerifier(false);
+    mPM.enableIRPrinting();
     mPM.addPass(mlir::createCanonicalizerPass());
     mPM.addPass(createSPIRToGPUPass());
-    // mPM.addNestedPass<mlir::LLVM::LLVMFuncOp>(createAIRKernelABIPass());
+    mPM.addPass(mlir::createCanonicalizerPass());
+    mPM.addNestedPass<mlir::gpu::GPUModuleOp>(createExpandOpenCLFunctionsPass());
+    mPM.addPass(mlir::createInlinerPass());
+    // mPM.addPass(mlir::createConvertControlFlowToSPIRVPass());
+    mPM.addPass(lcl::createGPUToSPIRVPass());
   }
   std::vector<unsigned char> compile(std::unique_ptr<llvm::Module> module) {
     if (!module) {
