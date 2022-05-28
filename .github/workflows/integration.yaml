@@ -7,19 +7,18 @@ on:
   pull_request:
     branches:
       - "develop"
-    paths:
-      - "!doc/**"
 
 jobs:
   build_test:
     strategy:
       matrix:
-       os: ['ubuntu-latest', 'macOS-12']
+       os: ['ubuntu-22.04', 'macOS-12']
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
+      - uses: rui314/setup-mold@v1
       - name: Install Ubuntu dependencies
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-22.04'
         run:
           sudo apt install -yqq ccache ninja-build libtbb-dev
       - name: Install macOS dependencies

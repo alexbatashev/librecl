@@ -1,3 +1,5 @@
+#include "passes.hpp"
+
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/IR/Builders.h"
@@ -5,8 +7,6 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Value.h"
-#include "passes.hpp"
-
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/SmallVector.h"
