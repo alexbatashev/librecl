@@ -16,12 +16,15 @@ include "mlir/IR/OpBase.td"
 //===----------------------------------------------------------------------===//
 
 def RawMemory_Dialect : Dialect {
-    let name = "rawmem";
-    let summary = "Raw memory manipulation dialect.";
-    let description = [{
-      TODO description
-    }];
-    let cppNamespace = "::mlir::rawmem";
+  let name = "rawmem";
+  let summary = "Raw memory manipulation dialect.";
+  let description = [{
+    TODO description
+  }];
+
+  let useDefaultTypePrinterParser = 1;
+
+  let cppNamespace = "::mlir::rawmem";
 }
 
 // Type constraint accepting any pointer type.

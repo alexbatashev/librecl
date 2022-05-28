@@ -79,6 +79,8 @@ target_include_directories(lcl_compiler PRIVATE
   ${LLVM_INCLUDE_DIRS}
   ${CLANG_INCLUDE_DIRS}
   ${MLIR_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/dialects
+  ${CMAKE_CURRENT_BINARY_DIR}/dialects
   )
 target_link_libraries(lcl_compiler PUBLIC
   ${dialect_libs}

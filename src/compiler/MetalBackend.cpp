@@ -16,6 +16,8 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 
+#include "RawMemory/RawMemoryDialect.h"
+
 #include <memory>
 #include <vector>
 
@@ -25,6 +27,9 @@ class MetalBackendImpl {
 public:
   MetalBackendImpl() : mPM(&mContext) {
     mlir::registerAllDialects(mContext);
+    mlir::DialectRegistry registry;
+    registry.insert<mlir::rawmem::RawMemoryDialect>();
+    mContext.appendDialectRegistry(registry);
     mContext.loadAllAvailableDialects();
     mlir::registerAllPasses();
 

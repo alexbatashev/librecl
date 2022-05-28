@@ -1,5 +1,8 @@
 #include "passes.hpp"
 
+#include "../../dialects/RawMemory/RawMemoryDialect.h"
+#include "../../dialects/RawMemory/RawMemoryOps.h"
+#include "../../dialects/RawMemory/RawMemoryTypes.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
@@ -23,6 +26,7 @@ struct GPUTarget : public ConversionTarget {
     addLegalDialect<arith::ArithmeticDialect>();
     addLegalDialect<memref::MemRefDialect>();
     addLegalDialect<func::FuncDialect>();
+    addLegalDialect<rawmem::RawMemoryDialect>();
 
     addIllegalDialect<LLVM::LLVMDialect>();
   }
@@ -157,38 +161,16 @@ struct LoadPattern : public OpConversionPattern<LLVM::LoadOp> {
   LogicalResult
   matchAndRewrite(LLVM::LoadOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    // TODO deal with pointers of pointers
-    auto resType = getTypeConverter()->convertType(op.getRes().getType());
-    MemRefType::Builder builder({-1}, resType);
-    builder.setMemorySpace(
+
+    Type resType = getTypeConverter()->convertType(op.getRes().getType());
+
+    rawmem::PointerType ptrType = rawmem::PointerType::get(
+        resType,
         op.getAddr().getType().cast<LLVM::LLVMPointerType>().getAddressSpace());
-    MemRefType newType = builder;
-
-    Value stride = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 1);
-    Value size = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), -1);
-    SmallVector<OpFoldResult, 1> sizes, strides;
-    sizes.push_back(size);
-    strides.push_back(stride);
-
-    SmallVector<Value, 2> indices;
-
-    // auto base = adaptor.getAddr().getDefiningOp();
-    mlir::Value addr = adaptor.getAddr();
-
-    /*
-    if (llvm::isa<LLVM::GEPOp>(base)) {
-      auto gep = llvm::cast<LLVM::GEPOp>(base);
-      addr = gep.getBase();
-      for (auto idx : gep.getIndices()) {
-        indices.push_back(idx);
-      }
-    }
-    */
-
-    auto newAddr = rewriter.create<memref::ReinterpretCastOp>(
-        op.getLoc(), newType, addr, rewriter.getIndexAttr(0), sizes, strides);
-
-    rewriter.replaceOpWithNewOp<memref::LoadOp>(op, newAddr, indices).dump();
+    auto castedAddr = rewriter.create<rawmem::ReinterpretCastOp>(
+        op.getLoc(), ptrType, adaptor.getAddr());
+    rewriter.replaceOpWithNewOp<rawmem::LoadOp>(op, resType, castedAddr,
+                                                ValueRange{}, false);
 
     return success();
   }
@@ -201,40 +183,14 @@ struct StorePattern : public OpConversionPattern<LLVM::StoreOp> {
   LogicalResult
   matchAndRewrite(LLVM::StoreOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto resType = getTypeConverter()->convertType(op.getValue().getType());
-    MemRefType::Builder builder({-1}, resType);
-    builder.setMemorySpace(
+    Type elemType = getTypeConverter()->convertType(op.getValue().getType());
+    rawmem::PointerType ptrType = rawmem::PointerType::get(
+        elemType,
         op.getAddr().getType().cast<LLVM::LLVMPointerType>().getAddressSpace());
-    MemRefType newType = builder;
-
-    Value stride = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 1);
-    Value size = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), -1);
-    SmallVector<OpFoldResult, 1> sizes, strides;
-    sizes.push_back(size);
-    strides.push_back(stride);
-
-    SmallVector<Value, 2> indices;
-
-    // auto base = adaptor.getAddr().getDefiningOp();
-    mlir::Value addr = adaptor.getAddr();
-
-    /*
-    if (llvm::isa<LLVM::GEPOp>(base)) {
-      auto gep = llvm::cast<LLVM::GEPOp>(base);
-      addr = gep.getBase();
-      for (auto idx : gep.getIndices()) {
-        indices.push_back(idx);
-      }
-    }
-    */
-
-    auto newAddr = rewriter.create<memref::ReinterpretCastOp>(
-        op.getLoc(), newType, addr, rewriter.getIndexAttr(0), sizes, strides);
-
-    rewriter
-        .replaceOpWithNewOp<memref::StoreOp>(op, adaptor.getValue(), newAddr,
-                                             indices)
-        .dump();
+    auto castedAddr = rewriter.create<rawmem::ReinterpretCastOp>(
+        op.getLoc(), ptrType, adaptor.getAddr());
+    rewriter.replaceOpWithNewOp<rawmem::StoreOp>(
+        op, adaptor.getValue(), castedAddr, ValueRange{}, false);
 
     return success();
   }
@@ -363,28 +319,31 @@ struct GEPPattern : public OpConversionPattern<LLVM::GEPOp> {
   LogicalResult
   matchAndRewrite(LLVM::GEPOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    // TODO do something!!!
-    rewriter.replaceOp(op, op.getBase());
-    // rewriter.eraseOp(op);
-    /*
-    // TODO structures access is not supported yet
-    if (!op.getBase().getType().isa<LLVM::LLVMPointerType>())
+    if (!op.getElemType().hasValue())
       return failure();
 
-    SmallVector<Value, 4> indices;
-    for (auto val : adaptor.getIndices()) {
-      auto index = rewriter.create<arith::IndexCastOp>(op.getLoc(),
-    rewriter.getIndexType(), val); indices.push_back(index);
-    }
-    auto resType =
-    getTypeConverter()->convertType(op.getBase().getType()).cast<MemRefType>();
+    if (adaptor.getIndices().size() != 1)
+      return failure();
 
-    Value stride = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 1);
-    Value size = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), -1);
+    Type elemType = getTypeConverter()->convertType(*op.getElemType());
+    auto addrType = adaptor.getBase().getType().cast<rawmem::PointerType>();
+    Type ptrType =
+        rawmem::PointerType::get(elemType, addrType.getAddressSpace());
 
-    rewriter.replaceOpWithNewOp<memref::SubViewOp>(op, resType,
-    adaptor.getBase(), indices, ValueRange{size}, ValueRange{stride});
-    */
+    auto castedAddr = rewriter.create<rawmem::ReinterpretCastOp>(
+        op.getLoc(), ptrType, adaptor.getBase());
+
+    auto origIndex = adaptor.getIndices()[0];
+    auto index = rewriter.create<arith::IndexCastOp>(
+        op.getLoc(), rewriter.getIndexType(), origIndex);
+
+    auto offset = rewriter.create<rawmem::OffsetOp>(op.getLoc(), ptrType,
+                                                    castedAddr, index);
+
+    rewriter.replaceOpWithNewOp<rawmem::ReinterpretCastOp>(
+        op,
+        rawmem::PointerType::get(op.getContext(), addrType.getAddressSpace()),
+        offset);
 
     return success();
   }
@@ -401,8 +360,8 @@ struct AllocaPattern : public OpConversionPattern<LLVM::AllocaOp> {
     auto index = rewriter.create<arith::IndexCastOp>(
         op.getLoc(), rewriter.getIndexType(), adaptor.getArraySize());
     // TODO fix alignment
-    rewriter.replaceOpWithNewOp<memref::AllocaOp>(
-        op, resType.cast<MemRefType>(), index.getOut());
+    rewriter.replaceOpWithNewOp<rawmem::AllocaOp>(
+        op, resType.cast<rawmem::PointerType>(), index.getOut());
     return success();
   }
 };
@@ -411,17 +370,13 @@ struct AllocaPattern : public OpConversionPattern<LLVM::AllocaOp> {
 namespace lcl {
 void populateSPIRToGPUTypeConversions(TypeConverter &converter) {
   converter.addConversion([](LLVM::LLVMPointerType type) {
-    Type elementType;
-    // TODO are opaque pointers this big of a deal?
     if (type.isOpaque()) {
-      elementType = IntegerType::get(type.getContext(), 8);
-    } else {
-      elementType = type.getElementType();
+      return rawmem::PointerType::get(type.getContext(),
+                                      type.getAddressSpace());
     }
-    MemRefType::Builder builder({-1}, elementType);
-    builder.setMemorySpace(type.getAddressSpace());
 
-    return static_cast<MemRefType>(builder);
+    return rawmem::PointerType::get(type.getElementType(),
+                                    type.getAddressSpace());
   });
   converter.addConversion([](IntegerType t) { return t; });
   converter.addConversion([](FloatType t) { return t; });

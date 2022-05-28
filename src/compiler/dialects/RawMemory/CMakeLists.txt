@@ -10,6 +10,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/..)
 add_mlir_dialect_library(MLIRRawMemory
         RawMemoryDialect.cpp
         RawMemoryOps.cpp
+        RawMemoryTypes.cpp
 
         ADDITIONAL_HEADER_DIRS
         ${PROJECT_SOURCE_DIR}/include/RawMemory

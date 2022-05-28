@@ -9,6 +9,7 @@
 #ifndef RAWMEMORY_RAWMEMORYOPS_H
 #define RAWMEMORY_RAWMEMORYOPS_H
 
+#include "RawMemoryTypes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/OpDefinition.h"

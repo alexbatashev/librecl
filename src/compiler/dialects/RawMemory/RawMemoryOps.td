@@ -50,4 +50,119 @@ def RawMemory_AllocaOp : RawMemory_Op<"alloca"> {
   let hasCustomAssemblyFormat = 1;
   let hasVerifier = 1;
 }
+
+def RawMemory_LoadOp : RawMemory_Op<"load"> {
+  let arguments = (ins Arg<RawMem_AnyPointer, "", [MemRead]>:$addr,
+                   Variadic<Index>:$indices, UnitAttr:$volatility);
+  let results = (outs AnyType:$res);
+
+  let builders = [
+    OpBuilder<(ins "Value":$addr, CArg<"ValueRange", "{}">:$indices,
+        CArg<"bool","false">:$isVolatile), [{
+      $_state.addOperands(addr);
+      if (indices.size())
+        $_state.addOperands(indices);
+
+      auto type = addr.getType().cast<PointerType>().getElementType();
+      $_state.addTypes(type);
+    }]>,
+  ];
+
+  // TODO volatile
+  let assemblyFormat = "(`volatile` $volatility^)? $addr (`[` $indices^ `]`)? attr-dict `:` type($addr) `,` type($res)";
+  let hasVerifier = 1;
+}
+
+def RawMemory_StoreOp : RawMemory_Op<"store"> {
+  let arguments = (ins AnyType:$value,
+                   Arg<RawMem_AnyPointer, "", [MemWrite]>:$addr,
+                   Variadic<Index>:$indices, UnitAttr:$volatility);
+
+  /*
+  let builders = [
+    OpBuilder<(ins "Value":$value, "Value":$addr, "ValueRange":$indices,
+        CArg<"bool","false">:$isVolatile), [{
+      $_state.addOperands(value);
+      $_state.addOperands(addr);
+      $_state.addOperands(indices);
+      if (isVolatile)
+        $_state.addAttribute(getVolatileAttrName(), $_builder.getUnitAttr());
+    }]>,
+  ];
+  */
+  let extraClassDeclaration = [{
+    static StringRef getVolatileAttrName() { return "volatility"; }
+  }];
+
+  let assemblyFormat = [{
+    (`volatile` $volatility^)? $value `,` $addr (`[` $indices^ `]`)? attr-dict
+      `:` type($value) `,` type($addr)
+  }];
+  let hasVerifier = 1;
+}
+
+def RawMemory_ReinterpretCastOp : RawMemory_Op<"reinterpret_cast"> {
+  let arguments = (ins RawMem_AnyPointer:$addr);
+  let results = (outs RawMem_AnyPointer:$out);
+
+  let assemblyFormat = [{
+    $addr attr-dict type($addr) `to` type($out)
+  }];
+}
+
+def RawMemory_OffsetOp : RawMemory_Op<"offset", [
+  TypesMatchWith<"result types matches with base addres", "addr", "out",
+  "$_self">
+]> {
+  let arguments = (ins RawMem_AnyPointer:$addr, Index:$offset);
+  let results = (outs RawMem_AnyPointer:$out);
+
+  let assemblyFormat = [{
+    $addr `[` $offset `]` attr-dict `:` type($addr)
+  }];
+}
+
+// TODO specify more constraints
+/*
+def RawMemory_LoadOp : RawMemory_Op<"load"> {
+  let arguments = (ins Arg<RawMem_AnyPointer, "", [MemRead]>:$addr,
+                   OptionalAttr<SymbolRefArrayAttr>:$access_groups,
+                   OptionalAttr<SymbolRefArrayAttr>:$alias_scopes,
+                   OptionalAttr<SymbolRefArrayAttr>:$noalias_scopes,
+                   OptionalAttr<I64Attr>:$alignment, UnitAttr:$volatile_,
+                   UnitAttr:$nontemporal);
+  let results = (outs AnyType:$res);
+  let builders = [
+    OpBuilder<(ins "Value":$addr, CArg<"unsigned", "0">:$alignment,
+      CArg<"bool", "false">:$isVolatile, CArg<"bool", "false">:$isNonTemporal),
+    [{
+      auto type = addr.getType().cast<PointerType>().getElementType();
+      assert(type && "must provide explicit element type to the constructor "
+                     "when the pointer type is opaque");
+      build($_builder, $_state, type, addr, alignment, isVolatile, isNonTemporal);
+    }]>,
+    OpBuilder<(ins "Type":$t, "Value":$addr,
+      CArg<"unsigned", "0">:$alignment, CArg<"bool", "false">:$isVolatile,
+      CArg<"bool", "false">:$isNonTemporal)>,];
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
+}
+
+def RawMemory_StoreOp : RawMemory_Op<"store"> {
+  let arguments = (ins AnyType:$value,
+                   Arg<RawMem_AnyPointer,"",[MemWrite]>:$addr,
+                   OptionalAttr<SymbolRefArrayAttr>:$access_groups,
+                   OptionalAttr<SymbolRefArrayAttr>:$alias_scopes,
+                   OptionalAttr<SymbolRefArrayAttr>:$noalias_scopes,
+                   OptionalAttr<I64Attr>:$alignment, UnitAttr:$volatile_,
+                   UnitAttr:$nontemporal);
+  let builders = [
+    OpBuilder<(ins "Value":$value, "Value":$addr,
+      CArg<"unsigned", "0">:$alignment, CArg<"bool", "false">:$isVolatile,
+      CArg<"bool", "false">:$isNonTemporal)>
+    ];
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
+}
+*/
 #endif // RAWMEMORY_OPS

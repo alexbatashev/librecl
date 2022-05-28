@@ -6,6 +6,7 @@ Help() {
   echo " d - enable debug builds"
   echo " l - use LLD linker"
   echo
+  exit 0
 }
 
 if "$CI"; then
@@ -21,7 +22,7 @@ else
   while getopts ":hdl" options; do
     case "${options}" in
       h)
-        Help()
+        Help
         ;;
       d)
         BUILD_TYPE=Debug
@@ -30,7 +31,7 @@ else
         USE_LLD=ON
         ;;
       \?)
-        Help()
+        Help
     esac
   done
 fi
