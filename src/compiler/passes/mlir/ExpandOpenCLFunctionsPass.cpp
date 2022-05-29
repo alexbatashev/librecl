@@ -51,7 +51,7 @@ void expandGetGlobalId(func::FuncOp func) {
       builder.getI32Type());
   Value isY = builder.create<arith::CmpIOp>(builder.getUnknownLoc(),
                                             arith::CmpIPredicate::eq,
-                                            entry.getArgument(0), zero);
+                                            entry.getArgument(0), one);
   builder.create<cf::CondBranchOp>(builder.getUnknownLoc(), isY, &blockY,
                                    ValueRange{}, &elseY, ValueRange{});
 
@@ -63,7 +63,7 @@ void expandGetGlobalId(func::FuncOp func) {
       builder.getUnknownLoc(), builder.getIndexAttr(0), builder.getIndexType());
   Value isZ = builder.create<arith::CmpIOp>(builder.getUnknownLoc(),
                                             arith::CmpIPredicate::eq,
-                                            entry.getArgument(0), zero);
+                                            entry.getArgument(0), two);
   builder.create<cf::CondBranchOp>(builder.getUnknownLoc(), isZ, &blockZ,
                                    ValueRange{}, &exit, ValueRange{defaultVal});
   // builder.create<cf::SwitchOp>(builder.getUnknownLoc(), entry.getArgument(0),

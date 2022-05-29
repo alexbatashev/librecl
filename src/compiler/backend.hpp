@@ -1,14 +1,13 @@
 #pragma once
 
-#include "llvm/IR/Module.h"
+#include "frontend.hpp"
 
 #include <vector>
 
 namespace lcl {
 class Backend {
 public:
-  virtual std::vector<unsigned char>
-  compile(std::unique_ptr<llvm::Module> module) = 0;
+  virtual std::vector<unsigned char> compile(FrontendResult &module) = 0;
 
   virtual ~Backend() = default;
 };
