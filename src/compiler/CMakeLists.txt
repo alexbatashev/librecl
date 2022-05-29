@@ -5,6 +5,8 @@ add_library(lcl_compiler SHARED
   MetalBackend.cpp
   passes/mlir/AIRKernelABIPass.cpp
   passes/mlir/SPIRToGPUConversion.cpp
+  passes/mlir/ExpandOpenCLFunctionsPass.cpp
+  passes/mlir/GPUToSPIRVPass.cpp
 )
 
 list(APPEND CMAKE_MODULE_PATH

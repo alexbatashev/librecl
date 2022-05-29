@@ -1,6 +1,7 @@
 #include "MetalBackend.hpp"
 #include "passes/mlir/passes.hpp"
 
+#include "mlir/Dialect/GPU/GPUDialect.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/DialectRegistry.h"
@@ -33,9 +34,19 @@ public:
     mContext.loadAllAvailableDialects();
     mlir::registerAllPasses();
 
+    /*
+    mContext.disableMultithreading();
+    mPM.enableVerifier(false);
+    mPM.enableIRPrinting();
+    */
     mPM.addPass(mlir::createCanonicalizerPass());
     mPM.addPass(createSPIRToGPUPass());
-    // mPM.addNestedPass<mlir::LLVM::LLVMFuncOp>(createAIRKernelABIPass());
+    mPM.addPass(mlir::createCanonicalizerPass());
+    mPM.addNestedPass<mlir::gpu::GPUModuleOp>(
+        createExpandOpenCLFunctionsPass());
+    mPM.addPass(mlir::createInlinerPass());
+    // mPM.addPass(mlir::createConvertControlFlowToSPIRVPass());
+    mPM.addPass(lcl::createGPUToSPIRVPass());
   }
   std::vector<unsigned char> compile(std::unique_ptr<llvm::Module> module) {
     if (!module) {
