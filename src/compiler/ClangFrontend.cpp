@@ -1,4 +1,5 @@
 #include "ClangFrontend.hpp"
+#include "frontend_impl.hpp"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -44,9 +45,8 @@ public:
     mDiagOpts->ShowPresumedLoc = true;
   }
 
-  std::unique_ptr<llvm::Module>
-  process(const std::string_view source,
-          const llvm::ArrayRef<llvm::StringRef> options) {
+  FrontendResult process(const std::string_view source,
+                         const llvm::ArrayRef<llvm::StringRef> options) {
     std::string errString;
     llvm::raw_string_ostream errStream(errString);
 
@@ -104,6 +104,9 @@ public:
     bool success = clang::ExecuteCompilerInvocation(mCompiler.get());
 
     errStream.flush();
+    if (!success) {
+      return FrontendResult{errString};
+    }
 
     llvm::StringRef irModule(static_cast<const char *>(irBuffer.data()),
                              irBuffer.size());
@@ -117,7 +120,7 @@ public:
     if (auto err = E.takeError()) {
       errStream << toString(std::move(err)) << "\n";
       errStream.flush();
-      llvm::errs() << errString << "\n";
+      return FrontendResult{errString};
     }
 
     std::unique_ptr<llvm::Module> M = std::move(*E);
@@ -125,12 +128,10 @@ public:
     if (err) {
       errStream << toString(std::move(err)) << "\n";
       errStream.flush();
-      llvm::errs() << errString << "\n";
+      return FrontendResult{errString};
     }
-    //M->print(llvm::errs(), nullptr);
 
-    // TODO return error
-    return M;
+    return FrontendResult{std::make_shared<detail::Module>(std::move(M))};
   }
 
 private:
@@ -144,9 +145,8 @@ private:
 ClangFrontend::ClangFrontend()
     : mImpl(std::make_shared<detail::ClangFrontendImpl>()) {}
 
-std::unique_ptr<llvm::Module>
-ClangFrontend::process(std::string_view input,
-                       std::span<std::string_view> options) {
+FrontendResult ClangFrontend::process(std::string_view input,
+                                      std::span<std::string_view> options) {
   llvm::SmallVector<llvm::StringRef, 15> opts;
   for (std::string_view opt : options) {
     opts.push_back(llvm::StringRef{opt});

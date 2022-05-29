@@ -1,4 +1,3 @@
-add_subdirectory(cpu)
-if (APPLE)
-  add_subdirectory(metal)
-endif()
+foreach(rt IN LISTS LIBRECL_BACKENDS)
+  add_subdirectory(${rt})
+endforeach()

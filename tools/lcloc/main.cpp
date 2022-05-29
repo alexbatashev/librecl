@@ -26,12 +26,12 @@ int main() {
   lcl::ClangFrontend FE;
   auto IR = FE.process(kernelSource, {});
 
-  if (!IR)
+  if (!IR.success())
     return -1;
 
   lcl::MetalBackend BE;
-  IR->print(llvm::errs(), nullptr);
-  BE.compile(std::move(IR));
+  // IR->print(llvm::errs(), nullptr);
+  BE.compile(IR);
 
   return 0;
 }

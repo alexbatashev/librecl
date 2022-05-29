@@ -1,8 +1,11 @@
 add_subdirectory(dialects/RawMemory)
 
 add_library(lcl_compiler SHARED
+  frontend.cpp
   ClangFrontend.cpp
   MetalBackend.cpp
+  VulkanBackend.cpp
+  VulkanSPVBackendImpl.cpp
   passes/mlir/AIRKernelABIPass.cpp
   passes/mlir/SPIRToGPUConversion.cpp
   passes/mlir/ExpandOpenCLFunctionsPass.cpp
@@ -77,14 +80,18 @@ llvm_map_components_to_libnames(llvm_libs
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 
-target_include_directories(lcl_compiler PRIVATE
+target_include_directories(lcl_compiler SYSTEM PRIVATE
   ${LLVM_INCLUDE_DIRS}
   ${CLANG_INCLUDE_DIRS}
   ${MLIR_INCLUDE_DIRS}
+  )
+
+target_include_directories(lcl_compiler PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/dialects
   ${CMAKE_CURRENT_BINARY_DIR}/dialects
-  )
-target_link_libraries(lcl_compiler PUBLIC
+)
+
+target_link_libraries(lcl_compiler PRIVATE
   ${dialect_libs}
   ${conversion_libs}
   ${llvm_libs}

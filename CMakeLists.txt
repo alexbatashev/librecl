@@ -53,9 +53,26 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
-include(FileEmbed)
-FileEmbedSetup()
 
+if (NOT DEFINED LIBRECL_BACKENDS)
+  set(LIBRECL_BACKENDS "auto")
+endif()
+
+if (LIBRECL_BACKENDS MATCHES "auto")
+  set(LIBRECL_BACKENDS "")
+
+  if (APPLE)
+    message("Enabling Apple Metal backend")
+    list(APPEND LIBRECL_BACKENDS "metal")
+  endif()
+  find_package(Vulkan)
+  if (Vulkan_FOUND)
+    message("Enabling Vulkan backend")
+    list(APPEND LIBRECL_BACKENDS "vulkan")
+  endif()
+endif()
+
+add_subdirectory(examples)
 add_subdirectory(src)
 add_subdirectory(tools)
 add_subdirectory(third_party)

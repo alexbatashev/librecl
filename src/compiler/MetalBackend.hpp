@@ -1,7 +1,7 @@
 #pragma once
 
 #include "backend.hpp"
-#include "llvm/IR/Module.h"
+
 #include <memory>
 
 namespace lcl {
@@ -11,9 +11,8 @@ class MetalBackendImpl;
 class MetalBackend : public Backend {
 public:
   MetalBackend();
-  
-  std::vector<unsigned char>
-  compile(std::unique_ptr<llvm::Module> module) final;
+
+  std::vector<unsigned char> compile(FrontendResult &module) final;
 
   ~MetalBackend() = default;
 
