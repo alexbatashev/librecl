@@ -7,10 +7,10 @@
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/SPIRV/IR/TargetAndABI.h"
 #include "mlir/Dialect/GPU/GPUDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SPIRV/IR/TargetAndABI.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/Pass.h"
@@ -91,6 +91,18 @@ struct FuncConversionPattern : public OpConversionPattern<LLVM::LLVMFuncOp> {
       rewriter.setInsertionPointToStart(&module.getBodyRegion().front());
       gpuModule =
           rewriter.create<gpu::GPUModuleOp>(module.getLoc(), "ocl_program");
+      auto triple = spirv::VerCapExtAttr::get(
+          spirv::Version::V_1_3,
+          {spirv::Capability::Shader, spirv::Capability::Addresses,
+           spirv::Capability::Float64, spirv::Capability::Int64,
+           spirv::Capability::Int8},
+          ArrayRef<spirv::Extension>(), module.getContext());
+
+      auto attr = spirv::TargetEnvAttr::get(
+          triple, spirv::Vendor::Unknown, spirv::DeviceType::Unknown,
+          spirv::TargetEnvAttr::kUnknownDeviceID,
+          spirv::getDefaultResourceLimits(module.getContext()));
+      module->setAttr(spirv::getTargetEnvAttrName(), attr);
     }
 
     auto funcType = func.getFunctionType();
@@ -129,9 +141,11 @@ struct FuncConversionPattern : public OpConversionPattern<LLVM::LLVMFuncOp> {
       }
 
       if (func.getCConv() == LLVM::CConv::SPIR_KERNEL) {
-        gpuFunc->setAttr(gpu::GPUDialect::getKernelFuncAttrName(), rewriter.getUnitAttr());
+        gpuFunc->setAttr(gpu::GPUDialect::getKernelFuncAttrName(),
+                         rewriter.getUnitAttr());
 
-        auto abi = spirv::getEntryPointABIAttr(ArrayRef<int32_t>{1, 1, 1}, func.getContext());
+        auto abi = spirv::getEntryPointABIAttr(ArrayRef<int32_t>{1, 1, 1},
+                                               func.getContext());
         gpuFunc->setAttr(spirv::getEntryPointABIAttrName(), abi);
       }
     } else {

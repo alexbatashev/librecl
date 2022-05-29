@@ -6,26 +6,25 @@
 #include "../../dialects/RawMemory/RawMemoryOps.h"
 #include "../../dialects/RawMemory/RawMemoryTypes.h"
 #include "mlir/Conversion/ArithmeticToSPIRV/ArithmeticToSPIRV.h"
+#include "mlir/Conversion/ControlFlowToSPIRV/ControlFlowToSPIRV.h"
 #include "mlir/Conversion/FuncToSPIRV/FuncToSPIRV.h"
 #include "mlir/Conversion/GPUToSPIRV/GPUToSPIRV.h"
 #include "mlir/Conversion/MemRefToSPIRV/MemRefToSPIRV.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/GPU/GPUDialect.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVDialect.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVOps.h"
 #include "mlir/Dialect/SPIRV/Transforms/SPIRVConversion.h"
-#include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Pass/Pass.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include "mlir/Conversion/ControlFlowToSPIRV/ControlFlowToSPIRV.h"
 
 using namespace mlir;
 
 namespace {
 struct GPUToSPIRVPass
-    : public PassWrapper<GPUToSPIRVPass,
-                               OperationPass<ModuleOp>> {
+    : public PassWrapper<GPUToSPIRVPass, OperationPass<ModuleOp>> {
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     ModuleOp module = getOperation();
@@ -43,6 +42,7 @@ struct GPUToSPIRVPass
     auto targetAttr = spirv::lookupTargetEnvOrDefault(module);
     std::unique_ptr<ConversionTarget> target =
         SPIRVConversionTarget::get(targetAttr);
+    target->addIllegalDialect<rawmem::RawMemoryDialect>();
 
     SPIRVTypeConverter typeConverter(targetAttr);
     RewritePatternSet patterns(context);
@@ -58,9 +58,10 @@ struct GPUToSPIRVPass
     lcl::populateRawMemoryToSPIRVTypeConversions(typeConverter, targetAttr);
     lcl::populateRawMemoryToSPIRVConversionPatterns(typeConverter, patterns);
 
-    if (failed(applyFullConversion(kernelModules, *target, std::move(patterns))))
+    if (failed(
+            applyFullConversion(kernelModules, *target, std::move(patterns))))
       return signalPassFailure();
-    }
+  }
 };
 
 struct LoadPattern : public OpConversionPattern<rawmem::LoadOp> {
@@ -86,7 +87,8 @@ struct StorePattern : public OpConversionPattern<rawmem::StoreOp> {
   matchAndRewrite(rawmem::StoreOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    rewriter.replaceOpWithNewOp<spirv::StoreOp>(op, adaptor.addr(), adaptor.value());
+    rewriter.replaceOpWithNewOp<spirv::StoreOp>(op, adaptor.addr(),
+                                                adaptor.value());
 
     return success();
   }
@@ -100,13 +102,15 @@ struct OffsetPattern : public OpConversionPattern<rawmem::OffsetOp> {
   matchAndRewrite(rawmem::OffsetOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    rewriter.replaceOpWithNewOp<spirv::AccessChainOp>(op, adaptor.addr(), adaptor.offset());
+    rewriter.replaceOpWithNewOp<spirv::PtrAccessChainOp>(
+        op, adaptor.addr(), adaptor.offset(), ValueRange{});
 
     return success();
   }
 };
 
-struct ReinterpretCastPattern : public OpConversionPattern<rawmem::ReinterpretCastOp> {
+struct ReinterpretCastPattern
+    : public OpConversionPattern<rawmem::ReinterpretCastOp> {
   using Base = OpConversionPattern<rawmem::ReinterpretCastOp>;
   using Base::OpConversionPattern;
 
@@ -114,7 +118,8 @@ struct ReinterpretCastPattern : public OpConversionPattern<rawmem::ReinterpretCa
   matchAndRewrite(rawmem::ReinterpretCastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    Type type = getTypeConverter()->convertType(op.out().getType().cast<rawmem::PointerType>());
+    Type type = getTypeConverter()->convertType(
+        op.out().getType().cast<rawmem::PointerType>());
     rewriter.replaceOpWithNewOp<spirv::BitcastOp>(op, type, adaptor.addr());
 
     return success();
@@ -133,7 +138,8 @@ struct FuncPattern : public OpConversionPattern<func::FuncOp> {
     // Update the signature to valid SPIR-V types and add the ABI
     // attributes. These will be "materialized" by using the
     // LowerABIAttributesPass.
-    TypeConverter::SignatureConversion signatureConverter(fnType.getNumInputs());
+    TypeConverter::SignatureConversion signatureConverter(
+        fnType.getNumInputs());
     {
       for (const auto &argType :
            enumerate(funcOp.getFunctionType().getInputs())) {
@@ -158,31 +164,34 @@ struct FuncPattern : public OpConversionPattern<func::FuncOp> {
 
     rewriter.inlineRegionBefore(funcOp.getBody(), newFuncOp.getBody(),
                                 newFuncOp.end());
-    if (failed(rewriter.convertRegionTypes(&newFuncOp.getBody(), *getTypeConverter(),
-                                           &signatureConverter)))
+    if (failed(rewriter.convertRegionTypes(
+            &newFuncOp.getBody(), *getTypeConverter(), &signatureConverter)))
       return failure();
     rewriter.eraseOp(funcOp);
 
     return success();
   }
 };
-}
+} // namespace
 
-static mlir::spirv::StorageClass addrSpaceToVulkanStorageClass(unsigned addrSpace) {
+static mlir::spirv::StorageClass
+addrSpaceToVulkanStorageClass(unsigned addrSpace) {
   switch (addrSpace) {
-    case 1:
-      return spirv::StorageClass::CrossWorkgroup;
-    default:
-      llvm_unreachable("Unknown address space");
+  case 1:
+    return spirv::StorageClass::CrossWorkgroup;
+  default:
+    llvm_unreachable("Unknown address space");
   }
 }
 
-static mlir::spirv::StorageClass addrSpaceToStorageClass(unsigned addrSpace, mlir::spirv::TargetEnvAttr) {
+static mlir::spirv::StorageClass
+addrSpaceToStorageClass(unsigned addrSpace, mlir::spirv::TargetEnvAttr) {
   // TODO OpenCL?
   return addrSpaceToVulkanStorageClass(addrSpace);
 }
 
-void lcl::populateRawMemoryToSPIRVTypeConversions(mlir::TypeConverter &converter, mlir::spirv::TargetEnvAttr env) {
+void lcl::populateRawMemoryToSPIRVTypeConversions(
+    mlir::TypeConverter &converter, mlir::spirv::TargetEnvAttr env) {
   converter.addConversion([=, &converter](rawmem::PointerType ptr) {
     auto sc = addrSpaceToStorageClass(ptr.getAddressSpace(), env);
     Type type;
@@ -195,9 +204,10 @@ void lcl::populateRawMemoryToSPIRVTypeConversions(mlir::TypeConverter &converter
     return spirv::PointerType::get(type, sc);
   });
 }
-void lcl::populateRawMemoryToSPIRVConversionPatterns(mlir::TypeConverter &converter,
-                                                mlir::RewritePatternSet &patterns) {
-  patterns.add<LoadPattern, StorePattern, OffsetPattern, ReinterpretCastPattern, FuncPattern>(converter, patterns.getContext());
+void lcl::populateRawMemoryToSPIRVConversionPatterns(
+    mlir::TypeConverter &converter, mlir::RewritePatternSet &patterns) {
+  patterns.add<LoadPattern, StorePattern, OffsetPattern, ReinterpretCastPattern,
+               FuncPattern>(converter, patterns.getContext());
 }
 
 std::unique_ptr<mlir::Pass> lcl::createGPUToSPIRVPass() {

@@ -16,7 +16,8 @@ void populateSPIRToGPUTypeConversions(mlir::TypeConverter &);
 void populateSPIRToGPUConversionPatterns(mlir::TypeConverter &,
                                          mlir::RewritePatternSet &);
 
-void populateRawMemoryToSPIRVTypeConversions(mlir::TypeConverter &, mlir::spirv::TargetEnvAttr);
+void populateRawMemoryToSPIRVTypeConversions(mlir::TypeConverter &,
+                                             mlir::spirv::TargetEnvAttr);
 void populateRawMemoryToSPIRVConversionPatterns(mlir::TypeConverter &,
                                                 mlir::RewritePatternSet &);
 

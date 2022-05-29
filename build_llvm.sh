@@ -40,6 +40,11 @@ cd third_party/llvm-project
 
 mkdir -p build && cd build
 
+wget https://reviews.llvm.org/file/data/enmouraycvpkr5ptrpke/PHID-FILE-el4gfzbx3qkdn2w42rk3/D126594.diff
+cd ../mlir
+git apply ../build/D126594.diff
+cd ../build
+
 cmake -GNinja -DLLVM_ENABLE_PROJECTS="mlir;clang;lld" \
   -DLLVM_TARGETS_TO_BUILD="host;AMDGPU;NVPTX" \
   -DLLVM_ENABLE_ASSERTIONS=$ASSERTIONS \

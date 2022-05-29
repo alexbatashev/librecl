@@ -4,11 +4,10 @@
 
 const char *kernelSource =
     "\n"
-    "#pragma OPENCL EXTENSION cl_khr_fp64 : enable                    \n"
     // "void foo() {}                                                    \n"
-    "__kernel void vecAdd(  __global double *a,                       \n"
-    "                       __global double *b,                       \n"
-    "                       __global double *c,                       \n"
+    "__kernel void vecAdd(  __global float *a,                       \n"
+    "                       __global float *b,                       \n"
+    "                       __global float *c,                       \n"
     "                       const unsigned int n)                    \n"
     "{                                                               \n"
     "    //Get our global thread ID                                  \n"
