@@ -16,6 +16,7 @@
 #include "mlir/Transforms/Passes.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
+#include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Transforms/Utils/Cloning.h"
@@ -44,7 +45,6 @@ VulkanSPVBackendImpl::VulkanSPVBackendImpl() : mPM(&mContext) {
   mPM.addPass(mlir::createCanonicalizerPass());
   mPM.addNestedPass<mlir::gpu::GPUModuleOp>(createExpandOpenCLFunctionsPass());
   mPM.addPass(mlir::createInlinerPass());
-  // mPM.addPass(mlir::createConvertControlFlowToSPIRVPass());
   mPM.addPass(lcl::createGPUToSPIRVPass());
   mPM.addNestedPass<mlir::spirv::ModuleOp>(
       mlir::spirv::createLowerABIAttributesPass());
@@ -56,7 +56,6 @@ VulkanSPVBackendImpl::compile(std::unique_ptr<llvm::Module> module) {
   if (!module) {
     llvm::errs() << "INVALID MODULE!!!\n";
   }
-  module->print(llvm::errs(), nullptr);
 
   {
     // TODO this is an unnecessary hack to avoid support of memrefs of memrefs
@@ -90,40 +89,50 @@ VulkanSPVBackendImpl::compile(std::unique_ptr<llvm::Module> module) {
     MPM.run(*module, MAM);
   }
 
+  // TODO only print conditionally
+  {
+    llvm::SmallVector<char, 10000> buffer;
+    llvm::BitcodeWriter writer(buffer);
+    writer.writeModule(*module);
+    writer.writeStrtab();
+    std::span<char> res{buffer.begin(), buffer.end()};
+    mLLVMIRPrinter(res);
+  }
+  {
+    std::string res;
+    llvm::raw_string_ostream os{res};
+    module->print(os, nullptr);
+    os.flush();
+    mLLVMTextPrinter(res);
+  }
+
   auto clone = llvm::CloneModule(*module);
   auto mlirModule = mlir::translateLLVMIRToModule(std::move(clone), &mContext);
 
   // TODO check result
   mPM.run(mlirModule.get());
-  mlirModule->dump();
+
+  {
+    std::string res;
+    llvm::raw_string_ostream os{res};
+    mlirModule->print(os);
+    os.flush();
+    mMLIRPrinter(res);
+  }
 
   llvm::SmallVector<uint32_t, 10000> binary;
 
-  /*
   auto spvModule =
       mlirModule->lookupSymbol<mlir::spirv::ModuleOp>("__spv__ocl_program");
   mlir::spirv::serialize(spvModule, binary);
-*/
 
-  llvm::SmallVector<mlir::spirv::ModuleOp, 1> spirvModules;
-  mlirModule->walk(
-      [&](mlir::spirv::ModuleOp op) { spirvModules.push_back(op); });
-
-  if (spirvModules.size() == 0) {
-    // todo return error
-    return {};
-  }
-
-  if (spirvModules.size() > 1) {
-    // todo return error
-    return {};
-  }
-
-  mlir::spirv::serialize(spirvModules.front(), binary);
+  mlir::spirv::serialize(spvModule, binary);
 
   std::vector<unsigned char> resBinary;
   resBinary.resize(sizeof(uint32_t) * binary.size());
   std::memcpy(resBinary.data(), binary.data(), resBinary.size());
+
+  { mSPVPrinter(resBinary); }
 
   return resBinary;
 }
