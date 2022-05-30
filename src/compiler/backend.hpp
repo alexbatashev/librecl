@@ -1,11 +1,12 @@
 #pragma once
 
 #include "frontend.hpp"
+#include "visibility.hpp"
 
 #include <vector>
 
 namespace lcl {
-class Backend {
+class LCL_COMP_EXPORT Backend {
 public:
   virtual std::vector<unsigned char> compile(FrontendResult &module) = 0;
 

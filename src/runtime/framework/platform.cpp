@@ -1,5 +1,6 @@
 #include "platform.hpp"
 #include "info.hpp"
+#include "ocl_api.hpp"
 
 #include <CL/cl.h>
 #include <algorithm>
@@ -8,8 +9,8 @@ static _cl_platform_id *gPlatforms = nullptr;
 static unsigned gNumPlatforms = 0;
 
 extern "C" {
-cl_int clGetPlatformIDs(cl_uint num_entries, cl_platform_id *platforms,
-                        cl_uint *num_platforms) {
+cl_int LCL_API clGetPlatformIDs(cl_uint num_entries, cl_platform_id *platforms,
+                                cl_uint *num_platforms) {
   if (num_platforms == nullptr && platforms == nullptr) {
     // log: Both platforms and num_platforms are NULL
     return CL_INVALID_VALUE;
@@ -37,9 +38,10 @@ cl_int clGetPlatformIDs(cl_uint num_entries, cl_platform_id *platforms,
   return CL_SUCCESS;
 }
 
-cl_int clGetPlatformInfo(cl_platform_id platform, cl_platform_info paramName,
-                         size_t paramValueSize, void *paramValue,
-                         size_t *paramValueSizeRet) {
+cl_int LCL_API clGetPlatformInfo(cl_platform_id platform,
+                                 cl_platform_info paramName,
+                                 size_t paramValueSize, void *paramValue,
+                                 size_t *paramValueSizeRet) {
   switch (paramName) {
   case CL_PLATFORM_PROFILE: {
     if (platform->isFullProfile()) {

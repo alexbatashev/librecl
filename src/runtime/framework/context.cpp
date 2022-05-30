@@ -1,7 +1,8 @@
 #include "context.hpp"
+#include "ocl_api.hpp"
 
 extern "C" {
-cl_context clCreateContext(
+cl_context LCL_API clCreateContext(
     const cl_context_properties *properties, cl_uint num_devices,
     const cl_device_id *devices,
     void(CL_CALLBACK *pfn_notify)(const char *errinfo, const void *private_info,

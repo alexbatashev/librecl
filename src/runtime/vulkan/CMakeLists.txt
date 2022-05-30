@@ -1,6 +1,6 @@
 find_package(Vulkan REQUIRED)
 
-add_library(lcl_icd_vulkan SHARED
+add_librecl_runtime(lcl_icd_vulkan SHARED
   platform.cpp
   device.cpp
   context.cpp
@@ -15,13 +15,8 @@ add_library(lcl_icd_vulkan SHARED
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/program.cpp
 )
 
-target_include_directories(lcl_icd_vulkan PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${PROJECT_SOURCE_DIR}/src/compiler
-)
 
 target_include_directories(lcl_icd_vulkan SYSTEM PRIVATE
-  ${PROJECT_SOURCE_DIR}/third_party/OpenCL-Headers
   ${PROJECT_SOURCE_DIR}/third_party/vma
 )
 
@@ -33,7 +28,6 @@ target_link_libraries(lcl_icd_vulkan PRIVATE
   )
 
 target_compile_definitions(lcl_icd_vulkan PRIVATE
-  -DCL_TARGET_OPENCL_VERSION=300
   -DVULKAN_HPP_NO_EXCEPTIONS
 )
 

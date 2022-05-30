@@ -1,6 +1,7 @@
 #pragma once
 
 #include "backend.hpp"
+#include "visibility.hpp"
 
 #include <memory>
 
@@ -8,7 +9,7 @@ namespace lcl {
 namespace detail {
 class MetalBackendImpl;
 }
-class MetalBackend : public Backend {
+class LCL_COMP_EXPORT MetalBackend : public Backend {
 public:
   MetalBackend();
 

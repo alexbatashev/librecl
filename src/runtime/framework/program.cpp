@@ -1,14 +1,15 @@
 #include "program.hpp"
+#include "ocl_api.hpp"
 
 #include <CL/cl.h>
 
 #include <optional>
 
 extern "C" {
-cl_program clCreateProgramWithSource(cl_context context, cl_uint count,
-                                     const char **strings,
-                                     const size_t *lengths,
-                                     cl_int *errcode_ret) {
+cl_program LCL_API clCreateProgramWithSource(cl_context context, cl_uint count,
+                                             const char **strings,
+                                             const size_t *lengths,
+                                             cl_int *errcode_ret) {
   if (!context) {
     *errcode_ret = CL_INVALID_CONTEXT;
     return nullptr;
@@ -44,11 +45,12 @@ cl_program clCreateProgramWithSource(cl_context context, cl_uint count,
   return new _cl_program(context, program);
 }
 
-cl_int clBuildProgram(cl_program program, cl_uint num_devices,
-                      const cl_device_id *device_list, const char *options,
-                      void(CL_CALLBACK *pfn_notify)(cl_program program,
-                                                    void *user_data),
-                      void *user_data) {
+cl_int LCL_API clBuildProgram(cl_program program, cl_uint num_devices,
+                              const cl_device_id *device_list,
+                              const char *options,
+                              void(CL_CALLBACK *pfn_notify)(cl_program program,
+                                                            void *user_data),
+                              void *user_data) {
   if (!program) {
     // log: program is nullptr
     return CL_INVALID_PROGRAM;

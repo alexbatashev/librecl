@@ -13,12 +13,13 @@
 // with ranges-v3 and thus must come after them
 #include "device.hpp"
 #include "info.hpp"
+#include "ocl_api.hpp"
 #include "platform.hpp"
 
 extern "C" {
-cl_int clGetDeviceIDs(cl_platform_id platform, cl_device_type device_type,
-                      cl_uint num_entries, cl_device_id *devices,
-                      cl_uint *num_devices) {
+cl_int LCL_API clGetDeviceIDs(cl_platform_id platform,
+                              cl_device_type device_type, cl_uint num_entries,
+                              cl_device_id *devices, cl_uint *num_devices) {
   using namespace ranges;
 
   if (platform == nullptr) {
@@ -76,9 +77,9 @@ cl_int clGetDeviceIDs(cl_platform_id platform, cl_device_type device_type,
   return CL_SUCCESS;
 }
 
-cl_int clGetDeviceInfo(cl_device_id device, cl_device_info param_name,
-                       size_t param_value_size, void *param_value,
-                       size_t *param_value_size_ret) {
+cl_int LCL_API clGetDeviceInfo(cl_device_id device, cl_device_info param_name,
+                               size_t param_value_size, void *param_value,
+                               size_t *param_value_size_ret) {
   if (device == nullptr) {
     // log: device is nullptr
     // TODO check platform is recognized by this plugin

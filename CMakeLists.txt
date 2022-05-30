@@ -72,6 +72,8 @@ if (LIBRECL_BACKENDS MATCHES "auto")
   endif()
 endif()
 
+include(AddLibreCL)
+
 add_subdirectory(examples)
 add_subdirectory(src)
 add_subdirectory(tools)

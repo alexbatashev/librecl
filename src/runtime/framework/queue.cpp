@@ -1,12 +1,12 @@
 #include "queue.hpp"
+#include "ocl_api.hpp"
 
 #include <algorithm>
 
 extern "C" {
-cl_command_queue
-clCreateCommandQueueWithProperties(cl_context context, cl_device_id device,
-                                   const cl_queue_properties *properties,
-                                   cl_int *errcode_ret) {
+cl_command_queue LCL_API clCreateCommandQueueWithProperties(
+    cl_context context, cl_device_id device,
+    const cl_queue_properties *properties, cl_int *errcode_ret) {
   if (context == nullptr) {
     // log: context is nullptr
     context->notifyError("context is nullptr");

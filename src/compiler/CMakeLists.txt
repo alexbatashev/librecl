@@ -97,9 +97,20 @@ target_include_directories(lcl_compiler PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}/dialects
 )
 
-target_compile_definitions(lcl_compiler PRIVATE SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS)
+target_compile_definitions(lcl_compiler PRIVATE
+  SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS
+  LCL_COMP_BUILD_DLL
+)
+
+if (UNIX AND NOT APPLE)
+  set(linker_flags
+    -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/ld-version-script.txt
+    -Wl,-as-needed
+    )
+endif()
 
 target_link_libraries(lcl_compiler PRIVATE
+  ${linker_flags}
   spirv-cross-msl
   ${dialect_libs}
   ${conversion_libs}

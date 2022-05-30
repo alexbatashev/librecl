@@ -1,5 +1,7 @@
 #pragma once
 
+#include "visibility.hpp"
+
 #include <memory>
 #include <span>
 #include <string>
@@ -13,7 +15,7 @@ namespace lcl {
 namespace detail {
 struct Module;
 };
-class FrontendResult {
+class LCL_COMP_EXPORT FrontendResult {
 public:
   FrontendResult(std::shared_ptr<detail::Module> module);
 
@@ -37,7 +39,7 @@ private:
   std::shared_ptr<detail::Module> mModule;
 };
 
-class Frontend {
+class LCL_COMP_EXPORT Frontend {
 public:
   virtual FrontendResult process(std::string_view input,
                                  std::span<std::string_view> options) = 0;

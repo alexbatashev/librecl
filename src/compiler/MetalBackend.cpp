@@ -1,5 +1,6 @@
 #include "MetalBackend.hpp"
 #include "VulkanSPVBackendImpl.hpp"
+#include "visibility.hpp"
 
 #include "mlir/Dialect/GPU/GPUDialect.h"
 #include "mlir/IR/Builders.h"
@@ -26,7 +27,7 @@
 
 namespace lcl {
 namespace detail {
-class MetalBackendImpl : public VulkanSPVBackendImpl {
+class LCL_COMP_EXPORT MetalBackendImpl : public VulkanSPVBackendImpl {
 public:
   MetalBackendImpl() : VulkanSPVBackendImpl() {}
 

@@ -1,0 +1,11 @@
+{
+  global:
+    _ZNK3lcl*;  /* function */
+    _ZN3lcl*;   /* function */
+    _ZTIN3lcl*; /* typeinfo */
+    _ZTSN3lcl*; /* typeinfo name */
+    _ZTVN3lcl*; /* vtable */
+
+  local:
+    *;
+};

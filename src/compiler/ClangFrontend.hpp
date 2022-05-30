@@ -1,6 +1,7 @@
 #pragma once
 
 #include "frontend.hpp"
+#include "visibility.hpp"
 
 #include <memory>
 #include <string_view>
@@ -10,7 +11,7 @@ namespace lcl {
 namespace detail {
 class ClangFrontendImpl;
 }
-class ClangFrontend : public Frontend {
+class LCL_COMP_EXPORT ClangFrontend : public Frontend {
 public:
   ClangFrontend();
 
