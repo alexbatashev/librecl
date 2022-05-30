@@ -22,6 +22,7 @@
 #include <memory>
 #include <spirv_msl.hpp>
 #include <vector>
+#include <iostream>
 
 namespace lcl {
 namespace detail {
@@ -35,14 +36,15 @@ public:
         VulkanSPVBackendImpl::compile(std::move(module));
     spirv_cross::CompilerMSL mslComp(reinterpret_cast<uint32_t *>(spv.data()),
                                      spv.size() / sizeof(uint32_t));
+    spirv_cross::CompilerMSL::Options mslOpts;
+    mslOpts.set_msl_version(2, 2);
+    mslOpts.vertex_index_type = spirv_cross::CompilerMSL::Options::IndexType::UInt32;
+    mslComp.set_msl_options(mslOpts);
     std::string source = mslComp.compile();
 
     return std::vector<unsigned char>{
         reinterpret_cast<unsigned char *>(source.data()),
         reinterpret_cast<unsigned char *>(source.data() + source.size())};
-    /*return static_cast<VulkanSPVBackendImpl *>(this)->compile(
-        std::move(module));
-        */
   }
 };
 } // namespace detail

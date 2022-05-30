@@ -1,0 +1,32 @@
+diff --git a/mlir/lib/Dialect/SPIRV/Transforms/LowerABIAttributesPass.cpp b/mlir/lib/Dialect/SPIRV/Transforms/LowerABIAttributesPass.cpp
+index ff3486b1c804..554b34bf6b2b 100644
+--- a/mlir/lib/Dialect/SPIRV/Transforms/LowerABIAttributesPass.cpp
++++ b/mlir/lib/Dialect/SPIRV/Transforms/LowerABIAttributesPass.cpp
+@@ -48,17 +48,19 @@ createGlobalVarForEntryPointArgument(OpBuilder &builder, spirv::FuncOp funcOp,
+         spirv::PointerType::get(spirv::StructType::get(varType), *storageClass);
+   }
+   auto varPtrType = varType.cast<spirv::PointerType>();
+-  auto varPointeeType = varPtrType.getPointeeType().cast<spirv::StructType>();
++  if (varPtrType.getPointeeType().isa<spirv::StructType>()) {
++    auto varPointeeType = varPtrType.getPointeeType().cast<spirv::StructType>();
+ 
+-  // Set the offset information.
+-  varPointeeType =
+-      VulkanLayoutUtils::decorateType(varPointeeType).cast<spirv::StructType>();
++    // Set the offset information.
++    varPointeeType =
++        VulkanLayoutUtils::decorateType(varPointeeType).cast<spirv::StructType>();
+ 
+-  if (!varPointeeType)
+-    return nullptr;
++    if (!varPointeeType)
++      return nullptr;
+ 
+-  varType =
+-      spirv::PointerType::get(varPointeeType, varPtrType.getStorageClass());
++    varType =
++        spirv::PointerType::get(varPointeeType, varPtrType.getStorageClass());
++  }
+ 
+   return builder.create<spirv::GlobalVariableOp>(
+       funcOp.getLoc(), varType, varName, abiInfo.getDescriptorSet(),
