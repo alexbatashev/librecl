@@ -1,9 +1,7 @@
-add_executable(lcloc main.cpp)
+add_librecl_tool(lcloc main.cpp)
 
 target_link_libraries(lcloc PRIVATE lcl_compiler)
-target_include_directories(lcloc PRIVATE
-  ${PROJECT_SOURCE_DIR}/src/compiler
-  ${LLVM_INCLUDE_DIRS}
-  ${CLANG_INCLUDE_DIRS}
-  ${MLIR_INCLUDE_DIRS}
-)
+
+llvm_map_components_to_libnames(llvm_libs support option)
+
+target_link_libraries(lcloc PRIVATE ${llvm_libs})

@@ -3,6 +3,7 @@
 #include "backend.hpp"
 #include "visibility.hpp"
 
+#include <functional>
 #include <memory>
 
 namespace lcl {
@@ -16,6 +17,12 @@ public:
   std::vector<unsigned char> compile(FrontendResult &module) final;
 
   ~MetalBackend() = default;
+
+  void setLLVMIRPrinter(std::function<void(std::span<char>)> printer);
+  void setMLIRPrinter(std::function<void(std::string_view)> printer);
+  void setLLVMTextPrinter(std::function<void(std::string_view)> printer);
+  void setSPVPrinter(std::function<void(std::span<unsigned char>)> printer);
+  void setMSLPrinter(std::function<void(std::string_view)> printer);
 
 private:
   std::shared_ptr<detail::MetalBackendImpl> mImpl;

@@ -3,6 +3,7 @@
 #include "backend.hpp"
 #include "visibility.hpp"
 
+#include <functional>
 #include <memory>
 
 namespace lcl {
@@ -16,6 +17,11 @@ public:
   std::vector<unsigned char> compile(FrontendResult &module) final;
 
   ~VulkanBackend() = default;
+
+  void setLLVMIRPrinter(std::function<void(std::span<char>)> printer);
+  void setLLVMTextPrinter(std::function<void(std::string_view)> printer);
+  void setMLIRPrinter(std::function<void(std::string_view)> printer);
+  void setSPVPrinter(std::function<void(std::span<unsigned char>)> printer);
 
 private:
   std::shared_ptr<detail::VulkanSPVBackendImpl> mImpl;

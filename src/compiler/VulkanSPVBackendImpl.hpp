@@ -16,6 +16,10 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 
+#include <functional>
+#include <span>
+#include <string_view>
+
 namespace lcl {
 namespace detail {
 class VulkanSPVBackendImpl {
@@ -27,9 +31,29 @@ public:
 
   virtual ~VulkanSPVBackendImpl() = default;
 
+  void setLLVMIRPrinter(std::function<void(std::span<char>)> printer) {
+    mLLVMIRPrinter = printer;
+  }
+  void setMLIRPrinter(std::function<void(std::string_view)> printer) {
+    mMLIRPrinter = printer;
+  }
+  void setSPVPrinter(std::function<void(std::span<unsigned char>)> printer) {
+    mSPVPrinter = printer;
+  }
+  void setLLVMTextPrinter(std::function<void(std::string_view)> printer) {
+    mLLVMTextPrinter = printer;
+  }
+
 private:
   mlir::MLIRContext mContext;
   mlir::PassManager mPM;
+
+  std::function<void(std::span<char>)> mLLVMIRPrinter = [](std::span<char>) {};
+  std::function<void(std::string_view)> mLLVMTextPrinter =
+      [](std::string_view) {};
+  std::function<void(std::string_view)> mMLIRPrinter = [](std::string_view) {};
+  std::function<void(std::span<unsigned char>)> mSPVPrinter =
+      [](std::span<unsigned char>) {};
 };
 
 } // namespace detail

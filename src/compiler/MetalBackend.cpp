@@ -43,10 +43,19 @@ public:
     mslComp.set_msl_options(mslOpts);
     std::string source = mslComp.compile();
 
+    mMSLPrinter(source);
+
     return std::vector<unsigned char>{
         reinterpret_cast<unsigned char *>(source.data()),
         reinterpret_cast<unsigned char *>(source.data() + source.size())};
   }
+
+  void setMSLPrinter(std::function<void(std::string_view)> printer) {
+    mMSLPrinter = printer;
+  }
+
+private:
+  std::function<void(std::string_view)> mMSLPrinter = [](std::string_view) {};
 };
 } // namespace detail
 
@@ -55,5 +64,26 @@ MetalBackend::MetalBackend()
 
 std::vector<unsigned char> MetalBackend::compile(FrontendResult &module) {
   return mImpl->compile(std::move(module.takeModule()));
+}
+
+void MetalBackend::setLLVMIRPrinter(
+    std::function<void(std::span<char>)> printer) {
+  mImpl->setLLVMIRPrinter(printer);
+}
+void MetalBackend::setLLVMTextPrinter(
+    std::function<void(std::string_view)> printer) {
+  mImpl->setLLVMTextPrinter(printer);
+}
+void MetalBackend::setMLIRPrinter(
+    std::function<void(std::string_view)> printer) {
+  mImpl->setMLIRPrinter(printer);
+}
+void MetalBackend::setSPVPrinter(
+    std::function<void(std::span<unsigned char>)> printer) {
+  mImpl->setSPVPrinter(printer);
+}
+void MetalBackend::setMSLPrinter(
+    std::function<void(std::string_view)> printer) {
+  mImpl->setMSLPrinter(printer);
 }
 } // namespace lcl
