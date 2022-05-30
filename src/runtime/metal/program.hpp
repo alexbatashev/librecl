@@ -10,10 +10,15 @@
 
 #include "context.hpp"
 
+#include <Foundation/Foundation.hpp>
+#include <Metal/Metal.hpp>
+#include <QuartzCore/QuartzCore.hpp>
+
 #include <CL/cl.h>
 #include <optional>
 #include <span>
 #include <string_view>
+#include <unordered_map>
 #include <variant>
 
 struct SourceProgram {
@@ -39,7 +44,14 @@ struct _cl_program {
              std::span<std::string_view> options,
              std::optional<callback_t> callback);
 
+  std::unordered_map<cl_device_id, MTL::Library *> &getBuiltProgram() {
+    return mCompiledProgram;
+  }
+
+  bool isExecutable() const { return !mCompiledProgram.empty(); }
+
 private:
   cl_context mContext;
   program_source_t mProgramSource;
+  std::unordered_map<cl_device_id, MTL::Library *> mCompiledProgram;
 };

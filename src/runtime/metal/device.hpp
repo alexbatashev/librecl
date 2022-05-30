@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "Foundation/NSString.hpp"
 #include <CL/cl.h>
 
 #include <Foundation/Foundation.hpp>
@@ -27,6 +26,9 @@ struct _cl_device_id {
   cl_device_type getDeviceType() const { return CL_DEVICE_TYPE_GPU; }
 
   std::string getName() const { return mName; }
+
+  MTL::Device *getNativeDevice() { return mDevice; }
+  const MTL::Device *getNativeDevice() const { return mDevice; }
 
 private:
   cl_platform_id mPlatform;

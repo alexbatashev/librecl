@@ -1,14 +1,16 @@
 add_library(lcl_icd_metal SHARED
   metal.cpp
   program.cpp
+  kernel.cpp
+  memory.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/platform.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/device.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/context.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/queue.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/program.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/kernel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/memory.cpp
 )
-
-target_compile_options(lcl_icd_metal PRIVATE -fexceptions)
 
 target_include_directories(lcl_icd_metal PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}

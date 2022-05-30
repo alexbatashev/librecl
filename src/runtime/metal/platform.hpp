@@ -10,8 +10,6 @@
 
 #include "device.hpp"
 
-#include "Foundation/NSArray.hpp"
-#include "Metal/MTLDevice.hpp"
 #include <CL/cl.h>
 
 #include <Foundation/Foundation.hpp>

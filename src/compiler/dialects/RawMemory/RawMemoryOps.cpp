@@ -17,8 +17,6 @@ using namespace mlir;
 using namespace mlir::rawmem;
 
 // TODO get rid of LLVM stuff
-static constexpr const char kVolatileAttrName[] = "volatile_";
-static constexpr const char kNonTemporalAttrName[] = "nontemporal";
 static constexpr const char kElemTypeAttrName[] = "elem_type";
 
 //===----------------------------------------------------------------------===//

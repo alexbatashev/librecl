@@ -128,13 +128,13 @@ int main(int argc, char **argv) {
 
   if (outputFilename == "" || outputFilename == "-") {
     printer = [](std::span<const char> out) {
-      std::string_view str{out.begin(), out.end()};
+      std::string_view str{out.data(), out.size()};
       std::cout << str;
     };
   } else {
     std::string filename = outputFilename;
     printer = [=](std::span<const char> out) {
-      std::string_view str{out.begin(), out.end()};
+      std::string_view str{out.data(), out.size()};
       std::ofstream of{filename};
       of << str;
       of.close();

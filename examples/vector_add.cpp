@@ -120,18 +120,24 @@ int main() {
 
   check(clBuildProgram(program, 1, &device, nullptr, nullptr, nullptr));
 
-  /*
   cl_kernel kernel = clCreateKernel(program, "vectorAdd", &err);
   check(err);
 
-  cl_mem bufA = clCreateBuffer(context, CL_MEM_READ_ONLY, N * sizeof(int),
-  nullptr, nullptr); cl_mem bufB = clCreateBuffer(context, CL_MEM_READ_ONLY, N *
-  sizeof(int), nullptr, nullptr); cl_mem bufC = clCreateBuffer(context,
-  CL_MEM_WRITE_ONLY, N * sizeof(int), nullptr, nullptr);
+  cl_mem bufA =
+      clCreateBuffer(context, CL_MEM_READ_ONLY, N * sizeof(int), nullptr, &err);
+  check(err);
+  cl_mem bufB =
+      clCreateBuffer(context, CL_MEM_READ_ONLY, N * sizeof(int), nullptr, &err);
+  check(err);
+  cl_mem bufC = clCreateBuffer(context, CL_MEM_WRITE_ONLY, N * sizeof(int),
+                               nullptr, &err);
+  check(err);
 
+  /*
   check(clEnqueueWriteBuffer(queue, bufA, CL_TRUE, 0, N * sizeof(int), a.data(),
-  0, nullptr, nullptr)); check(clEnqueueWriteBuffer(queue, bufB, CL_TRUE, 0, N *
-  sizeof(int), b.data(), 0, nullptr, nullptr));
+                             0, nullptr, nullptr));
+  check(clEnqueueWriteBuffer(queue, bufB, CL_TRUE, 0, N * sizeof(int), b.data(),
+                             0, nullptr, nullptr));
 
   check(clSetKernelArg(kernel, 0, sizeof(cl_mem), &bufA));
   check(clSetKernelArg(kernel, 1, sizeof(cl_mem), &bufB));
