@@ -38,8 +38,8 @@ jobs:
           restore-keys: llvm-${{ runner.os }}-
       - name: Build LLVM
         run: ./build_llvm.sh
-      - name: Configure LibreCL
-        run: ./configure.sh
-      - name: Build LibreCL
-        run: cd build && ninja
+      #- name: Configure LibreCL
+      #  run: ./configure.sh
+      #- name: Build LibreCL
+      #  run: cd build && ninja
         # TODO run tests
