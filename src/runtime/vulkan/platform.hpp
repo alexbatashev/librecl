@@ -2,6 +2,9 @@
 
 #include "device.hpp"
 
+#include <CL/cl.h>
+
+#include <string>
 #include <vector>
 
 struct _cl_platform_id {
@@ -15,6 +18,9 @@ struct _cl_platform_id {
   bool isFullProfile() const { return true; }
 
   cl_device_type getDefaultDeviceType() const { return CL_DEVICE_TYPE_GPU; }
+
+  std::vector<_cl_device_id> &getDevices() { return mDevices; }
+  const std::vector<_cl_device_id> &getDevices() const { return mDevices; }
 
   std::vector<_cl_device_id> mDevices;
   std::string mName;

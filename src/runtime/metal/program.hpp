@@ -3,7 +3,6 @@
 #include "context.hpp"
 
 #include <CL/cl.h>
-
 #include <optional>
 #include <span>
 #include <string_view>
@@ -13,10 +12,10 @@ struct SourceProgram {
   std::string source;
 };
 
-struct OclSPIRVProgram {};
+struct MSLProgram {};
 
 using program_source_t =
-    std::variant<std::monostate, SourceProgram, OclSPIRVProgram>;
+    std::variant<std::monostate, SourceProgram, MSLProgram>;
 
 struct _cl_program {
   struct callback_t {
@@ -30,7 +29,7 @@ struct _cl_program {
 
   void build(std::span<const cl_device_id> devices,
              std::span<std::string_view> options,
-             std::optional<callback_t> callback) {}
+             std::optional<callback_t> callback);
 
 private:
   cl_context mContext;

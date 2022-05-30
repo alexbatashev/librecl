@@ -1,0 +1,28 @@
+#pragma once
+
+#include "Foundation/NSString.hpp"
+#include <CL/cl.h>
+
+#include <Foundation/Foundation.hpp>
+#include <Metal/Metal.hpp>
+#include <QuartzCore/QuartzCore.hpp>
+
+#include <string>
+
+struct _cl_device_id {
+  _cl_device_id(cl_platform_id plt, MTL::Device *device)
+      : mPlatform(plt), mDevice(device) {
+    mName = std::string{
+        mDevice->name()->cString(NS::StringEncoding::ASCIIStringEncoding)};
+  }
+
+  cl_device_type getDeviceType() const { return CL_DEVICE_TYPE_GPU; }
+
+  std::string getName() const { return mName; }
+
+private:
+  cl_platform_id mPlatform;
+  MTL::Device *mDevice;
+
+  std::string mName;
+};

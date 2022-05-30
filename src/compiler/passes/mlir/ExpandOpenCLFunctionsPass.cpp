@@ -99,6 +99,8 @@ void expandGetGlobalId(func::FuncOp func) {
 struct ExpandOpenCLFunctionsPass
     : public PassWrapper<ExpandOpenCLFunctionsPass,
                          OperationPass<gpu::GPUModuleOp>> {
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ExpandOpenCLFunctionsPass);
+
   void runOnOperation() override {
     gpu::GPUModuleOp module = getOperation();
 

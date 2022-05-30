@@ -1,6 +1,4 @@
-#include "device.hpp"
-#include "info.hpp"
-#include "platform.hpp"
+#include <CL/cl.h>
 
 #include <range/v3/algorithm/copy.hpp>
 #include <range/v3/algorithm/count.hpp>
@@ -10,6 +8,12 @@
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/take.hpp>
 #include <range/v3/view/transform.hpp>
+
+// For reasons that are not clear to me yet, Apple headers do not play well
+// with ranges-v3 and thus must come after them
+#include "device.hpp"
+#include "info.hpp"
+#include "platform.hpp"
 
 extern "C" {
 cl_int clGetDeviceIDs(cl_platform_id platform, cl_device_type device_type,
@@ -57,13 +61,14 @@ cl_int clGetDeviceIDs(cl_platform_id platform, cl_device_type device_type,
   filter_t filter = device_type == CL_DEVICE_TYPE_ALL ? anyType : isType;
 
   if (num_devices) {
-    *num_devices = ranges::count_if(platform->mDevices, filter);
+    *num_devices = ranges::count_if(platform->getDevices(), filter);
   }
 
   if (devices) {
-    unsigned deviceCount = ranges::count_if(platform->mDevices, filter);
+    unsigned deviceCount = ranges::count_if(platform->getDevices(), filter);
     auto allowedDevices =
-        platform->mDevices | views::filter(filter) | views::take(deviceCount) |
+        platform->getDevices() | views::filter(filter) |
+        views::take(deviceCount) |
         views::transform([](_cl_device_id &device) { return &device; });
     ranges::copy(allowedDevices, devices);
   }

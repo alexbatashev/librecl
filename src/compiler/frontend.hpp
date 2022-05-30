@@ -1,8 +1,9 @@
 #pragma once
 
 #include <memory>
-#include <string_view>
 #include <span>
+#include <string>
+#include <string_view>
 
 namespace llvm {
 class Module;
@@ -24,6 +25,8 @@ public:
   bool success() const { return mError.empty(); }
 
   bool empty() const;
+
+  std::string error() const { return mError; }
 
   std::unique_ptr<llvm::Module> takeModule();
 
