@@ -1,3 +1,9 @@
+if (MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHs-c- /GR-")
+else ()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
+endif ()
+
 add_subdirectory(dialects/RawMemory)
 
 add_library(lcl_compiler SHARED
@@ -91,7 +97,10 @@ target_include_directories(lcl_compiler PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}/dialects
 )
 
+target_compile_definitions(lcl_compiler PRIVATE SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS)
+
 target_link_libraries(lcl_compiler PRIVATE
+  spirv-cross-msl
   ${dialect_libs}
   ${conversion_libs}
   ${llvm_libs}
@@ -108,4 +117,5 @@ target_link_libraries(lcl_compiler PRIVATE
   MLIRTranslateLib
   MLIRLLVMToLLVMIRTranslation
   MLIRToLLVMIRTranslationRegistration
+  MLIRSPIRVSerialization
 )

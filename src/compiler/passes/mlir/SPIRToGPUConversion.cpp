@@ -51,6 +51,9 @@ RegisteredOperationName getCheckRegisteredInfo(MLIRContext *ctx) {
 
 class ConvertSPIRToGPUPass
     : public PassWrapper<ConvertSPIRToGPUPass, mlir::OperationPass<ModuleOp>> {
+public:
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(ConvertSPIRToGPUPass);
+
   void runOnOperation() override {
     TypeConverter typeConverter{};
 

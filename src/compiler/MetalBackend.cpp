@@ -20,6 +20,7 @@
 #include "RawMemory/RawMemoryDialect.h"
 
 #include <memory>
+#include <spirv_msl.hpp>
 #include <vector>
 
 namespace lcl {
@@ -30,8 +31,18 @@ public:
 
   std::vector<unsigned char>
   compile(std::unique_ptr<llvm::Module> module) override {
-    return static_cast<VulkanSPVBackendImpl *>(this)->compile(
+    std::vector<unsigned char> spv =
+        VulkanSPVBackendImpl::compile(std::move(module));
+    spirv_cross::CompilerMSL mslComp(reinterpret_cast<uint32_t *>(spv.data()),
+                                     spv.size() / sizeof(uint32_t));
+    std::string source = mslComp.compile();
+
+    return std::vector<unsigned char>{
+        reinterpret_cast<unsigned char *>(source.data()),
+        reinterpret_cast<unsigned char *>(source.data() + source.size())};
+    /*return static_cast<VulkanSPVBackendImpl *>(this)->compile(
         std::move(module));
+        */
   }
 };
 } // namespace detail

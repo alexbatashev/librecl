@@ -10,6 +10,6 @@ VulkanBackend::VulkanBackend()
     : mImpl(std::make_shared<detail::VulkanSPVBackendImpl>()) {}
 
 std::vector<unsigned char> VulkanBackend::compile(FrontendResult &module) {
-  return mImpl->compile(std::move(module.takeModule()));
+  return mImpl->compile(module.takeModule());
 }
 } // namespace lcl

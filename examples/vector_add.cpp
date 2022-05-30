@@ -9,7 +9,7 @@
 constexpr size_t N = 10'000;
 
 constexpr auto programSrc = R"(
-__kernel void vectorAdd(__global int *a, __global int *b, __global int *c, size_t n) {
+__kernel void vectorAdd(__global float *a, __global float *b, __global float *c, const unsigned int n) {
   int id = get_global_id(0);
 
   if (id < n) {
@@ -118,9 +118,9 @@ int main() {
       context, 1, (const char **)&programSrc, nullptr, &err);
   check(err);
 
-  /*
   check(clBuildProgram(program, 1, &device, nullptr, nullptr, nullptr));
 
+  /*
   cl_kernel kernel = clCreateKernel(program, "vectorAdd", &err);
   check(err);
 

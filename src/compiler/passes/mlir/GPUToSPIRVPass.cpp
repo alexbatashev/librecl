@@ -25,6 +25,7 @@ using namespace mlir;
 namespace {
 struct GPUToSPIRVPass
     : public PassWrapper<GPUToSPIRVPass, OperationPass<ModuleOp>> {
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(GPUToSPIRVPass);
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     ModuleOp module = getOperation();

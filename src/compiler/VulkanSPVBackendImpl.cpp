@@ -1,7 +1,9 @@
 #include "VulkanSPVBackendImpl.hpp"
+#include "frontend.hpp"
 #include "passes/mlir/passes.hpp"
 
 #include "mlir/Dialect/GPU/GPUDialect.h"
+#include "mlir/Dialect/SPIRV/IR/SPIRVOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/DialectRegistry.h"
@@ -10,6 +12,7 @@
 #include "mlir/InitAllPasses.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Target/LLVMIR/Import.h"
+#include "mlir/Target/SPIRV/Serialization.h"
 #include "mlir/Transforms/Passes.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
@@ -19,7 +22,11 @@
 
 #include "RawMemory/RawMemoryDialect.h"
 
+#include <cstring>
+#include <llvm/ADT/SetVector.h>
 #include <memory>
+#include <mlir/Dialect/SPIRV/Transforms/Passes.h>
+#include <mlir/Target/SPIRV/Serialization.h>
 #include <vector>
 
 namespace lcl {
@@ -39,6 +46,10 @@ VulkanSPVBackendImpl::VulkanSPVBackendImpl() : mPM(&mContext) {
   mPM.addPass(mlir::createInlinerPass());
   // mPM.addPass(mlir::createConvertControlFlowToSPIRVPass());
   mPM.addPass(lcl::createGPUToSPIRVPass());
+  mPM.addNestedPass<mlir::spirv::ModuleOp>(
+      mlir::spirv::createLowerABIAttributesPass());
+  mPM.addNestedPass<mlir::spirv::ModuleOp>(
+      mlir::spirv::createUpdateVersionCapabilityExtensionPass());
 }
 std::vector<unsigned char>
 VulkanSPVBackendImpl::compile(std::unique_ptr<llvm::Module> module) {
@@ -84,10 +95,37 @@ VulkanSPVBackendImpl::compile(std::unique_ptr<llvm::Module> module) {
 
   // TODO check result
   mPM.run(mlirModule.get());
-
   mlirModule->dump();
 
-  return {};
+  llvm::SmallVector<uint32_t, 10000> binary;
+
+  /*
+  auto spvModule =
+      mlirModule->lookupSymbol<mlir::spirv::ModuleOp>("__spv__ocl_program");
+  mlir::spirv::serialize(spvModule, binary);
+*/
+
+  llvm::SmallVector<mlir::spirv::ModuleOp, 1> spirvModules;
+  mlirModule->walk(
+      [&](mlir::spirv::ModuleOp op) { spirvModules.push_back(op); });
+
+  if (spirvModules.size() == 0) {
+    // todo return error
+    return {};
+  }
+
+  if (spirvModules.size() > 1) {
+    // todo return error
+    return {};
+  }
+
+  mlir::spirv::serialize(spirvModules.front(), binary);
+
+  std::vector<unsigned char> resBinary;
+  resBinary.resize(sizeof(uint32_t) * binary.size());
+  std::memcpy(resBinary.data(), binary.data(), resBinary.size());
+
+  return resBinary;
 }
 } // namespace detail
 } // namespace lcl
