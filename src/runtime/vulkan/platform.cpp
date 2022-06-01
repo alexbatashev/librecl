@@ -21,21 +21,7 @@ void _cl_platform_id::initialize(_cl_platform_id **platforms,
                                             &appInfo,       // Application Info
                                             layers.size(),  // Layers count
                                             layers.data()); // Layers
-  vk::ResultValue<vk::Instance> maybeInstance =
-      vk::createInstance(instanceCreateInfo);
-
-  if (maybeInstance.result != vk::Result::eSuccess) {
-    // TODO more graceful errors?
-    std::terminate();
-  }
-
-  vk::Instance instance = maybeInstance.value;
-
-  auto maybeDevices = instance.enumeratePhysicalDevices();
-  if (maybeDevices.result != vk::Result::eSuccess) {
-    // TODO more graceful errors?
-    std::terminate();
-  }
+  vk::Instance instance = vk::createInstance(instanceCreateInfo);
 
   std::unordered_map<uint32_t, _cl_platform_id *> tmpPlatforms;
 
@@ -52,13 +38,13 @@ void _cl_platform_id::initialize(_cl_platform_id **platforms,
     }
   };
 
-  for (auto &dev : maybeDevices.value) {
+  for (auto &dev : instance.enumeratePhysicalDevices()) {
     vk::PhysicalDeviceProperties props = dev.getProperties();
     _cl_platform_id *platform;
     if (tmpPlatforms.count(props.vendorID)) {
       platform = tmpPlatforms[props.vendorID];
     } else {
-      platform = new _cl_platform_id(props.vendorID);
+      platform = new _cl_platform_id(props.vendorID, instance);
       tmpPlatforms[props.vendorID] = platform;
     }
 
@@ -74,7 +60,8 @@ void _cl_platform_id::initialize(_cl_platform_id **platforms,
   numPlatforms = i;
 }
 
-_cl_platform_id::_cl_platform_id(uint32_t vid) {
+_cl_platform_id::_cl_platform_id(uint32_t vid, vk::Instance instance)
+    : mInstance(instance) {
   switch (vid) {
   case 4318:
     mVendorName = "NVIDIA";

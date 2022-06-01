@@ -10,6 +10,7 @@ add_library(lcl_icd_metal SHARED
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/program.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/kernel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/memory.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/log.cpp
 )
 
 target_include_directories(lcl_icd_metal PRIVATE

@@ -30,6 +30,8 @@ struct _cl_device_id {
   MTL::Device *getNativeDevice() { return mDevice; }
   const MTL::Device *getNativeDevice() const { return mDevice; }
 
+  cl_platform_id getPlatform() { return mPlatform; }
+
 private:
   cl_platform_id mPlatform;
   MTL::Device *mDevice;

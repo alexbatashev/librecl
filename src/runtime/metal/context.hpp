@@ -40,7 +40,8 @@ struct _cl_context {
   lcl::ClangFrontend &getClangFE() { return mClangFE; }
   lcl::MetalBackend &getMetalBE() { return mBE; }
 
-  std::vector<_cl_device_id *> getDevices() { return mDevices; }
+  std::vector<_cl_device_id *> &getDevices() { return mDevices; }
+  const std::vector<_cl_device_id *> &getDevices() const { return mDevices; }
 
 private:
   std::vector<_cl_device_id *> mDevices;

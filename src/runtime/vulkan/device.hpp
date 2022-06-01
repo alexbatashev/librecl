@@ -22,10 +22,21 @@ struct _cl_device_id {
 
   std::string getName() const { return mDeviceName; }
 
+  vk::PhysicalDevice &getNativeDevice() { return mDevice; }
+  const vk::PhysicalDevice &getNativeDevice() const { return mDevice; }
+
+  vk::Device &getLogicalDevice() { return mLogicalDevice; }
+  const vk::Device &getLogicalDevice() const { return mLogicalDevice; }
+
+  uint32_t getQueueFamilyIndex() const { return mQueueFamilyIndex; }
+
 private:
   cl_platform_id mPlatform;
   vk::PhysicalDevice mDevice;
+  vk::Device mLogicalDevice;
 
   std::string mDeviceName;
   cl_device_type mType;
+
+  uint32_t mQueueFamilyIndex;
 };
