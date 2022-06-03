@@ -278,8 +278,9 @@ void lcl::populateRawMemoryToSPIRVTypeConversions(
       type = converter.convertType(ptr.getElementType());
     }
 
+    // TODO add Block decoration
     auto ptrElement =
-        spirv::StructType::get({spirv::RuntimeArrayType::get(type)});
+        spirv::StructType::get({spirv::RuntimeArrayType::get(type, 1)}, {0});
 
     return spirv::PointerType::get(ptrElement, sc);
     // return spirv::PointerType::get(type, sc);

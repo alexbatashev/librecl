@@ -53,6 +53,9 @@ VulkanSPVBackendImpl::VulkanSPVBackendImpl() : mPM(&mContext) {
   mPM.addPass(mlir::createCanonicalizerPass());
   mPM.addNestedPass<mlir::gpu::GPUModuleOp>(createExpandOpenCLFunctionsPass());
   mPM.addPass(mlir::createInlinerPass());
+  mPM.addPass(lcl::createInferPointerTypesPass());
+  // This is supposed to cleanup extra reinterpret_casts
+  mPM.addPass(mlir::createCanonicalizerPass());
   mPM.addPass(lcl::createGPUToSPIRVPass());
   mPM.addNestedPass<mlir::spirv::ModuleOp>(
       mlir::spirv::createLowerABIAttributesPass());

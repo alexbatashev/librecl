@@ -33,4 +33,5 @@ std::unique_ptr<mlir::Pass> createSPIRToGPUPass();
 std::unique_ptr<mlir::Pass> createAIRKernelABIPass();
 std::unique_ptr<mlir::Pass> createExpandOpenCLFunctionsPass();
 std::unique_ptr<mlir::Pass> createGPUToSPIRVPass();
+std::unique_ptr<mlir::Pass> createInferPointerTypesPass();
 }
