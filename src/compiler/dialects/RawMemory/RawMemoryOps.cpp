@@ -9,6 +9,7 @@
 #include "RawMemoryOps.h"
 #include "RawMemoryDialect.h"
 #include "mlir/IR/OpImplementation.h"
+#include "mlir/IR/PatternMatch.h"
 
 #define GET_OP_CLASSES
 #include "RawMemory/RawMemoryOps.cpp.inc"
@@ -120,4 +121,55 @@ LogicalResult LoadOp::verify() {
 LogicalResult StoreOp::verify() {
   // TODO real verifier
   return success();
+}
+
+OpFoldResult ReinterpretCastOp::fold(ArrayRef<Attribute> operands) {
+  if (addr().getDefiningOp() &&
+      llvm::isa<ReinterpretCastOp>(addr().getDefiningOp())) {
+    auto otherCast = addr().getDefiningOp<ReinterpretCastOp>();
+    if (otherCast.addr().getType() == getResult().getType()) {
+      return otherCast.addr();
+    }
+  }
+  return nullptr;
+}
+
+LogicalResult ReinterpretCastOp::canonicalize(ReinterpretCastOp op,
+                                              PatternRewriter &rewriter) {
+  if (op.getResult().user_begin() == op.getResult().user_end()) {
+    rewriter.eraseOp(op);
+    return success();
+  }
+  return failure();
+}
+
+LogicalResult LoadOp::canonicalize(LoadOp op, PatternRewriter &rewriter) {
+  if (op.addr().getDefiningOp() &&
+      llvm::isa<OffsetOp>(op.addr().getDefiningOp())) {
+    auto offsetOp = op.addr().getDefiningOp<OffsetOp>();
+    rewriter.replaceOpWithNewOp<LoadOp>(op, offsetOp.addr(),
+                                        ValueRange{offsetOp.offset()});
+    return success();
+  }
+  return failure();
+}
+
+LogicalResult StoreOp::canonicalize(StoreOp op, PatternRewriter &rewriter) {
+  if (op.addr().getDefiningOp() &&
+      llvm::isa<OffsetOp>(op.addr().getDefiningOp())) {
+    auto offsetOp = op.addr().getDefiningOp<OffsetOp>();
+    rewriter.replaceOpWithNewOp<StoreOp>(op, op.value(), offsetOp.addr(),
+                                         ValueRange{offsetOp.offset()},
+                                         op.volatility());
+    return success();
+  }
+  return failure();
+}
+
+LogicalResult OffsetOp::canonicalize(OffsetOp op, PatternRewriter &rewriter) {
+  if (op.getResult().user_begin() == op.getResult().user_end()) {
+    rewriter.eraseOp(op);
+    return success();
+  }
+  return failure();
 }

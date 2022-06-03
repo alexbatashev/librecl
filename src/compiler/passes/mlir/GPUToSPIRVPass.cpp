@@ -30,6 +30,9 @@
 
 using namespace mlir;
 
+static mlir::spirv::StorageClass
+addrSpaceToVulkanStorageClass(unsigned addrSpace);
+
 namespace {
 struct GPUToSPIRVPass
     : public PassWrapper<GPUToSPIRVPass, OperationPass<ModuleOp>> {
@@ -52,6 +55,7 @@ struct GPUToSPIRVPass
     std::unique_ptr<ConversionTarget> target =
         SPIRVConversionTarget::get(targetAttr);
     target->addIllegalDialect<rawmem::RawMemoryDialect>();
+    target->addLegalOp<UnrealizedConversionCastOp>();
 
     SPIRVTypeConverter typeConverter(targetAttr);
     RewritePatternSet patterns(context);
@@ -67,11 +71,48 @@ struct GPUToSPIRVPass
     lcl::populateRawMemoryToSPIRVTypeConversions(typeConverter, targetAttr);
     lcl::populateRawMemoryToSPIRVConversionPatterns(typeConverter, patterns);
 
-    if (failed(
-            applyFullConversion(kernelModules, *target, std::move(patterns))))
+    if (failed(applyPartialConversion(kernelModules, *target,
+                                      std::move(patterns))))
       return signalPassFailure();
   }
 };
+
+static bool isExRawPointer(Type type) {
+  if (type.isa<spirv::PointerType>()) {
+    auto outerPtr = type.cast<spirv::PointerType>();
+    if (outerPtr.getPointeeType().isa<spirv::StructType>()) {
+      auto structType = outerPtr.getPointeeType().cast<spirv::StructType>();
+      if (structType.getNumElements() == 1 &&
+          structType.getElementType(0).isa<spirv::RuntimeArrayType>()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+static Value generateAccessChain(Value base, ValueRange indices,
+                                 ConversionPatternRewriter &rewriter) {
+  SmallVector<Value, 2> realIndices;
+
+  Value zero = rewriter.create<spirv::ConstantOp>(
+      base.getLoc(), rewriter.getI64Type(),
+      rewriter.getIntegerAttr(rewriter.getI64Type(), 0));
+
+  if (isExRawPointer(base.getType())) {
+    realIndices.push_back(zero);
+  }
+  if (indices.begin() == indices.end()) {
+    realIndices.push_back(zero);
+  }
+
+  for (auto idx : indices)
+    realIndices.push_back(idx);
+
+  // TODO not sure if this loc is correct
+  return rewriter.create<spirv::AccessChainOp>(base.getLoc(), base,
+                                               realIndices);
+}
 
 struct LoadPattern : public OpConversionPattern<rawmem::LoadOp> {
   using Base = OpConversionPattern<rawmem::LoadOp>;
@@ -82,7 +123,17 @@ struct LoadPattern : public OpConversionPattern<rawmem::LoadOp> {
                   ConversionPatternRewriter &rewriter) const override {
 
     // TODO access chain
-    rewriter.replaceOpWithNewOp<spirv::LoadOp>(op, adaptor.addr());
+    /*
+    llvm::errs() << "\n";
+    adaptor.addr().print(llvm::errs());
+    llvm::errs() << "\n";
+    adaptor.addr().getType().print(llvm::errs());
+    llvm::errs() << "\n";
+    */
+    Value baseAddr =
+        generateAccessChain(adaptor.addr(), adaptor.indices(), rewriter);
+
+    rewriter.replaceOpWithNewOp<spirv::LoadOp>(op, baseAddr);
 
     return success();
   }
@@ -96,8 +147,9 @@ struct StorePattern : public OpConversionPattern<rawmem::StoreOp> {
   matchAndRewrite(rawmem::StoreOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    rewriter.replaceOpWithNewOp<spirv::StoreOp>(op, adaptor.addr(),
-                                                adaptor.value());
+    Value baseAddr =
+        generateAccessChain(adaptor.addr(), adaptor.indices(), rewriter);
+    rewriter.replaceOpWithNewOp<spirv::StoreOp>(op, baseAddr, adaptor.value());
 
     return success();
   }
@@ -111,8 +163,13 @@ struct OffsetPattern : public OpConversionPattern<rawmem::OffsetOp> {
   matchAndRewrite(rawmem::OffsetOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    rewriter.replaceOpWithNewOp<spirv::PtrAccessChainOp>(
-        op, adaptor.addr(), adaptor.offset(), ValueRange{});
+    Value base = rewriter.create<spirv::ConstantOp>(
+        op.getLoc(), rewriter.getI64Type(),
+        rewriter.getIntegerAttr(rewriter.getI64Type(), 0));
+    rewriter.replaceOpWithNewOp<spirv::AccessChainOp>(
+        op, adaptor.addr(), ValueRange{base, adaptor.offset()});
+    // rewriter.replaceOpWithNewOp<spirv::PtrAccessChainOp>(
+    //     op, adaptor.addr(), adaptor.offset(), ValueRange{});
 
     return success();
   }
@@ -126,11 +183,22 @@ struct ReinterpretCastPattern
   LogicalResult
   matchAndRewrite(rawmem::ReinterpretCastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-
-    Type type = getTypeConverter()->convertType(
-        op.out().getType().cast<rawmem::PointerType>());
-    rewriter.replaceOpWithNewOp<spirv::BitcastOp>(op, type, adaptor.addr());
-
+    rawmem::PointerType ptrType =
+        op.out().getType().cast<rawmem::PointerType>();
+    Type resType;
+    // TODO come up with a more elegant way
+    /*
+    if (llvm::isa<rawmem::OffsetOp>(op.out().getDefiningOp())) {
+      Type elementType = ptrType.getElementType();
+      resType =
+    spirv::PointerType::get(getTypeConverter()->convertType(elementType),
+    addrSpaceToVulkanStorageClass(ptrType.getAddressSpace())); } else {
+    */
+    resType = getTypeConverter()->convertType(ptrType);
+    /*
+  }
+  */
+    rewriter.replaceOpWithNewOp<spirv::BitcastOp>(op, resType, adaptor.addr());
     return success();
   }
 };
@@ -187,7 +255,7 @@ static mlir::spirv::StorageClass
 addrSpaceToVulkanStorageClass(unsigned addrSpace) {
   switch (addrSpace) {
   case 1:
-    return spirv::StorageClass::CrossWorkgroup;
+    return spirv::StorageClass::StorageBuffer;
   default:
     llvm_unreachable("Unknown address space");
   }
@@ -210,7 +278,12 @@ void lcl::populateRawMemoryToSPIRVTypeConversions(
       type = converter.convertType(ptr.getElementType());
     }
 
-    return spirv::PointerType::get(type, sc);
+    // TODO add Block decoration
+    auto ptrElement =
+        spirv::StructType::get({spirv::RuntimeArrayType::get(type, 1)}, {0});
+
+    return spirv::PointerType::get(ptrElement, sc);
+    // return spirv::PointerType::get(type, sc);
   });
 }
 void lcl::populateRawMemoryToSPIRVConversionPatterns(

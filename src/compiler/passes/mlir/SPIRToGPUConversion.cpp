@@ -103,11 +103,15 @@ struct FuncConversionPattern : public OpConversionPattern<LLVM::LLVMFuncOp> {
       gpuModule =
           rewriter.create<gpu::GPUModuleOp>(module.getLoc(), "ocl_program");
       auto triple = spirv::VerCapExtAttr::get(
-          spirv::Version::V_1_3,
-          {spirv::Capability::Shader, spirv::Capability::Addresses,
-           spirv::Capability::Float64, spirv::Capability::Int64,
-           spirv::Capability::Int8},
-          ArrayRef<spirv::Extension>(), module.getContext());
+          spirv::Version::V_1_4,
+          {spirv::Capability::Shader,
+           spirv::Capability::VariablePointersStorageBuffer,
+           spirv::Capability::Float64, spirv::Capability::Addresses,
+           spirv::Capability::Int64, spirv::Capability::Int8,
+           spirv::Capability::VariablePointers,
+           spirv::Capability::StorageBuffer8BitAccess},
+          ArrayRef<spirv::Extension>(spirv::Extension::SPV_KHR_8bit_storage),
+          module.getContext());
 
       auto attr = spirv::TargetEnvAttr::get(
           triple, spirv::Vendor::Unknown, spirv::DeviceType::Unknown,

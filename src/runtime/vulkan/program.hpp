@@ -10,11 +10,16 @@
 
 #include "context.hpp"
 
+#include <utility>
+
 #include <CL/cl.h>
+#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_raii.hpp>
 
 #include <optional>
 #include <span>
 #include <string_view>
+#include <unordered_map>
 #include <variant>
 
 struct SourceProgram {
@@ -38,9 +43,12 @@ struct _cl_program {
 
   void build(std::span<const cl_device_id> devices,
              std::span<std::string_view> options,
-             std::optional<callback_t> callback) {}
+             std::optional<callback_t> callback);
+
+  bool isExecutable() const { return !mShaders.empty(); }
 
 private:
   cl_context mContext;
   program_source_t mProgramSource;
+  std::unordered_map<cl_device_id, vk::ShaderModule> mShaders;
 };

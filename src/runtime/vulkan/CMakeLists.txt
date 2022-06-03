@@ -6,6 +6,8 @@ add_librecl_runtime(lcl_icd_vulkan SHARED
   context.cpp
   queue.cpp
   program.cpp
+  kernel.cpp
+  memory.cpp
   vma.cpp
   # TODO make a single list
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/platform.cpp
@@ -13,11 +15,15 @@ add_librecl_runtime(lcl_icd_vulkan SHARED
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/context.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/queue.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/program.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/kernel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/memory.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/log.cpp
 )
 
 
 target_include_directories(lcl_icd_vulkan SYSTEM PRIVATE
   ${PROJECT_SOURCE_DIR}/third_party/vma
+  ${CMAKE_CURRENT_SOURCE_DIR}/../
 )
 
 target_link_libraries(lcl_icd_vulkan PRIVATE
@@ -27,9 +33,9 @@ target_link_libraries(lcl_icd_vulkan PRIVATE
   lcl_compiler
   )
 
-target_compile_definitions(lcl_icd_vulkan PRIVATE
-  -DVULKAN_HPP_NO_EXCEPTIONS
-)
+#target_compile_definitions(lcl_icd_vulkan PRIVATE
+#  -DVULKAN_HPP_NO_EXCEPTIONS
+#)
 
 
 # TODO automate examples generation

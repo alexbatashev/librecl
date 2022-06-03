@@ -16,6 +16,7 @@ add_library(lcl_compiler SHARED
   passes/mlir/SPIRToGPUConversion.cpp
   passes/mlir/ExpandOpenCLFunctionsPass.cpp
   passes/mlir/GPUToSPIRVPass.cpp
+  passes/mlir/InferPointerTypesPass.cpp
 )
 
 list(APPEND CMAKE_MODULE_PATH

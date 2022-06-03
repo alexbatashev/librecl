@@ -8,7 +8,7 @@
 #include <vector>
 
 struct _cl_platform_id {
-  _cl_platform_id(uint32_t vid); //  : mVendorID(vid) {}
+  _cl_platform_id(uint32_t vid, vk::Instance instance);
 
   static void initialize(_cl_platform_id **platforms, unsigned &numPlatforms);
 
@@ -22,6 +22,10 @@ struct _cl_platform_id {
   std::vector<_cl_device_id> &getDevices() { return mDevices; }
   const std::vector<_cl_device_id> &getDevices() const { return mDevices; }
 
+  const vk::Instance &getInstance() const { return mInstance; }
+
+private:
+  vk::Instance mInstance;
   std::vector<_cl_device_id> mDevices;
   std::string mName;
   std::string mVendorName;
