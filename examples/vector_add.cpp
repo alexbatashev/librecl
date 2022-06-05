@@ -133,12 +133,12 @@ int main() {
                                nullptr, &err);
   check(err);
 
-  /*
   check(clEnqueueWriteBuffer(queue, bufA, CL_TRUE, 0, N * sizeof(int), a.data(),
                              0, nullptr, nullptr));
   check(clEnqueueWriteBuffer(queue, bufB, CL_TRUE, 0, N * sizeof(int), b.data(),
                              0, nullptr, nullptr));
 
+  /*
   check(clSetKernelArg(kernel, 0, sizeof(cl_mem), &bufA));
   check(clSetKernelArg(kernel, 1, sizeof(cl_mem), &bufB));
   check(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bufC));
