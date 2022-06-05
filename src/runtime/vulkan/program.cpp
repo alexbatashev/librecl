@@ -50,9 +50,10 @@ void _cl_program::build(std::span<const cl_device_id> devices,
       std::vector<KernelArgInfo::Info> info;
       info.reserve(kernel.arguments.size());
       for (auto &arg : kernel.arguments) {
-        vk::DescriptorSetLayoutBinding{bindings.size(),
-                                       vk::DescriptorType::eStorageBuffer, 1,
-                                       vk::ShaderStageFlagBits::eCompute};
+        vk::DescriptorSetLayoutBinding binding{
+            bindings.size(), vk::DescriptorType::eStorageBuffer, 1,
+            vk::ShaderStageFlagBits::eCompute};
+        bindings.push_back(binding);
         info.emplace_back(arg.type == lcl::ArgumentInfo::ArgType::GlobalBuffer,
                           arg.size);
       }
