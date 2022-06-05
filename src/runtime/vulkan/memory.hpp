@@ -15,14 +15,20 @@
 #include <unordered_map>
 
 struct _cl_mem {
-  _cl_mem(cl_context ctx, cl_mem_flags flags, size_t size);
-
-private:
   struct AllocationInfo {
     VmaAllocation allocation;
     vk::Buffer buffer;
   };
 
+  _cl_mem(cl_context ctx, cl_mem_flags flags, size_t size);
+
+  AllocationInfo getAllocInfoForDevice(cl_device_id device) const {
+    return mBuffers.at(device);
+  }
+
+  cl_context getContext() { return mContext; }
+
+private:
   cl_context mContext;
   std::unordered_map<cl_device_id, AllocationInfo> mBuffers;
 };

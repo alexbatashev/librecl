@@ -8,6 +8,7 @@ add_librecl_runtime(lcl_icd_vulkan SHARED
   program.cpp
   kernel.cpp
   memory.cpp
+  command.cpp
   vma.cpp
   # TODO make a single list
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/platform.cpp
