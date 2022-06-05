@@ -37,7 +37,7 @@ jobs:
           key: llvm-${{ runner.os }}-${{ github.sha }}
           restore-keys: llvm-${{ runner.os }}-
       - name: Build LLVM
-        run: ./build_llvm.sh
+        run: ./build_dependencies.sh
       #- name: Configure LibreCL
       #  run: ./configure.sh
       #- name: Build LibreCL
