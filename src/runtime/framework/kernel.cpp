@@ -7,14 +7,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "kernel.hpp"
+#include "log.hpp"
 #include "ocl_api.hpp"
+
 #include <CL/cl.h>
 
 extern "C" {
 cl_kernel LCL_API clCreateKernel(cl_program program, const char *kernel_name,
                                  cl_int *errcode_ret) {
   if (!program) {
-    // log: program is NULL
+    log("program is NULL");
     *errcode_ret = CL_INVALID_PROGRAM;
     return nullptr;
   }
@@ -32,5 +34,15 @@ cl_kernel LCL_API clCreateKernel(cl_program program, const char *kernel_name,
   }
 
   return new _cl_kernel(program, kernel_name);
+}
+
+cl_int LCL_API clSetKernelArg(cl_kernel kernel, cl_uint arg_index,
+                              size_t arg_size, const void *arg_value) {
+  if (!kernel) {
+    log("kernel is NULL");
+    return CL_INVALID_KERNEL;
+  }
+
+  return kernel->setArg(arg_index, arg_size, arg_value);
 }
 }

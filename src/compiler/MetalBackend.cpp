@@ -47,8 +47,7 @@ public:
     mPM.addPass(createGPUToCppPass());
   }
 
-  std::vector<unsigned char>
-  compile(std::unique_ptr<llvm::Module> module) override {
+  BinaryProgram compile(std::unique_ptr<llvm::Module> module) override {
     VulkanSPVBackendImpl::prepareLLVMModule(module);
     auto mlirModule = VulkanSPVBackendImpl::convertLLVMIRToMLIR(module);
 
@@ -61,9 +60,11 @@ public:
 
     mMSLPrinter(source);
 
-    return std::vector<unsigned char>{
+    std::vector<unsigned char> binary{
         reinterpret_cast<unsigned char *>(source.data()),
         reinterpret_cast<unsigned char *>(source.data() + source.size())};
+    // TODO kernels
+    return BinaryProgram{binary, {}};
   }
 
   void setMSLPrinter(std::function<void(std::string_view)> printer) {
@@ -78,7 +79,7 @@ private:
 MetalBackend::MetalBackend()
     : mImpl(std::make_shared<detail::MetalBackendImpl>()) {}
 
-std::vector<unsigned char> MetalBackend::compile(FrontendResult &module) {
+BinaryProgram MetalBackend::compile(FrontendResult &module) {
   return mImpl->compile(std::move(module.takeModule()));
 }
 

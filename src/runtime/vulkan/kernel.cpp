@@ -9,4 +9,54 @@
 #include "kernel.hpp"
 
 _cl_kernel::_cl_kernel(cl_program program, const std::string &kernelName)
-    : mProgram(program), mKernelName(kernelName) {}
+    : mProgram(program), mKernelName(kernelName) {
+
+  const _cl_program::KernelArgInfo &info =
+      mProgram->getKernelArgInfo(mKernelName);
+  mKernelArgs.resize(info.info.size());
+
+  /*
+  vk::PipelineLayoutCreateInfo
+  pipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(),
+  DescriptorSetLayout); vk::PipelineLayout PipelineLayout =
+  Device.createPipelineLayout(PipelineLayoutCreateInfo); vk::PipelineCache
+  PipelineCache = Device.createPipelineCache(vk::PipelineCacheCreateInfo());
+  */
+}
+
+cl_int _cl_kernel::setArg(size_t index, size_t size, const void *value) {
+  if (index > mKernelArgs.size()) {
+    // TODO improve log error
+    mProgram->getContext()->notifyError(
+        "Index exceeds number of arguments for kernel {}");
+    return CL_INVALID_ARG_INDEX;
+  }
+
+  const _cl_program::KernelArgInfo &info =
+      mProgram->getKernelArgInfo(mKernelName);
+
+  if (info.info[index].isBuffer) {
+    if (size != sizeof(cl_mem)) {
+      // TODO improve log error
+      mProgram->getContext()->notifyError(
+          "size is not equal to sizeof(cl_mem)");
+      return CL_INVALID_ARG_SIZE;
+    }
+    // C-style cast is required here
+    cl_mem buffer = (cl_mem)value;
+    mKernelArgs[index].data = buffer;
+  } else {
+    if (info.info[index].size != size) {
+      mProgram->getContext()->notifyError(
+          "size is not equal to the expected size of kernel argument");
+      return CL_INVALID_ARG_SIZE;
+    }
+    std::vector<unsigned char> data{
+        reinterpret_cast<const unsigned char *>(value),
+        reinterpret_cast<const unsigned char *>(value) + size};
+
+    mKernelArgs[index].data = data;
+  }
+
+  return CL_SUCCESS;
+}

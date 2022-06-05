@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "kernel_info.hpp"
+
 #include "mlir/Dialect/GPU/GPUDialect.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -36,8 +38,7 @@ class VulkanSPVBackendImpl {
 public:
   VulkanSPVBackendImpl(bool initializeSPV = true);
 
-  virtual std::vector<unsigned char>
-  compile(std::unique_ptr<llvm::Module> module);
+  virtual BinaryProgram compile(std::unique_ptr<llvm::Module> module);
 
   virtual ~VulkanSPVBackendImpl() = default;
 

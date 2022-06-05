@@ -37,6 +37,15 @@ struct _cl_program {
     void *data;
   };
 
+  struct KernelArgInfo {
+    struct Info {
+      bool isBuffer;
+      size_t size;
+    };
+    std::vector<Info> info;
+    std::vector<vk::DescriptorSetLayoutBinding> bindings;
+  };
+
   _cl_program(cl_context ctx, std::string_view program);
 
   cl_context getContext() const { return mContext; }
@@ -47,8 +56,14 @@ struct _cl_program {
 
   bool isExecutable() const { return !mShaders.empty(); }
 
+  const KernelArgInfo &getKernelArgInfo(const std::string &name) const {
+    return mKernelInfo.at(name);
+  }
+
 private:
   cl_context mContext;
   program_source_t mProgramSource;
   std::unordered_map<cl_device_id, vk::ShaderModule> mShaders;
+
+  std::unordered_map<std::string, KernelArgInfo> mKernelInfo;
 };

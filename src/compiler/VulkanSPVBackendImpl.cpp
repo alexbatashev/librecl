@@ -145,7 +145,7 @@ std::vector<unsigned char> VulkanSPVBackendImpl::convertMLIRToSPIRV(
   { mSPVPrinter(resBinary); }
 }
 
-std::vector<unsigned char>
+BinaryProgram
 VulkanSPVBackendImpl::compile(std::unique_ptr<llvm::Module> module) {
   if (!module) {
     llvm::errs() << "INVALID MODULE!!!\n";
@@ -157,7 +157,40 @@ VulkanSPVBackendImpl::compile(std::unique_ptr<llvm::Module> module) {
   auto mlirModule = convertLLVMIRToMLIR(module);
   auto resBinary = convertMLIRToSPIRV(mlirModule);
 
-  return resBinary;
+  std::vector<KernelInfo> kernels;
+
+  // TODO account for data layout types
+  const auto getTypeSize = [](mlir::Type type) -> size_t {
+    if (type.isa<mlir::rawmem::PointerType>()) {
+      return 8;
+    }
+    if (type.isIntOrFloat()) {
+      return type.getIntOrFloatBitWidth() / 8;
+    }
+
+    return -1;
+  };
+
+  mlirModule->walk([&kernels, &getTypeSize](mlir::gpu::GPUFuncOp func) {
+    if (!func.isKernel())
+      return;
+    std::string name = func.getName().str();
+    std::vector<ArgumentInfo> args;
+
+    for (auto arg : func.getArgumentTypes()) {
+      size_t size = getTypeSize(arg);
+      if (arg.isa<mlir::rawmem::PointerType>()) {
+        args.emplace_back(ArgumentInfo::ArgType::GlobalBuffer, args.size(),
+                          size);
+      } else {
+        args.emplace_back(ArgumentInfo::ArgType::POD, args.size(), size);
+      }
+    }
+
+    kernels.emplace_back(name, args);
+  });
+
+  return BinaryProgram{resBinary, kernels};
 }
 } // namespace detail
 } // namespace lcl

@@ -32,16 +32,32 @@ void _cl_program::build(std::span<const cl_device_id> devices,
       return CL_BUILD_PROGRAM_FAILURE;
     }
 
-    std::vector<unsigned char> spv = mContext->getVulkanBE().compile(res);
+    lcl::BinaryProgram spv = mContext->getVulkanBE().compile(res);
 
     vk::ShaderModuleCreateInfo shaderInfo(
-        vk::ShaderModuleCreateFlags(), spv.size(),
-        reinterpret_cast<const uint32_t *>(spv.data()));
+        vk::ShaderModuleCreateFlags(), spv.binary.size(),
+        reinterpret_cast<const uint32_t *>(spv.binary.data()));
 
     for (auto dev : devices) {
       mShaders.emplace(
           dev,
           std::move(dev->getLogicalDevice().createShaderModule(shaderInfo)));
+    }
+
+    for (auto kernel : spv.kernels) {
+      std::vector<vk::DescriptorSetLayoutBinding> bindings;
+      bindings.reserve(kernel.arguments.size());
+      std::vector<KernelArgInfo::Info> info;
+      info.reserve(kernel.arguments.size());
+      for (auto &arg : kernel.arguments) {
+        vk::DescriptorSetLayoutBinding{bindings.size(),
+                                       vk::DescriptorType::eStorageBuffer, 1,
+                                       vk::ShaderStageFlagBits::eCompute};
+        info.emplace_back(arg.type == lcl::ArgumentInfo::ArgType::GlobalBuffer,
+                          arg.size);
+      }
+
+      mKernelInfo[kernel.kernelName] = KernelArgInfo{info, bindings};
     }
 
     return CL_SUCCESS;

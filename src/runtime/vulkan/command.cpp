@@ -19,8 +19,7 @@ MemWriteBufferCommand::MemWriteBufferCommand(cl_mem buffer, EnqueueType type,
                                              const void *ptr,
                                              std::span<cl_event> waitList)
     : mDst(buffer), mOffset(offset), mSize(size), mSrc(ptr),
-      mWaitList(waitList.begin(), waitList.end()),
-      Command(CommandType::MemWriteBuffer, type) {}
+      mWaitList(waitList.begin(), waitList.end()), Command(type) {}
 
 cl_event MemWriteBufferCommand::recordCommand(cl_command_queue queue,
                                               vk::CommandBuffer commandBuffer) {
@@ -49,3 +48,6 @@ cl_event MemWriteBufferCommand::recordCommand(cl_command_queue queue,
 
   return nullptr;
 }
+
+cl_event ExecKernelCommand::recordCommand(cl_command_queue queue,
+                                          vk::CommandBuffer buffer) {}
