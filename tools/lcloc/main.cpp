@@ -8,6 +8,7 @@
 
 #include "ClangFrontend.hpp"
 #include "MetalBackend.hpp"
+#include "SPIRVFrontend.hpp"
 #include "VulkanBackend.hpp"
 
 #include "llvm/Support/CommandLine.h"
@@ -28,6 +29,10 @@ using out_func_t = std::function<void(std::span<const char>)>;
 
 std::unique_ptr<lcl::Frontend> prepareClangFrontend() {
   return std::make_unique<lcl::ClangFrontend>();
+}
+
+std::unique_ptr<lcl::Frontend> prepareSPIRVFrontent() {
+  return std::make_unique<lcl::SPIRVFrontend>();
 }
 
 std::unique_ptr<lcl::Backend>
@@ -112,7 +117,12 @@ int main(int argc, char **argv) {
                         std::istreambuf_iterator<char>()};
 
   // TODO prepare SPIR-V frontend depending on file extension
-  auto FE = prepareClangFrontend();
+  std::unique_ptr<lcl::Frontend> FE;
+  if (inputFilename.ends_with(".spv")) {
+    FE = prepareSPIRVFrontent();
+  } else {
+    FE = prepareClangFrontend();
+  }
 
   auto IR = FE->process(inputData, {});
 

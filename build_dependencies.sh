@@ -45,7 +45,10 @@ git apply ../../llvm_patches/D126594.diff
 git apply ../../llvm_patches/lower_abi.diff
 cd ../build
 
-cmake -GNinja -DLLVM_ENABLE_PROJECTS="mlir;clang;lld" \
+cmake -GNinja \
+  -DLLVM_EXTERNAL_PROJECTS="llvm-spirv" \
+  -DLLVM_EXTERNAL_LLVM_SPIRV_SOURCE_DIR="$PWD/../../SPIRV-LLVM-Translator" \
+  -DLLVM_ENABLE_PROJECTS="mlir;clang;lld" \
   -DLLVM_TARGETS_TO_BUILD="host;AMDGPU;NVPTX" \
   -DLLVM_ENABLE_ASSERTIONS=$ASSERTIONS \
   -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
@@ -55,3 +58,4 @@ cmake -GNinja -DLLVM_ENABLE_PROJECTS="mlir;clang;lld" \
   ../llvm/
 
 ninja
+

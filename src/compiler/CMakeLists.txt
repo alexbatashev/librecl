@@ -9,6 +9,7 @@ add_subdirectory(dialects/RawMemory)
 add_library(lcl_compiler SHARED
   frontend.cpp
   ClangFrontend.cpp
+  SPIRVFrontend.cpp
   MetalBackend.cpp
   VulkanBackend.cpp
   VulkanSPVBackendImpl.cpp
@@ -91,6 +92,7 @@ target_include_directories(lcl_compiler SYSTEM PRIVATE
   ${LLVM_INCLUDE_DIRS}
   ${CLANG_INCLUDE_DIRS}
   ${MLIR_INCLUDE_DIRS}
+  ${PROJECT_SOURCE_DIR}/third_party/SPIRV-LLVM-Translator/include
   )
 
 target_include_directories(lcl_compiler PRIVATE
@@ -130,4 +132,5 @@ target_link_libraries(lcl_compiler PRIVATE
   MLIRLLVMToLLVMIRTranslation
   MLIRToLLVMIRTranslationRegistration
   MLIRSPIRVSerialization
+  LLVMSPIRVLib
 )

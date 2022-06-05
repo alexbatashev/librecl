@@ -52,7 +52,6 @@ public:
 
     mDiagOpts->ShowPresumedLoc = true;
   }
-
   FrontendResult process(const std::string_view source,
                          const llvm::ArrayRef<llvm::StringRef> options) {
     std::string errString;
