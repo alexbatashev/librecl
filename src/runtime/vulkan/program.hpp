@@ -60,6 +60,10 @@ struct _cl_program {
     return mKernelInfo.at(name);
   }
 
+  const std::unordered_map<cl_device_id, vk::ShaderModule> &getShaders() const {
+    return mShaders;
+  }
+
 private:
   cl_context mContext;
   program_source_t mProgramSource;

@@ -15,13 +15,31 @@ _cl_kernel::_cl_kernel(cl_program program, const std::string &kernelName)
       mProgram->getKernelArgInfo(mKernelName);
   mKernelArgs.resize(info.info.size());
 
-  /*
-  vk::PipelineLayoutCreateInfo
-  pipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(),
-  DescriptorSetLayout); vk::PipelineLayout PipelineLayout =
-  Device.createPipelineLayout(PipelineLayoutCreateInfo); vk::PipelineCache
-  PipelineCache = Device.createPipelineCache(vk::PipelineCacheCreateInfo());
-  */
+  vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo(
+      vk::DescriptorSetLayoutCreateFlags(), info.bindings);
+  for (auto &shader : mProgram->getShaders()) {
+    vk::DescriptorSetLayout descriptorSetLayout =
+        shader.first->getLogicalDevice().createDescriptorSetLayout(
+            descriptorSetLayoutCreateInfo);
+    vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo(
+        vk::PipelineLayoutCreateFlags(), descriptorSetLayout);
+    vk::PipelineLayout pipelineLayout =
+        shader.first->getLogicalDevice().createPipelineLayout(
+            pipelineLayoutCreateInfo);
+    vk::PipelineCache pipelineCache =
+        shader.first->getLogicalDevice().createPipelineCache(
+            vk::PipelineCacheCreateInfo());
+
+    vk::PipelineShaderStageCreateInfo pipelineShaderCreateInfo(
+        vk::PipelineShaderStageCreateFlags(), vk::ShaderStageFlagBits::eCompute,
+        shader.second, mKernelName.c_str());
+    vk::ComputePipelineCreateInfo computePipelineCreateInfo(
+        vk::PipelineCreateFlags(), pipelineShaderCreateInfo, pipelineLayout);
+    vk::ResultValue<vk::Pipeline> computePipeline =
+        shader.first->getLogicalDevice().createComputePipeline(
+            pipelineCache, computePipelineCreateInfo);
+    mComputePipeline[shader.first] = computePipeline.value;
+  }
 }
 
 cl_int _cl_kernel::setArg(size_t index, size_t size, const void *value) {

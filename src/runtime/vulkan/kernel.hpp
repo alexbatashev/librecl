@@ -30,5 +30,5 @@ private:
   std::string mKernelName;
 
   std::vector<KernelArg> mKernelArgs;
-  vk::Pipeline mComputePipeline;
+  std::unordered_map<cl_device_id, vk::Pipeline> mComputePipeline;
 };

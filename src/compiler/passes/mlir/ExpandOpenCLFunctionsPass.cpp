@@ -5,6 +5,7 @@
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/GPU/GPUDialect.h"
+#include "mlir/Dialect/SCF/SCF.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -25,15 +26,7 @@ void expandGetGlobalId(func::FuncOp func) {
 
   builder.setInsertionPointToStart(&entry);
 
-  Block &elseX = func.getBody().emplaceBlock();
-  Block &elseY = func.getBody().emplaceBlock();
-
-  Block &blockX = func.getBody().emplaceBlock();
-  Block &blockY = func.getBody().emplaceBlock();
-  Block &blockZ = func.getBody().emplaceBlock();
-
-  Block &exit = func.getBody().emplaceBlock();
-  exit.addArgument(builder.getIndexType(), builder.getUnknownLoc());
+  Type retType = builder.getIndexType();
 
   Value zero = builder.create<arith::ConstantOp>(
       builder.getUnknownLoc(), builder.getIntegerAttr(builder.getI32Type(), 0),
@@ -41,10 +34,22 @@ void expandGetGlobalId(func::FuncOp func) {
   Value isX = builder.create<arith::CmpIOp>(builder.getUnknownLoc(),
                                             arith::CmpIPredicate::eq,
                                             entry.getArgument(0), zero);
-  builder.create<cf::CondBranchOp>(builder.getUnknownLoc(), isX, &blockX,
-                                   ValueRange{}, &elseX, ValueRange{});
+  scf::IfOp retValue = builder.create<scf::IfOp>(
+      builder.getUnknownLoc(), TypeRange{retType}, isX, /*withElse*/ true);
+  // TODO this is a hack for Vulkan SPIR-V target
+  Value res32 = builder.create<arith::IndexCastOp>(
+      builder.getUnknownLoc(), builder.getI32Type(),
+      retValue.getResults().front());
+  Value res = builder.create<arith::ExtSIOp>(builder.getUnknownLoc(),
+                                             builder.getI64Type(), res32);
+  builder.create<func::ReturnOp>(builder.getUnknownLoc(), res);
 
-  builder.setInsertionPointToStart(&elseX);
+  builder.setInsertionPointToStart(&retValue.getThenRegion().front());
+  Value xDim = builder.create<gpu::GlobalIdOp>(builder.getUnknownLoc(),
+                                               gpu::Dimension::x);
+  builder.create<scf::YieldOp>(builder.getUnknownLoc(), xDim);
+
+  builder.setInsertionPointToStart(&retValue.getElseRegion().front());
 
   Value one = builder.create<arith::ConstantOp>(
       builder.getUnknownLoc(), builder.getIntegerAttr(builder.getI32Type(), 1),
@@ -52,48 +57,38 @@ void expandGetGlobalId(func::FuncOp func) {
   Value isY = builder.create<arith::CmpIOp>(builder.getUnknownLoc(),
                                             arith::CmpIPredicate::eq,
                                             entry.getArgument(0), one);
-  builder.create<cf::CondBranchOp>(builder.getUnknownLoc(), isY, &blockY,
-                                   ValueRange{}, &elseY, ValueRange{});
+  scf::IfOp yBranch = builder.create<scf::IfOp>(
+      builder.getUnknownLoc(), TypeRange{retType}, isY, /*withElse*/ true);
+  builder.create<scf::YieldOp>(builder.getUnknownLoc(), yBranch.getResults());
 
-  builder.setInsertionPointToStart(&elseY);
+  builder.setInsertionPointToStart(&yBranch.getThenRegion().front());
+
+  Value yDim = builder.create<gpu::GlobalIdOp>(builder.getUnknownLoc(),
+                                               gpu::Dimension::y);
+  builder.create<scf::YieldOp>(builder.getUnknownLoc(), yDim);
+
+  builder.setInsertionPointToStart(&yBranch.getElseRegion().front());
   Value two = builder.create<arith::ConstantOp>(
       builder.getUnknownLoc(), builder.getIntegerAttr(builder.getI32Type(), 2),
       builder.getI32Type());
-  Value defaultVal = builder.create<arith::ConstantOp>(
-      builder.getUnknownLoc(), builder.getIndexAttr(0), builder.getIndexType());
   Value isZ = builder.create<arith::CmpIOp>(builder.getUnknownLoc(),
                                             arith::CmpIPredicate::eq,
                                             entry.getArgument(0), two);
-  builder.create<cf::CondBranchOp>(builder.getUnknownLoc(), isZ, &blockZ,
-                                   ValueRange{}, &exit, ValueRange{defaultVal});
-  // builder.create<cf::SwitchOp>(builder.getUnknownLoc(), entry.getArgument(0),
-  // &exit, defaultVal, ArrayRef<int32_t>{0, 1, 2}, BlockRange{&blockX, &blockY,
-  // &blockZ}, ArrayRef<ValueRange>{ValueRange{}, ValueRange{}, ValueRange{}});
-  // TODO replace with cf::SwitchOp once OpSwitch is supported in SPIR-V
-  // conversion
+  scf::IfOp zBranch = builder.create<scf::IfOp>(
+      builder.getUnknownLoc(), TypeRange{retType}, isZ, /*withElse*/ true);
+  builder.create<scf::YieldOp>(builder.getUnknownLoc(), zBranch.getResults());
 
-  builder.setInsertionPointToStart(&blockX);
-  auto xDim = builder.create<gpu::GlobalIdOp>(builder.getUnknownLoc(),
-                                              gpu::Dimension::x);
-  builder.create<cf::BranchOp>(builder.getUnknownLoc(), &exit,
-                               ValueRange{xDim});
+  builder.setInsertionPointToStart(&zBranch.getThenRegion().front());
 
-  builder.setInsertionPointToStart(&blockY);
-  auto yDim = builder.create<gpu::GlobalIdOp>(builder.getUnknownLoc(),
-                                              gpu::Dimension::y);
-  builder.create<cf::BranchOp>(builder.getUnknownLoc(), &exit,
-                               ValueRange{yDim});
+  Value zDim = builder.create<gpu::GlobalIdOp>(builder.getUnknownLoc(),
+                                               gpu::Dimension::z);
+  builder.create<scf::YieldOp>(builder.getUnknownLoc(), zDim);
 
-  builder.setInsertionPointToStart(&blockZ);
-  auto zDim = builder.create<gpu::GlobalIdOp>(builder.getUnknownLoc(),
-                                              gpu::Dimension::z);
-  builder.create<cf::BranchOp>(builder.getUnknownLoc(), &exit,
-                               ValueRange{zDim});
+  builder.setInsertionPointToStart(&zBranch.getElseRegion().front());
 
-  builder.setInsertionPointToStart(&exit);
-  auto res = builder.create<arith::IndexCastOp>(
-      builder.getUnknownLoc(), builder.getI64Type(), exit.getArgument(0));
-  builder.create<func::ReturnOp>(builder.getUnknownLoc(), res.getOut());
+  Value defaultVal = builder.create<arith::ConstantOp>(
+      builder.getUnknownLoc(), builder.getIndexAttr(0), builder.getIndexType());
+  builder.create<scf::YieldOp>(builder.getUnknownLoc(), defaultVal);
 }
 
 struct ExpandOpenCLFunctionsPass

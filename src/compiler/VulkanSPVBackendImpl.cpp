@@ -8,6 +8,7 @@
 
 #include "VulkanSPVBackendImpl.hpp"
 #include "frontend.hpp"
+#include "passes/llvm/FixupStructuredCFGPass.h"
 #include "passes/mlir/passes.hpp"
 
 #include "mlir/Dialect/GPU/GPUDialect.h"
@@ -88,6 +89,8 @@ void VulkanSPVBackendImpl::prepareLLVMModule(
 
   ModulePassManager MPM =
       PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
+  MPM.addPass(
+      createModuleToFunctionPassAdaptor(clspv::FixupStructuredCFGPass()));
 
   MPM.run(*module, MAM);
 

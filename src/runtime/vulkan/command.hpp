@@ -16,7 +16,7 @@ public:
                                  vk::CommandBuffer commandBuffer) = 0;
 
 protected:
-  Command(EnqueueType enqType) : mCommandType(type), mEnqueueType(enqType){};
+  Command(EnqueueType enqType) : mEnqueueType(enqType){};
 
   EnqueueType mEnqueueType;
 };
@@ -46,7 +46,7 @@ public:
     std::array<size_t, 3> globalOffset;
     std::array<size_t, 3> globalSize;
     std::array<size_t, 3> localSize;
-  }
+  };
 
   ExecKernelCommand(cl_kernel kernel, NDRange range,
                     std::span<cl_event> waitList)
