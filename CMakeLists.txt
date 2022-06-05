@@ -70,6 +70,12 @@ if (LIBRECL_BACKENDS MATCHES "auto")
     message("Enabling Vulkan backend")
     list(APPEND LIBRECL_BACKENDS "vulkan")
   endif()
+
+  find_package(CUDAToolkit)
+  if (TARGET CUDA::cudart)
+    message("Enabling NVIDIA CUDA backend")
+    list(APPEND LIBRECL_BACKENDS "cuda")
+  endif()
 endif()
 
 include(AddLibreCL)

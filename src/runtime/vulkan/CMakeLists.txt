@@ -10,15 +10,7 @@ add_librecl_runtime(lcl_icd_vulkan SHARED
   memory.cpp
   command.cpp
   vma.cpp
-  # TODO make a single list
-  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/platform.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/device.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/context.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/queue.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/program.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/kernel.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/memory.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/log.cpp
+  ${FRAMEWORK_SOURCES}
 )
 
 
@@ -33,11 +25,6 @@ target_link_libraries(lcl_icd_vulkan PRIVATE
   range-v3
   lcl_compiler
   )
-
-#target_compile_definitions(lcl_icd_vulkan PRIVATE
-#  -DVULKAN_HPP_NO_EXCEPTIONS
-#)
-
 
 # TODO automate examples generation
 file(WRITE ${PROJECT_BINARY_DIR}/empty.cpp)
