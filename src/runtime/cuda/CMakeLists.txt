@@ -1,9 +1,4 @@
 add_librecl_runtime(lcl_icd_cuda SHARED
-  runtime/platform.cpp
-  runtime/device.cpp
-  runtime/context.cpp
-  runtime/queue.cpp
-  runtime/program.cpp
   ${FRAMEWORK_SOURCES}
 )
 
@@ -19,4 +14,6 @@ target_link_libraries(lcl_icd_cuda PRIVATE
   range-v3
   lcl_compiler
 )
+
+setup_runtime_examples(cuda lcl_icd_cuda)
 

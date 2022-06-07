@@ -36,27 +36,5 @@ target_link_libraries(lcl_icd_metal PRIVATE
 
 target_compile_definitions(lcl_icd_metal PRIVATE -DCL_TARGET_OPENCL_VERSION=300)
 
-file(WRITE ${PROJECT_BINARY_DIR}/empty.cpp)
-add_executable(platform_info_metal
-  ${PROJECT_BINARY_DIR}/empty.cpp
-  $<TARGET_OBJECTS:platform_info_obj>
-)
+setup_runtime_examples(metal lcl_icd_metal)
 
-set_target_properties(platform_info_metal
-  PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/examples)
-target_include_directories(platform_info_metal PRIVATE
-  ${PROJECT_SOURCE_DIR}/third_party/OpenCL-Headers)
-target_link_libraries(platform_info_metal PRIVATE lcl_icd_metal)
-
-add_executable(vector_add_metal
-  ${PROJECT_BINARY_DIR}/empty.cpp
-  $<TARGET_OBJECTS:vector_add_obj>
-)
-
-set_target_properties(vector_add_metal
-  PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/examples)
-target_include_directories(vector_add_metal PRIVATE
-  ${PROJECT_SOURCE_DIR}/third_party/OpenCL-Headers)
-target_link_libraries(vector_add_metal PRIVATE lcl_icd_metal)

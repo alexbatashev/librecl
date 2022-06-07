@@ -72,7 +72,7 @@ if (LIBRECL_BACKENDS MATCHES "auto")
   endif()
 
   find_package(CUDAToolkit)
-  if (TARGET CUDA::cudart)
+  if (TARGET CUDA::toolkit)
     message("Enabling NVIDIA CUDA backend")
     list(APPEND LIBRECL_BACKENDS "cuda")
   endif()
