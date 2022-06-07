@@ -50,6 +50,9 @@ VulkanSPVBackendImpl::VulkanSPVBackendImpl(bool initializeSPV)
   mContext.loadAllAvailableDialects();
   mlir::registerAllPasses();
 
+  mContext.disableMultithreading();
+  mPM.enableIRPrinting();
+
   mPM.addPass(mlir::createCanonicalizerPass());
   mPM.addPass(createSPIRToGPUPass());
   mPM.addPass(mlir::createCanonicalizerPass());
@@ -61,6 +64,7 @@ VulkanSPVBackendImpl::VulkanSPVBackendImpl(bool initializeSPV)
 
   if (initializeSPV) {
     mPM.addPass(lcl::createGPUToSPIRVPass());
+    mPM.addNestedPass<mlir::spirv::ModuleOp>(createStructureCFGPass());
     mPM.addNestedPass<mlir::spirv::ModuleOp>(
         mlir::spirv::createLowerABIAttributesPass());
     mPM.addNestedPass<mlir::spirv::ModuleOp>(
@@ -137,9 +141,16 @@ std::vector<unsigned char> VulkanSPVBackendImpl::convertMLIRToSPIRV(
 
   auto spvModule =
       mlirModule->lookupSymbol<mlir::spirv::ModuleOp>("__spv__ocl_program");
+<<<<<<< HEAD
 
   // TODO check result
   mlir::spirv::serialize(spvModule, binary);
+=======
+  if (spvModule) {
+    mlir::spirv::serialize(spvModule, binary);
+  }
+  // TODO return error here
+>>>>>>> 3918006 (experimental pass to outline structured control flow)
 
   std::vector<unsigned char> resBinary;
   resBinary.resize(sizeof(uint32_t) * binary.size());
