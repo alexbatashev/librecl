@@ -24,7 +24,7 @@ jobs:
       - name: Install macOS dependencies
         if: matrix.os == 'macOS-12'
         run:
-          brew install ccache ninja tbb
+          brew install ccache ninja tbb ncurses
       - uses: actions/checkout@v3
         with:
           submodules: true
