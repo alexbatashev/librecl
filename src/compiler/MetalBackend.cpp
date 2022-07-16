@@ -53,7 +53,8 @@ public:
                                      spv.size() / sizeof(uint32_t));
     spirv_cross::CompilerMSL::Options mslOpts;
     mslOpts.set_msl_version(2, 2);
-    mslOpts.vertex_index_type = spirv_cross::CompilerMSL::Options::IndexType::UInt32;
+    mslOpts.vertex_index_type =
+    spirv_cross::CompilerMSL::Options::IndexType::UInt32;
     mslComp.set_msl_options(mslOpts);
     std::string source = mslComp.compile();
 

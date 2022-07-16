@@ -40,7 +40,8 @@
 
 namespace lcl {
 namespace detail {
-VulkanSPVBackendImpl::VulkanSPVBackendImpl(bool initializeSPV) : mPM(&mContext) {
+VulkanSPVBackendImpl::VulkanSPVBackendImpl(bool initializeSPV)
+    : mPM(&mContext) {
   mlir::registerAllDialects(mContext);
   mlir::DialectRegistry registry;
   registry.insert<mlir::rawmem::RawMemoryDialect>();
@@ -66,7 +67,8 @@ VulkanSPVBackendImpl::VulkanSPVBackendImpl(bool initializeSPV) : mPM(&mContext) 
   }
 }
 
-void VulkanSPVBackendImpl::prepareLLVMModule(std::unique_ptr<llvm::Module> &module) {
+void VulkanSPVBackendImpl::prepareLLVMModule(
+    std::unique_ptr<llvm::Module> &module) {
   // TODO this is an unnecessary hack to avoid support of memrefs of memrefs
   // in MLIR.
   using namespace llvm;
@@ -106,7 +108,8 @@ void VulkanSPVBackendImpl::prepareLLVMModule(std::unique_ptr<llvm::Module> &modu
   }
 }
 
-mlir::OwningOpRef<mlir::ModuleOp> VulkanSPVBackendImpl::convertLLVMIRToMLIR(std::unique_ptr<llvm::Module> &module) {
+mlir::OwningOpRef<mlir::ModuleOp> VulkanSPVBackendImpl::convertLLVMIRToMLIR(
+    std::unique_ptr<llvm::Module> &module) {
   auto clone = llvm::CloneModule(*module);
   auto mlirModule = mlir::translateLLVMIRToModule(std::move(clone), &mContext);
 
@@ -125,7 +128,8 @@ mlir::OwningOpRef<mlir::ModuleOp> VulkanSPVBackendImpl::convertLLVMIRToMLIR(std:
   return mlirModule;
 }
 
-std::vector<unsigned char> VulkanSPVBackendImpl::convertMLIRToSPIRV(mlir::OwningOpRef<mlir::ModuleOp> &mlirModule) {
+std::vector<unsigned char> VulkanSPVBackendImpl::convertMLIRToSPIRV(
+    mlir::OwningOpRef<mlir::ModuleOp> &mlirModule) {
   llvm::SmallVector<uint32_t, 10000> binary;
 
   auto spvModule =

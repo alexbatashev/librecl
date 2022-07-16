@@ -58,8 +58,10 @@ public:
 
 protected:
   void prepareLLVMModule(std::unique_ptr<llvm::Module> &module);
-  mlir::OwningOpRef<mlir::ModuleOp> convertLLVMIRToMLIR(std::unique_ptr<llvm::Module> &module);
-  std::vector<unsigned char> convertMLIRToSPIRV(mlir::OwningOpRef<mlir::ModuleOp> &mlirModule);
+  mlir::OwningOpRef<mlir::ModuleOp>
+  convertLLVMIRToMLIR(std::unique_ptr<llvm::Module> &module);
+  std::vector<unsigned char>
+  convertMLIRToSPIRV(mlir::OwningOpRef<mlir::ModuleOp> &mlirModule);
 
   mlir::MLIRContext mContext;
   mlir::PassManager mPM;
