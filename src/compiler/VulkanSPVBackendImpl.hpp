@@ -25,6 +25,8 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 
 #include <functional>
+#include <memory>
+#include <mlir/IR/OwningOpRef.h>
 #include <span>
 #include <string_view>
 
@@ -32,7 +34,7 @@ namespace lcl {
 namespace detail {
 class VulkanSPVBackendImpl {
 public:
-  VulkanSPVBackendImpl();
+  VulkanSPVBackendImpl(bool initializeSPV = true);
 
   virtual std::vector<unsigned char>
   compile(std::unique_ptr<llvm::Module> module);
@@ -40,6 +42,7 @@ public:
   virtual ~VulkanSPVBackendImpl() = default;
 
   void setLLVMIRPrinter(std::function<void(std::span<char>)> printer) {
+    mHasLLVMPrinter = true;
     mLLVMIRPrinter = printer;
   }
   void setMLIRPrinter(std::function<void(std::string_view)> printer) {
@@ -49,13 +52,20 @@ public:
     mSPVPrinter = printer;
   }
   void setLLVMTextPrinter(std::function<void(std::string_view)> printer) {
+    mHasLLVMTextPrinter = true;
     mLLVMTextPrinter = printer;
   }
 
-private:
+protected:
+  void prepareLLVMModule(std::unique_ptr<llvm::Module> &module);
+  mlir::OwningOpRef<mlir::ModuleOp> convertLLVMIRToMLIR(std::unique_ptr<llvm::Module> &module);
+  std::vector<unsigned char> convertMLIRToSPIRV(mlir::OwningOpRef<mlir::ModuleOp> &mlirModule);
+
   mlir::MLIRContext mContext;
   mlir::PassManager mPM;
 
+  bool mHasLLVMPrinter = false;
+  bool mHasLLVMTextPrinter = false;
   std::function<void(std::span<char>)> mLLVMIRPrinter = [](std::span<char>) {};
   std::function<void(std::string_view)> mLLVMTextPrinter =
       [](std::string_view) {};

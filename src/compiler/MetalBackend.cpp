@@ -8,6 +8,7 @@
 
 #include "MetalBackend.hpp"
 #include "VulkanSPVBackendImpl.hpp"
+#include "passes/mlir/passes.hpp"
 #include "visibility.hpp"
 
 #include "mlir/Dialect/GPU/GPUDialect.h"
@@ -37,10 +38,15 @@ namespace lcl {
 namespace detail {
 class LCL_COMP_EXPORT MetalBackendImpl : public VulkanSPVBackendImpl {
 public:
-  MetalBackendImpl() : VulkanSPVBackendImpl() {}
+  MetalBackendImpl() : VulkanSPVBackendImpl(/*initializeSPV*/ false) {
+    mPM.addNestedPass<mlir::gpu::GPUModuleOp>(createAIRKernelABIPass());
+  }
 
   std::vector<unsigned char>
   compile(std::unique_ptr<llvm::Module> module) override {
+    VulkanSPVBackendImpl::prepareLLVMModule(module);
+    auto mlirModule = VulkanSPVBackendImpl::convertLLVMIRToMLIR(module);
+    /*
     std::vector<unsigned char> spv =
         VulkanSPVBackendImpl::compile(std::move(module));
     spirv_cross::CompilerMSL mslComp(reinterpret_cast<uint32_t *>(spv.data()),
@@ -52,6 +58,9 @@ public:
     std::string source = mslComp.compile();
 
     mMSLPrinter(source);
+    */
+
+    std::string source = "dummy";
 
     return std::vector<unsigned char>{
         reinterpret_cast<unsigned char *>(source.data()),
