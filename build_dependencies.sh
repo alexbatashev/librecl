@@ -40,10 +40,7 @@ cd third_party/llvm-project
 
 mkdir -p build
 
-cd mlir
-git apply ../../llvm_patches/D126594.diff
-git apply ../../llvm_patches/lower_abi.diff
-cd ../build
+cd build
 
 cmake -GNinja \
   -DLLVM_EXTERNAL_PROJECTS="llvm-spirv" \
