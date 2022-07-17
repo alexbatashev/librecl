@@ -7,7 +7,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "MetalBackend.hpp"
+#include "CppEmitter.hpp"
 #include "VulkanSPVBackendImpl.hpp"
+#include "passes/mlir/passes.hpp"
 #include "visibility.hpp"
 
 #include "mlir/Dialect/GPU/GPUDialect.h"
@@ -28,28 +30,34 @@
 
 #include "RawMemory/RawMemoryDialect.h"
 
+#include <iostream>
+#include <llvm/Support/raw_ostream.h>
 #include <memory>
 #include <spirv_msl.hpp>
 #include <vector>
-#include <iostream>
 
 namespace lcl {
 namespace detail {
 class LCL_COMP_EXPORT MetalBackendImpl : public VulkanSPVBackendImpl {
 public:
-  MetalBackendImpl() : VulkanSPVBackendImpl() {}
+  MetalBackendImpl() : VulkanSPVBackendImpl(/*initializeSPV*/ false) {
+    mPM.addNestedPass<mlir::gpu::GPUModuleOp>(createAIRKernelABIPass());
+    mPM.addPass(createExpandGPUBuiltinsPass());
+    mPM.addPass(mlir::createCanonicalizerPass());
+    mPM.addPass(createGPUToCppPass());
+  }
 
   std::vector<unsigned char>
   compile(std::unique_ptr<llvm::Module> module) override {
-    std::vector<unsigned char> spv =
-        VulkanSPVBackendImpl::compile(std::move(module));
-    spirv_cross::CompilerMSL mslComp(reinterpret_cast<uint32_t *>(spv.data()),
-                                     spv.size() / sizeof(uint32_t));
-    spirv_cross::CompilerMSL::Options mslOpts;
-    mslOpts.set_msl_version(2, 2);
-    mslOpts.vertex_index_type = spirv_cross::CompilerMSL::Options::IndexType::UInt32;
-    mslComp.set_msl_options(mslOpts);
-    std::string source = mslComp.compile();
+    VulkanSPVBackendImpl::prepareLLVMModule(module);
+    auto mlirModule = VulkanSPVBackendImpl::convertLLVMIRToMLIR(module);
+
+    std::string source;
+    llvm::raw_string_ostream mslStream{source};
+    // TODO check for errors
+    lcl::translateToCpp(mlirModule.get(), mslStream, true);
+
+    mslStream.flush();
 
     mMSLPrinter(source);
 

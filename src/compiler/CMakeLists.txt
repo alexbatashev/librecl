@@ -5,6 +5,7 @@ else ()
 endif ()
 
 add_subdirectory(dialects/RawMemory)
+add_subdirectory(passes/mlir)
 
 add_library(lcl_compiler SHARED
   frontend.cpp
@@ -13,11 +14,7 @@ add_library(lcl_compiler SHARED
   MetalBackend.cpp
   VulkanBackend.cpp
   VulkanSPVBackendImpl.cpp
-  passes/mlir/AIRKernelABIPass.cpp
-  passes/mlir/SPIRToGPUConversion.cpp
-  passes/mlir/ExpandOpenCLFunctionsPass.cpp
-  passes/mlir/GPUToSPIRVPass.cpp
-  passes/mlir/InferPointerTypesPass.cpp
+  TranslateToCpp.cpp
 )
 
 list(APPEND CMAKE_MODULE_PATH
@@ -133,4 +130,5 @@ target_link_libraries(lcl_compiler PRIVATE
   MLIRToLLVMIRTranslationRegistration
   MLIRSPIRVSerialization
   LLVMSPIRVLib
+  LCLPasses
 )

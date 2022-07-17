@@ -20,10 +20,20 @@
 #include "llvm/Support/ToolOutputFile.h"
 
 #include "RawMemory/RawMemoryDialect.h"
+#include "passes/mlir/passes.hpp"
 
 int main(int argc, char **argv) {
   mlir::registerAllPasses();
   // TODO: Register LibreCL passes here.
+  mlir::registerPass([]() -> std::unique_ptr<mlir::Pass> {
+    return lcl::createAIRKernelABIPass();
+  });
+  mlir::registerPass([]() -> std::unique_ptr<mlir::Pass> {
+    return lcl::createExpandGPUBuiltinsPass();
+  });
+  mlir::registerPass([]() -> std::unique_ptr<mlir::Pass> {
+    return lcl::createGPUToCppPass();
+  });
 
   mlir::DialectRegistry registry;
   registry.insert<mlir::rawmem::RawMemoryDialect>();

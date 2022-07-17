@@ -12,7 +12,7 @@ jobs:
   build_test:
     strategy:
       matrix:
-       os: ['ubuntu-22.04', 'macOS-12']
+       os: ['ubuntu-22.04']
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
@@ -23,8 +23,10 @@ jobs:
           sudo apt install -yqq ccache ninja-build libtbb-dev
       - name: Install macOS dependencies
         if: matrix.os == 'macOS-12'
-        run:
-          brew install ccache ninja tbb
+        run: |
+          brew install ccache ninja tbb ncurses
+          echo 'export PATH="/usr/local/opt/ncurses/bin:$PATH"' >> /Users/runner/.bash_profile
+          echo "PKG_CONFIG_PATH=\"/usr/local/opt/ncurses/lib/pkgconfig\"" > $GITHUB_ENV
       - uses: actions/checkout@v3
         with:
           submodules: true
@@ -38,8 +40,9 @@ jobs:
           restore-keys: llvm-${{ runner.os }}-
       - name: Build LLVM
         run: ./build_dependencies.sh
-      #- name: Configure LibreCL
-      #  run: ./configure.sh
-      #- name: Build LibreCL
-      #  run: cd build && ninja
-        # TODO run tests
+      - name: Configure LibreCL
+        run: ./configure.sh
+      - name: Build LibreCL
+        run: cd build && ninja
+      - name: Run tests
+        run: cd build && ninja check-lcl

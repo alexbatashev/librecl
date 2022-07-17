@@ -44,5 +44,6 @@ cmake -GNinja \
   -DClang_DIR=$PWD/../third_party/llvm-project/build/lib/cmake/clang \
   -DLLVM_ENABLE_ASSERTIONS=OFF \
   -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+  -DLLVM_ENABLE_TERMINFO=OFF \
   -DLIBRECL_LINKER="$LINKER" \
   ..

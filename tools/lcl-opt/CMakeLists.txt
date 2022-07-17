@@ -14,6 +14,7 @@ target_link_libraries(lcl-opt PRIVATE
   ${conversion_libs}
   MLIROptLib
   MLIRRawMemory
+  LCLPasses
   )
 
 target_include_directories(lcl-opt PRIVATE
