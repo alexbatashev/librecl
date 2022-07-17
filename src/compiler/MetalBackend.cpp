@@ -40,6 +40,7 @@ class LCL_COMP_EXPORT MetalBackendImpl : public VulkanSPVBackendImpl {
 public:
   MetalBackendImpl() : VulkanSPVBackendImpl(/*initializeSPV*/ false) {
     mPM.addNestedPass<mlir::gpu::GPUModuleOp>(createAIRKernelABIPass());
+    // mPM.addPass(createExpandGPUBuiltinsPass());
   }
 
   std::vector<unsigned char>

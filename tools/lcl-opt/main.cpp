@@ -28,6 +28,9 @@ int main(int argc, char **argv) {
   mlir::registerPass([]() -> std::unique_ptr<mlir::Pass> {
     return lcl::createAIRKernelABIPass();
   });
+  mlir::registerPass([]() -> std::unique_ptr<mlir::Pass> {
+    return lcl::createExpandGPUBuiltinsPass();
+  });
 
   mlir::DialectRegistry registry;
   registry.insert<mlir::rawmem::RawMemoryDialect>();

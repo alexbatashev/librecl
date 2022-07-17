@@ -4,6 +4,7 @@ add_library(LCLPasses STATIC
   ExpandOpenCLFunctionsPass.cpp
   GPUToSPIRVPass.cpp
   InferPointerTypesPass.cpp
+  ExpandGPUBuiltins.cpp
   )
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
