@@ -35,4 +35,5 @@ std::unique_ptr<mlir::Pass> createExpandOpenCLFunctionsPass();
 std::unique_ptr<mlir::Pass> createGPUToSPIRVPass();
 std::unique_ptr<mlir::Pass> createInferPointerTypesPass();
 std::unique_ptr<mlir::Pass> createExpandGPUBuiltinsPass();
+std::unique_ptr<mlir::Pass> createGPUToCppPass();
 }

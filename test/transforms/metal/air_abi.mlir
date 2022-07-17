@@ -29,7 +29,7 @@ module {
       %7 = arith.index_cast %6 : index to i64
       return %7 : i64
     }
-    // CHECK: gpu.func @vectorAdd(%arg0: !rawmem.ptr<f32, 1>, %arg1: !rawmem.ptr<f32, 1>, %arg2: !rawmem.ptr<f32, 1>, %arg3: !rawmem.ptr<i32, 1>, %arg4: vector<3xi32>, %arg5: vector<3xi32>, %arg6: vector<3xi32>, %arg7: vector<3xi32>) kernel attributes {spv.entry_point_abi = {local_size = dense<1> : vector<3xi32>}}
+    // CHECK: gpu.func @vectorAdd(%arg0: !rawmem.ptr<f32, 1>, %arg1: !rawmem.ptr<f32, 1>, %arg2: !rawmem.ptr<f32, 1>, %arg3: !rawmem.ptr<i32, 1>, %arg4: vector<3xi32> {emitc.thread_position_in_grid}, %arg5: vector<3xi32> {emitc.thread_position_in_threadgroup}, %arg6: vector<3xi32> {emitc.threads_per_threadgroup}, %arg7: vector<3xi32> {emitc.threadgroups_per_grid}) kernel attributes {spv.entry_point_abi = {local_size = dense<1> : vector<3xi32>}}
     gpu.func @vectorAdd(%arg0: !rawmem.ptr<f32, 1>, %arg1: !rawmem.ptr<f32, 1>, %arg2: !rawmem.ptr<f32, 1>, %arg3: i32) kernel attributes {spv.entry_point_abi = {local_size = dense<1> : vector<3xi32>}} {
       %c0_i32 = arith.constant 0 : i32
       // CHECK: func.call @_Z13get_global_idj(%c0_i32, %arg4, %arg5, %arg6, %arg7) : (i32, vector<3xi32>, vector<3xi32>, vector<3xi32>, vector<3xi32>) -> i64

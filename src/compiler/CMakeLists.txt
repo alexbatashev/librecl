@@ -14,6 +14,7 @@ add_library(lcl_compiler SHARED
   MetalBackend.cpp
   VulkanBackend.cpp
   VulkanSPVBackendImpl.cpp
+  TranslateToCpp.cpp
 )
 
 list(APPEND CMAKE_MODULE_PATH

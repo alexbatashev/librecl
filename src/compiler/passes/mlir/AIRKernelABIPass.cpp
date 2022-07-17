@@ -10,10 +10,12 @@
 #include "RawMemory/RawMemoryTypes.h"
 #include "passes.hpp"
 
+#include "mlir/Dialect/EmitC/IR/EmitC.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/GPU/GPUDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
+#include "mlir/IR/Attributes.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -77,9 +79,42 @@ template <typename FuncTy> static void processFunction(FuncTy func) {
     return;
   }
 
-  for (int i = 0; i < 4; i++)
+  for (int i = 0; i < 4; i++) {
     func.getBody().getBlocks().front().addArgument(indexType,
                                                    builder.getUnknownLoc());
+    if constexpr (std::is_same_v<mlir::gpu::GPUFuncOp, FuncTy>) {
+      switch (i) {
+      case 0:
+        func.setArgAttrs(
+            newFuncType.getNumInputs() - 4 + i,
+            {mlir::NamedAttribute{
+                builder.getStringAttr("emitc.thread_position_in_grid"),
+                builder.getUnitAttr()}});
+        break;
+      case 1:
+        func.setArgAttrs(
+            newFuncType.getNumInputs() - 4 + i,
+            {mlir::NamedAttribute{
+                builder.getStringAttr("emitc.thread_position_in_threadgroup"),
+                builder.getUnitAttr()}});
+        break;
+      case 2:
+        func.setArgAttrs(
+            newFuncType.getNumInputs() - 4 + i,
+            {mlir::NamedAttribute{
+                builder.getStringAttr("emitc.threads_per_threadgroup"),
+                builder.getUnitAttr()}});
+        break;
+      case 3:
+        func.setArgAttrs(
+            newFuncType.getNumInputs() - 4 + i,
+            {mlir::NamedAttribute{
+                builder.getStringAttr("emitc.threadgroups_per_grid"),
+                builder.getUnitAttr()}});
+        break;
+      }
+    }
+  }
 
   llvm::SmallVector<mlir::Value, 4> newVals;
   for (unsigned int i = newFuncType.getNumInputs() - 4;
