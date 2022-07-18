@@ -138,17 +138,17 @@ int main() {
   check(clEnqueueWriteBuffer(queue, bufB, CL_TRUE, 0, N * sizeof(int), b.data(),
                              0, nullptr, nullptr));
 
-  /*
   check(clSetKernelArg(kernel, 0, sizeof(cl_mem), &bufA));
   check(clSetKernelArg(kernel, 1, sizeof(cl_mem), &bufB));
   check(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bufC));
-  check(clSetKernelArg(kernel, 0, sizeof(size_t), &N));
+  check(clSetKernelArg(kernel, 3, sizeof(size_t), &N));
 
   std::array<size_t, 1> globalSize = { N };
   cl_event evt;
   check(clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, globalSize.data(),
   nullptr, 0, nullptr, &evt));
 
+  /*
   clFinish(queue);
 
   clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, N * sizeof(int), res.data(), 0,

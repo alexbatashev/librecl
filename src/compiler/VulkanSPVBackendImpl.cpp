@@ -8,10 +8,12 @@
 
 #include "VulkanSPVBackendImpl.hpp"
 #include "frontend.hpp"
+#include "passes/llvm/FixupStructuredCFGPass.h"
 #include "passes/mlir/passes.hpp"
 
 #include "mlir/Dialect/GPU/GPUDialect.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVOps.h"
+#include "mlir/Dialect/SPIRV/Transforms/Passes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/DialectRegistry.h"
@@ -22,6 +24,7 @@
 #include "mlir/Target/LLVMIR/Import.h"
 #include "mlir/Target/SPIRV/Serialization.h"
 #include "mlir/Transforms/Passes.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
@@ -32,10 +35,7 @@
 #include "RawMemory/RawMemoryDialect.h"
 
 #include <cstring>
-#include <llvm/ADT/SetVector.h>
 #include <memory>
-#include <mlir/Dialect/SPIRV/Transforms/Passes.h>
-#include <mlir/Target/SPIRV/Serialization.h>
 #include <vector>
 
 namespace lcl {
@@ -56,6 +56,8 @@ VulkanSPVBackendImpl::VulkanSPVBackendImpl(bool initializeSPV)
   mPM.addPass(mlir::createInlinerPass());
   mPM.addPass(lcl::createInferPointerTypesPass());
   // This is supposed to cleanup extra reinterpret_casts
+  mPM.addPass(mlir::createCanonicalizerPass());
+  mPM.addNestedPass<mlir::gpu::GPUModuleOp>(createStructureCFGPass());
   mPM.addPass(mlir::createCanonicalizerPass());
 
   if (initializeSPV) {
@@ -88,6 +90,8 @@ void VulkanSPVBackendImpl::prepareLLVMModule(
 
   ModulePassManager MPM =
       PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
+  MPM.addPass(
+      createModuleToFunctionPassAdaptor(clspv::FixupStructuredCFGPass()));
 
   MPM.run(*module, MAM);
 
@@ -134,18 +138,21 @@ std::vector<unsigned char> VulkanSPVBackendImpl::convertMLIRToSPIRV(
 
   auto spvModule =
       mlirModule->lookupSymbol<mlir::spirv::ModuleOp>("__spv__ocl_program");
-
-  // TODO check result
-  mlir::spirv::serialize(spvModule, binary);
+  if (spvModule) {
+    mlir::spirv::serialize(spvModule, binary);
+  }
+  // TODO return error here
 
   std::vector<unsigned char> resBinary;
   resBinary.resize(sizeof(uint32_t) * binary.size());
   std::memcpy(resBinary.data(), binary.data(), resBinary.size());
 
   { mSPVPrinter(resBinary); }
+
+  return resBinary;
 }
 
-std::vector<unsigned char>
+BinaryProgram
 VulkanSPVBackendImpl::compile(std::unique_ptr<llvm::Module> module) {
   if (!module) {
     llvm::errs() << "INVALID MODULE!!!\n";
@@ -157,7 +164,40 @@ VulkanSPVBackendImpl::compile(std::unique_ptr<llvm::Module> module) {
   auto mlirModule = convertLLVMIRToMLIR(module);
   auto resBinary = convertMLIRToSPIRV(mlirModule);
 
-  return resBinary;
+  std::vector<KernelInfo> kernels;
+
+  // TODO account for data layout types
+  const auto getTypeSize = [](mlir::Type type) -> size_t {
+    if (type.isa<mlir::rawmem::PointerType>()) {
+      return 8;
+    }
+    if (type.isIntOrFloat()) {
+      return type.getIntOrFloatBitWidth() / 8;
+    }
+
+    return -1;
+  };
+
+  mlirModule->walk([&kernels, &getTypeSize](mlir::gpu::GPUFuncOp func) {
+    if (!func.isKernel())
+      return;
+    std::string name = func.getName().str();
+    std::vector<ArgumentInfo> args;
+
+    for (auto arg : func.getArgumentTypes()) {
+      size_t size = getTypeSize(arg);
+      if (arg.isa<mlir::rawmem::PointerType>()) {
+        args.emplace_back(ArgumentInfo::ArgType::GlobalBuffer, args.size(),
+                          size);
+      } else {
+        args.emplace_back(ArgumentInfo::ArgType::POD, args.size(), size);
+      }
+    }
+
+    kernels.emplace_back(name, args);
+  });
+
+  return BinaryProgram{resBinary, kernels};
 }
 } // namespace detail
 } // namespace lcl

@@ -17,7 +17,7 @@ namespace lcl {
 VulkanBackend::VulkanBackend()
     : mImpl(std::make_shared<detail::VulkanSPVBackendImpl>()) {}
 
-std::vector<unsigned char> VulkanBackend::compile(FrontendResult &module) {
+BinaryProgram VulkanBackend::compile(FrontendResult &module) {
   return mImpl->compile(module.takeModule());
 }
 void VulkanBackend::setLLVMIRPrinter(

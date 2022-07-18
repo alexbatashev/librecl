@@ -9,6 +9,7 @@
 #pragma once
 
 #include "backend.hpp"
+#include "kernel_info.hpp"
 #include "visibility.hpp"
 
 #include <functional>
@@ -22,7 +23,7 @@ class LCL_COMP_EXPORT MetalBackend : public Backend {
 public:
   MetalBackend();
 
-  std::vector<unsigned char> compile(FrontendResult &module) final;
+  BinaryProgram compile(FrontendResult &module) final;
 
   ~MetalBackend() = default;
 

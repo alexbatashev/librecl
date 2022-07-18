@@ -8,6 +8,8 @@
 
 #include "command.hpp"
 #include "context.hpp"
+#include "framework/error.hpp"
+#include "kernel.hpp"
 #include "memory.hpp"
 #include "queue.hpp"
 
@@ -19,8 +21,7 @@ MemWriteBufferCommand::MemWriteBufferCommand(cl_mem buffer, EnqueueType type,
                                              const void *ptr,
                                              std::span<cl_event> waitList)
     : mDst(buffer), mOffset(offset), mSize(size), mSrc(ptr),
-      mWaitList(waitList.begin(), waitList.end()),
-      Command(CommandType::MemWriteBuffer, type) {}
+      mWaitList(waitList.begin(), waitList.end()), Command(type) {}
 
 cl_event MemWriteBufferCommand::recordCommand(cl_command_queue queue,
                                               vk::CommandBuffer commandBuffer) {
@@ -35,7 +36,7 @@ cl_event MemWriteBufferCommand::recordCommand(cl_command_queue queue,
     if (err != VK_SUCCESS) {
       // TODO add info about VK error
       queue->getContext()->notifyError("Failed to map Vulkan buffer");
-      return;
+      throw InternalBackendError("Failed to map Vulkan buffer");
     }
 
     std::memcpy(reinterpret_cast<char *>(mappedData) + mOffset, mSrc, mSize);
@@ -47,5 +48,35 @@ cl_event MemWriteBufferCommand::recordCommand(cl_command_queue queue,
     command();
   }
 
+  return nullptr;
+}
+
+cl_event ExecKernelCommand::recordCommand(cl_command_queue queue,
+                                          vk::CommandBuffer buffer) {
+  // vk::CommandBufferBeginInfo
+  // info(vk::CommandBufferUsageFlagBits::eOneTimeSubmit); buffer.begin(info);
+  buffer.bindPipeline(vk::PipelineBindPoint::eCompute,
+                      mKernel->getPipeline(queue->getDevice()));
+
+  vk::DescriptorSet descriptorSet =
+      mKernel->prepareKernelArgs(queue->getDevice());
+  buffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
+                            mKernel->getPipelineLayout(queue->getDevice()), 0,
+                            {descriptorSet}, {});
+
+  buffer.dispatch(mRange.globalSize[0] / mRange.localSize[0],
+                  mRange.globalSize[0] / mRange.localSize[0],
+                  mRange.globalSize[0] / mRange.localSize[0]);
+  buffer.end();
+
+  vk::Device device = queue->getDevice()->getLogicalDevice();
+  const auto index = queue->getDevice()->getQueueFamilyIndex();
+  vk::Queue nativeQueue = device.getQueue(index, 0);
+  vk::Fence fence = device.createFence(vk::FenceCreateInfo());
+  vk::SubmitInfo submitInfo{0, nullptr, nullptr, 1, &buffer};
+
+  nativeQueue.submit({submitInfo}, fence);
+
+  // TODO return real event
   return nullptr;
 }

@@ -18,6 +18,7 @@
 #include "mlir/Conversion/FuncToSPIRV/FuncToSPIRV.h"
 #include "mlir/Conversion/GPUToSPIRV/GPUToSPIRV.h"
 #include "mlir/Conversion/MemRefToSPIRV/MemRefToSPIRV.h"
+#include "mlir/Conversion/SCFToSPIRV/SCFToSPIRV.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/GPU/GPUDialect.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVDialect.h"
@@ -67,6 +68,8 @@ struct GPUToSPIRVPass
     populateMemRefToSPIRVPatterns(typeConverter, patterns);
     populateFuncToSPIRVPatterns(typeConverter, patterns);
     cf::populateControlFlowToSPIRVPatterns(typeConverter, patterns);
+    ScfToSPIRVContext scfContext;
+    populateSCFToSPIRVPatterns(typeConverter, scfContext, patterns);
 
     lcl::populateRawMemoryToSPIRVTypeConversions(typeConverter, targetAttr);
     lcl::populateRawMemoryToSPIRVConversionPatterns(typeConverter, patterns);
@@ -122,14 +125,6 @@ struct LoadPattern : public OpConversionPattern<rawmem::LoadOp> {
   matchAndRewrite(rawmem::LoadOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    // TODO access chain
-    /*
-    llvm::errs() << "\n";
-    adaptor.addr().print(llvm::errs());
-    llvm::errs() << "\n";
-    adaptor.addr().getType().print(llvm::errs());
-    llvm::errs() << "\n";
-    */
     Value baseAddr =
         generateAccessChain(adaptor.addr(), adaptor.indices(), rewriter);
 

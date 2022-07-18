@@ -1,0 +1,56 @@
+From f716c4bc3c97c408ece6706a413a43ef11ae51d1 Mon Sep 17 00:00:00 2001
+From: Alexander Batashev <alexbatashev@outlook.com>
+Date: Mon, 18 Jul 2022 16:01:20 +0300
+Subject: [PATCH] [mlir][spirv] Handle nested global variable references in
+ SPIR-V ABI
+
+Consider the following simplified example:
+```mlir
+spv.func foo() -> i32 {
+  %GID_addr = spv.mlir.addressof @__builtin_var_GlobalInvocationId__ : !spv.ptr<vector<3xi32>, Input>
+  %0 = spv.Load "Input" %GID_addr : vector<3xi32>
+  %1 = spv.CompositeExtract %4[0 : i32] : vector<3xi32>
+  spv.return %1
+}
+spv.func @bar() "None" attributes {workgroup_attributions = 0 : i64} {
+  %0 = spv.FunctionCall @foo() : (i32) -> i32
+  spv.return
+}
+```
+
+In this example LowerABIAttributesPass is not capable of correctly
+deducing all of the interface variables, which include
+@__builtin_var_GlobalInvocationId__. This patch recursively traverses
+kernel call graph in order to catch such references.
+---
+ .../Transforms/LowerABIAttributesPass.cpp      | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/mlir/lib/Dialect/SPIRV/Transforms/LowerABIAttributesPass.cpp b/mlir/lib/Dialect/SPIRV/Transforms/LowerABIAttributesPass.cpp
+index ff3486b1c804..9432b9ba78cf 100644
+--- a/mlir/lib/Dialect/SPIRV/Transforms/LowerABIAttributesPass.cpp
++++ b/mlir/lib/Dialect/SPIRV/Transforms/LowerABIAttributesPass.cpp
+@@ -100,7 +104,19 @@ getInterfaceVariables(spirv::FuncOp funcOp,
+     interfaceVars.push_back(SymbolRefAttr::get(
+         funcOp.getContext(), cast<spirv::GlobalVariableOp>(var).sym_name()));
+   }
+-  return success();
++
++  SmallVector<LogicalResult, 5> results;
++
++  funcOp.walk([&](spirv::FunctionCallOp callOp) {
++    auto spvModule = callOp->getParentOfType<spirv::ModuleOp>();
++    auto callee = spvModule.lookupSymbol<spirv::FuncOp>(callOp.callee());
++    results.push_back(getInterfaceVariables(callee, interfaceVars));
++  });
++
++  const bool allSuccess =
++      llvm::all_of(results, [](LogicalResult res) { return succeeded(res); });
++
++  return allSuccess ? success() : failure();
+ }
+ 
+ /// Lowers the entry point attribute.
+-- 
+2.36.1
+

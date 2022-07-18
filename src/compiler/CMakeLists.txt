@@ -15,6 +15,7 @@ add_library(lcl_compiler SHARED
   VulkanBackend.cpp
   VulkanSPVBackendImpl.cpp
   TranslateToCpp.cpp
+  passes/llvm/FixupStructuredCFGPass.cpp
 )
 
 list(APPEND CMAKE_MODULE_PATH

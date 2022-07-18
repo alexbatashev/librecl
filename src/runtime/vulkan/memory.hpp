@@ -28,7 +28,10 @@ struct _cl_mem {
 
   cl_context getContext() { return mContext; }
 
+  size_t getSize() const noexcept { return mSize; }
+
 private:
   cl_context mContext;
+  size_t mSize;
   std::unordered_map<cl_device_id, AllocationInfo> mBuffers;
 };

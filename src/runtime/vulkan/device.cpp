@@ -29,9 +29,19 @@ _cl_device_id::_cl_device_id(cl_platform_id plt, vk::PhysicalDevice device,
 
   mQueueFamilyIndex = ranges::distance(ranges::begin(queueFamilyProps), it);
 
+  const float queuePriority = 1.0f;
   vk::DeviceQueueCreateInfo deviceQueueCreateInfo(vk::DeviceQueueCreateFlags(),
                                                   mQueueFamilyIndex, 1);
+  deviceQueueCreateInfo.pQueuePriorities = &queuePriority;
+
+  auto supportedFeatures = device.getFeatures();
+
+  mDeviceOptions = Options(supportedFeatures);
+
   vk::DeviceCreateInfo deviceCreateInfo(vk::DeviceCreateFlags(),
                                         deviceQueueCreateInfo);
+  auto [enabledFeatures] = mDeviceOptions.to_vulkan();
+  deviceCreateInfo.pEnabledFeatures = &enabledFeatures;
+
   mLogicalDevice = mDevice.createDevice(deviceCreateInfo);
 }

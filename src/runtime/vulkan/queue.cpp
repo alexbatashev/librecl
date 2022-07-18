@@ -25,6 +25,10 @@ vk::CommandBuffer _cl_command_queue::getCommandBufferForThread() {
         mDevice->getLogicalDevice().allocateCommandBuffers(
             commandBufferAllocInfo);
     mBuffer = cmdBuffers.front();
+
+    vk::CommandBufferBeginInfo beginInfo(
+        vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+    mBuffer->begin(beginInfo);
   }
 
   return *mBuffer;
@@ -34,5 +38,9 @@ cl_event InOrderQueue::submit(Command &cmd) {
   vk::CommandBuffer buf = getCommandBufferForThread();
 
   // TODO ensure order
-  return cmd.recordCommand(this, buf);
+  cl_event evt = cmd.recordCommand(this, buf);
+
+  // TODO should we submit here?
+
+  return evt;
 }

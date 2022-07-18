@@ -12,8 +12,8 @@
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
 
-_cl_mem::_cl_mem(cl_context ctx, cl_mem_flags, size_t size) : mContext(ctx) {
-  // TODO use VMA
+_cl_mem::_cl_mem(cl_context ctx, cl_mem_flags, size_t size)
+    : mContext(ctx), mSize(size) {
   for (auto &dev : mContext->getDevices()) {
     uint32_t index = dev->getQueueFamilyIndex();
     VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -25,7 +25,7 @@ _cl_mem::_cl_mem(cl_context ctx, cl_mem_flags, size_t size) : mContext(ctx) {
                                   1,
                                   &index};
     VmaAllocationCreateInfo allocInfo = {};
-    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
     allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
     VkBuffer buffer;
     VmaAllocation allocation;

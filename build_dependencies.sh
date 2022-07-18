@@ -40,6 +40,8 @@ cd third_party/llvm-project
 
 mkdir -p build
 
+git apply ../llvm_patches/0001-mlir-spirv-Handle-nested-global-variable-references-.patch
+
 cd build
 
 cmake -GNinja \
