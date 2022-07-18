@@ -39,4 +39,8 @@ cl_event InOrderQueue::submit(Command &cmd) {
 
   // TODO ensure order
   cl_event evt = cmd.recordCommand(this, buf);
+
+  // TODO should we submit here?
+
+  return evt;
 }

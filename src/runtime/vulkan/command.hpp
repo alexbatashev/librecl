@@ -49,7 +49,7 @@ public:
   };
 
   ExecKernelCommand(cl_kernel kernel, NDRange range,
-                    std::span<cl_event> waitList)
+                    std::span<const cl_event> waitList)
       : mKernel(kernel), mRange(range),
         mWaitList(waitList.begin(), waitList.end()),
         Command(EnqueueType::NonBlocking){};
@@ -60,5 +60,5 @@ public:
 private:
   cl_kernel mKernel;
   NDRange mRange;
-  std::span<cl_event> mWaitList;
+  std::span<const cl_event> mWaitList;
 };

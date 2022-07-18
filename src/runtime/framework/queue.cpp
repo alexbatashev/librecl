@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <CL/cl.h>
+#include <range/v3/algorithm/fill.hpp>
 #include <range/v3/algorithm/find.hpp>
 
 #include "command.hpp"
@@ -61,6 +63,42 @@ cl_int LCL_API clEnqueueWriteBuffer(cl_command_queue command_queue,
 
   // TODO pass wait list
   MemWriteBufferCommand cmd{buffer, blocking, offset, size, ptr, {}};
+
+  command_queue->submit(cmd);
+
+  return CL_SUCCESS;
+}
+
+cl_int LCL_API clEnqueueNDRangeKernel(
+    cl_command_queue command_queue, cl_kernel kernel, cl_uint work_dim,
+    const size_t *global_work_offset, const size_t *global_work_size,
+    const size_t *local_work_size, cl_uint num_events_in_wait_list,
+    const cl_event *event_wait_list, cl_event *event) {
+  // TODO all checks from the spec
+  // https://registry.khronos.org/OpenCL/sdk/2.2/docs/man/html/clEnqueueNDRangeKernel.html
+
+  const auto fillArray = [](std::array<size_t, 3> &array, const size_t *cArray,
+                            unsigned size, size_t defaultValue) {
+    if (cArray) {
+      for (unsigned i = 0; i < size; i++) {
+        array[i] = cArray[i];
+      }
+      for (unsigned i = size; i < 3; i++) {
+        array[i] = defaultValue;
+      }
+    } else {
+      ranges::fill(array, defaultValue);
+    }
+  };
+
+  ExecKernelCommand::NDRange range;
+  fillArray(range.globalOffset, global_work_offset, work_dim, 0);
+  fillArray(range.globalSize, global_work_size, work_dim, 1);
+  fillArray(range.localSize, local_work_size, work_dim, 1);
+
+  ExecKernelCommand cmd(
+      kernel, range,
+      std::span<const cl_event>{event_wait_list, num_events_in_wait_list});
 
   command_queue->submit(cmd);
 

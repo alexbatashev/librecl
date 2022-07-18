@@ -26,3 +26,12 @@ private:
   std::string mErrorMessage;
   std::string mSupportedFeatures;
 };
+
+struct InternalBackendError : public std::exception {
+  InternalBackendError(const std::string &msg) : mMessage(msg) {}
+
+  const char *what() const noexcept final { return mMessage.c_str(); }
+
+private:
+  std::string mMessage;
+};

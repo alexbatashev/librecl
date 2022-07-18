@@ -11,6 +11,7 @@
 #include "program.hpp"
 
 #include <CL/cl.h>
+#include <vulkan/vulkan.hpp>
 
 #include <string>
 #include <variant>
@@ -21,9 +22,28 @@ struct _cl_kernel {
 
   cl_int setArg(size_t index, size_t size, const void *value);
 
+  vk::Pipeline getPipeline(cl_device_id device) const {
+    return mComputePipeline.at(device);
+  }
+
+  vk::PipelineLayout getPipelineLayout(cl_device_id device) const {
+    return mComputePipelineLayout.at(device);
+  }
+
+  vk::DescriptorSet prepareKernelArgs(cl_device_id device);
+
 private:
+  struct ImplicitMemoryBuffer {
+    struct Buffer {
+      VmaAllocation allocation;
+      vk::Buffer buffer;
+    };
+    size_t bufferSize;
+    std::unordered_map<cl_device_id, Buffer> buffers;
+  };
+
   struct KernelArg {
-    std::variant<std::monostate, cl_mem, std::vector<unsigned char>> data;
+    std::variant<std::monostate, cl_mem, ImplicitMemoryBuffer> data;
   };
 
   cl_program mProgram;
@@ -31,4 +51,7 @@ private:
 
   std::vector<KernelArg> mKernelArgs;
   std::unordered_map<cl_device_id, vk::Pipeline> mComputePipeline;
+  std::unordered_map<cl_device_id, vk::PipelineLayout> mComputePipelineLayout;
+  std::unordered_map<cl_device_id, vk::DescriptorSetLayout>
+      mDescriptorSetLayouts;
 };

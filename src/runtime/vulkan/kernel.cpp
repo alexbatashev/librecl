@@ -8,8 +8,12 @@
 
 #include "kernel.hpp"
 #include "framework/error.hpp"
+#include "framework/utils.hpp"
+#include "memory.hpp"
 
-#include <framework/error.hpp>
+#include <cstring>
+#include <iostream>
+#include <variant>
 #include <vulkan/vulkan.hpp>
 
 _cl_kernel::_cl_kernel(cl_program program, const std::string &kernelName)
@@ -25,11 +29,13 @@ _cl_kernel::_cl_kernel(cl_program program, const std::string &kernelName)
     vk::DescriptorSetLayout descriptorSetLayout =
         shader.first->getLogicalDevice().createDescriptorSetLayout(
             descriptorSetLayoutCreateInfo);
+    mDescriptorSetLayouts[shader.first] = descriptorSetLayout;
     vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo(
         vk::PipelineLayoutCreateFlags(), descriptorSetLayout);
     vk::PipelineLayout pipelineLayout =
         shader.first->getLogicalDevice().createPipelineLayout(
             pipelineLayoutCreateInfo);
+    mComputePipelineLayout[shader.first] = pipelineLayout;
     vk::PipelineCache pipelineCache =
         shader.first->getLogicalDevice().createPipelineCache(
             vk::PipelineCacheCreateInfo());
@@ -62,6 +68,7 @@ cl_int _cl_kernel::setArg(size_t index, size_t size, const void *value) {
       mProgram->getKernelArgInfo(mKernelName);
 
   if (info.info[index].isBuffer) {
+    std::cerr << "SETTING UP A BUFFER idx=" << index << "\n";
     if (size != sizeof(cl_mem)) {
       // TODO improve log error
       mProgram->getContext()->notifyError(
@@ -69,20 +76,96 @@ cl_int _cl_kernel::setArg(size_t index, size_t size, const void *value) {
       return CL_INVALID_ARG_SIZE;
     }
     // C-style cast is required here
-    cl_mem buffer = (cl_mem)value;
-    mKernelArgs[index].data = buffer;
+    cl_mem *buffer = (cl_mem *)value;
+    mKernelArgs[index].data = *buffer;
   } else {
+    // FIXME this check is malfunction
+    /*
     if (info.info[index].size != size) {
       mProgram->getContext()->notifyError(
           "size is not equal to the expected size of kernel argument");
       return CL_INVALID_ARG_SIZE;
     }
-    std::vector<unsigned char> data{
-        reinterpret_cast<const unsigned char *>(value),
-        reinterpret_cast<const unsigned char *>(value) + size};
+    */
 
-    mKernelArgs[index].data = data;
+    ImplicitMemoryBuffer implicitBuffer;
+    implicitBuffer.bufferSize = size;
+
+    // TODO only require devices, that were used to build the program
+    // TODO try to unify with cl_mem in memory.cpp
+    for (auto &dev : mProgram->getContext()->getDevices()) {
+      uint32_t index = dev->getQueueFamilyIndex();
+      VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                                    nullptr,
+                                    0,
+                                    size,
+                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                    VK_SHARING_MODE_EXCLUSIVE,
+                                    1,
+                                    &index};
+      VmaAllocationCreateInfo allocInfo = {};
+      allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+      allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+      VkBuffer buffer;
+      VmaAllocation allocation;
+      VmaAllocator allocator = mProgram->getContext()->getAllocators().at(dev);
+      vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &buffer, &allocation,
+                      nullptr);
+      implicitBuffer.buffers[dev] =
+          ImplicitMemoryBuffer::Buffer{allocation, buffer};
+
+      void *gpuData;
+      vmaMapMemory(allocator, allocation, &gpuData);
+
+      std::memcpy(gpuData, value, size);
+      vmaUnmapMemory(allocator, allocation);
+    }
+
+    mKernelArgs[index].data = implicitBuffer;
   }
 
   return CL_SUCCESS;
+}
+
+vk::DescriptorSet _cl_kernel::prepareKernelArgs(cl_device_id device) {
+  vk::DescriptorPoolSize poolSize{vk::DescriptorType::eStorageBuffer,
+                                  static_cast<uint32_t>(mKernelArgs.size())};
+  vk::DescriptorPoolCreateInfo poolCreateInfo(vk::DescriptorPoolCreateFlags(),
+                                              1, poolSize);
+  vk::DescriptorPool pool =
+      device->getLogicalDevice().createDescriptorPool(poolCreateInfo);
+
+  vk::DescriptorSetAllocateInfo allocateInfo{pool, 1,
+                                             &mDescriptorSetLayouts.at(device)};
+  const std::vector<vk::DescriptorSet> descriptorSets =
+      device->getLogicalDevice().allocateDescriptorSets(allocateInfo);
+  vk::DescriptorSet descriptorSet = descriptorSets.front();
+
+  std::vector<vk::DescriptorBufferInfo> bufferInfos;
+  std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
+
+  const auto addBuffer = [&](const vk::Buffer &buffer, size_t index) {
+    bufferInfos.emplace_back(buffer, 0, VK_WHOLE_SIZE);
+    writeDescriptorSets.emplace_back(descriptorSet, index, 0, 1,
+                                     vk::DescriptorType::eStorageBuffer,
+                                     nullptr, &bufferInfos.back());
+  };
+
+  for (size_t idx = 0; idx < mKernelArgs.size(); idx++) {
+    std::visit(overloaded{[&](cl_mem mem) {
+                            const auto &info =
+                                mem->getAllocInfoForDevice(device);
+                            addBuffer(info.buffer, idx);
+                          },
+                          [&](const ImplicitMemoryBuffer &buffer) {
+                            addBuffer(buffer.buffers.at(device).buffer, idx);
+                          },
+                          // TODO emit meaningful error
+                          [](std::monostate) { std::terminate(); }},
+               mKernelArgs[idx].data);
+  }
+
+  device->getLogicalDevice().updateDescriptorSets(writeDescriptorSets, {});
+
+  return descriptorSet;
 }
