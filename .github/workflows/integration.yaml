@@ -20,7 +20,7 @@ jobs:
       - name: Install Ubuntu dependencies
         if: matrix.os == 'ubuntu-22.04'
         run:
-          sudo apt install -yqq ccache ninja-build libtbb-dev
+          sudo apt install -yqq ccache ninja-build libtbb-dev spirv-tools
       - name: Install macOS dependencies
         if: matrix.os == 'macOS-12'
         run: |

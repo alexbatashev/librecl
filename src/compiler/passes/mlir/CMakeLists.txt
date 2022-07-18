@@ -6,6 +6,7 @@ add_library(LCLPasses STATIC
   InferPointerTypesPass.cpp
   ExpandGPUBuiltins.cpp
   GPUToCppPass.cpp
+  StructureCFGPass.cpp
   )
 
 get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)

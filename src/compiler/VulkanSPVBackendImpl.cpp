@@ -29,14 +29,15 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Transforms/Utils/Cloning.h"
+#include "mlir/Dialect/SPIRV/Transforms/Passes.h"
+#include "mlir/Target/SPIRV/Serialization.h"
+#include "mlir/Dialect/GPU/GPUDialect.h"
+#include "llvm/ADT/SetVector.h"
 
 #include "RawMemory/RawMemoryDialect.h"
 
 #include <cstring>
-#include <llvm/ADT/SetVector.h>
 #include <memory>
-#include <mlir/Dialect/SPIRV/Transforms/Passes.h>
-#include <mlir/Target/SPIRV/Serialization.h>
 #include <vector>
 
 namespace lcl {
@@ -50,9 +51,6 @@ VulkanSPVBackendImpl::VulkanSPVBackendImpl(bool initializeSPV)
   mContext.loadAllAvailableDialects();
   mlir::registerAllPasses();
 
-  mContext.disableMultithreading();
-  mPM.enableIRPrinting();
-
   mPM.addPass(mlir::createCanonicalizerPass());
   mPM.addPass(createSPIRToGPUPass());
   mPM.addPass(mlir::createCanonicalizerPass());
@@ -61,10 +59,11 @@ VulkanSPVBackendImpl::VulkanSPVBackendImpl(bool initializeSPV)
   mPM.addPass(lcl::createInferPointerTypesPass());
   // This is supposed to cleanup extra reinterpret_casts
   mPM.addPass(mlir::createCanonicalizerPass());
+  mPM.addNestedPass<mlir::gpu::GPUModuleOp>(createStructureCFGPass());
+  mPM.addPass(mlir::createCanonicalizerPass());
 
   if (initializeSPV) {
     mPM.addPass(lcl::createGPUToSPIRVPass());
-    mPM.addNestedPass<mlir::spirv::ModuleOp>(createStructureCFGPass());
     mPM.addNestedPass<mlir::spirv::ModuleOp>(
         mlir::spirv::createLowerABIAttributesPass());
     mPM.addNestedPass<mlir::spirv::ModuleOp>(
@@ -141,22 +140,18 @@ std::vector<unsigned char> VulkanSPVBackendImpl::convertMLIRToSPIRV(
 
   auto spvModule =
       mlirModule->lookupSymbol<mlir::spirv::ModuleOp>("__spv__ocl_program");
-<<<<<<< HEAD
-
-  // TODO check result
-  mlir::spirv::serialize(spvModule, binary);
-=======
   if (spvModule) {
     mlir::spirv::serialize(spvModule, binary);
   }
   // TODO return error here
->>>>>>> 3918006 (experimental pass to outline structured control flow)
 
   std::vector<unsigned char> resBinary;
   resBinary.resize(sizeof(uint32_t) * binary.size());
   std::memcpy(resBinary.data(), binary.data(), resBinary.size());
 
   { mSPVPrinter(resBinary); }
+
+  return resBinary;
 }
 
 BinaryProgram

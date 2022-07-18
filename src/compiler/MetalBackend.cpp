@@ -54,7 +54,7 @@ public:
     std::string source;
     llvm::raw_string_ostream mslStream{source};
     // TODO check for errors
-    lcl::translateToCpp(mlirModule.get(), mslStream, true);
+    lcl::translateToCpp(mlirModule.get(), mslStream, false);
 
     mslStream.flush();
 

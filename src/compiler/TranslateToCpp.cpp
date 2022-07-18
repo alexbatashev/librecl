@@ -315,6 +315,22 @@ static LogicalResult printOperation(CppEmitter &emitter,
 }
 
 static LogicalResult printOperation(CppEmitter &emitter,
+                                    arith::ExtSIOp castOp) {
+  raw_ostream &os = emitter.ostream();
+  Operation &op = *castOp.getOperation();
+
+  if (failed(emitter.emitAssignPrefix(op)))
+    return failure();
+  os << "(";
+  if (failed(emitter.emitType(op.getLoc(), op.getResult(0).getType())))
+    return failure();
+  os << ") ";
+  os << emitter.getOrCreateName(castOp.getOperand());
+
+  return success();
+}
+
+static LogicalResult printOperation(CppEmitter &emitter,
                                     vector::ExtractElementOp extOp) {
   if (failed(emitter.emitAssignPrefix(*extOp.getOperation())))
     return failure();
@@ -1104,7 +1120,7 @@ LogicalResult CppEmitter::emitOperation(Operation &op, bool trailingSemicolon) {
               [&](auto op) { return printOperation(*this, op); })
           .Case<arith::IndexCastOp>(
               [&](auto op) { return printOperation(*this, op); })
-          .Case<arith::TruncIOp>(
+          .Case<arith::TruncIOp, arith::ExtSIOp>(
               [&](auto op) { return printOperation(*this, op); })
           .Case<arith::AddFOp>(
               [&](auto op) { return printOperation(*this, op); })
