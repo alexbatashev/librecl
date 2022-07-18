@@ -7,6 +7,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "kernel.hpp"
+#include "framework/error.hpp"
+
+#include <framework/error.hpp>
+#include <vulkan/vulkan.hpp>
 
 _cl_kernel::_cl_kernel(cl_program program, const std::string &kernelName)
     : mProgram(program), mKernelName(kernelName) {
@@ -35,10 +39,14 @@ _cl_kernel::_cl_kernel(cl_program program, const std::string &kernelName)
         shader.second, mKernelName.c_str());
     vk::ComputePipelineCreateInfo computePipelineCreateInfo(
         vk::PipelineCreateFlags(), pipelineShaderCreateInfo, pipelineLayout);
-    vk::ResultValue<vk::Pipeline> computePipeline =
-        shader.first->getLogicalDevice().createComputePipeline(
-            pipelineCache, computePipelineCreateInfo);
-    mComputePipeline[shader.first] = computePipeline.value;
+    try {
+      vk::ResultValue<vk::Pipeline> computePipeline =
+          shader.first->getLogicalDevice().createComputePipeline(
+              pipelineCache, computePipelineCreateInfo);
+      mComputePipeline[shader.first] = computePipeline.value;
+    } catch (vk::FeatureNotPresentError err) {
+      throw UnsupportedFeature{err.what(), shader.first->getSupportedOptions()};
+    }
   }
 }
 

@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kernel.hpp"
+#include "error.hpp"
 #include "log.hpp"
 #include "ocl_api.hpp"
 
@@ -33,7 +34,17 @@ cl_kernel LCL_API clCreateKernel(cl_program program, const char *kernel_name,
     return nullptr;
   }
 
-  return new _cl_kernel(program, kernel_name);
+  cl_kernel kernel = nullptr;
+  try {
+    kernel = new _cl_kernel(program, kernel_name);
+  } catch (const UnsupportedFeature &err) {
+    program->getContext()->notifyError(std::string(err.what()) +
+                                       std::string("\nSupported features:\n") +
+                                       std::string(err.getSupportedFeatures()));
+    *errcode_ret = CL_INVALID_PROGRAM_EXECUTABLE;
+  }
+
+  return kernel;
 }
 
 cl_int LCL_API clSetKernelArg(cl_kernel kernel, cl_uint arg_index,
