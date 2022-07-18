@@ -13,6 +13,7 @@
 
 #include "mlir/Dialect/GPU/GPUDialect.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVOps.h"
+#include "mlir/Dialect/SPIRV/Transforms/Passes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/DialectRegistry.h"
@@ -23,16 +24,13 @@
 #include "mlir/Target/LLVMIR/Import.h"
 #include "mlir/Target/SPIRV/Serialization.h"
 #include "mlir/Transforms/Passes.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Transforms/Utils/Cloning.h"
-#include "mlir/Dialect/SPIRV/Transforms/Passes.h"
-#include "mlir/Target/SPIRV/Serialization.h"
-#include "mlir/Dialect/GPU/GPUDialect.h"
-#include "llvm/ADT/SetVector.h"
 
 #include "RawMemory/RawMemoryDialect.h"
 

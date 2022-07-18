@@ -8,7 +8,11 @@
 
 #include "passes.hpp"
 
+#include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
+#include "mlir/Dialect/GPU/GPUDialect.h"
+#include "mlir/Dialect/SCF/SCF.h"
+#include "mlir/Dialect/SPIRV/IR/SPIRVEnums.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVOps.h"
 #include "mlir/IR/BlockAndValueMapping.h"
 #include "mlir/IR/Dominance.h"
@@ -17,11 +21,6 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/STLExtras.h"
-#include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
-#include "mlir/Dialect/GPU/GPUDialect.h"
-#include "mlir/Dialect/SPIRV/IR/SPIRVEnums.h"
-#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
-#include "mlir/Dialect/SCF/SCF.h"
 
 using namespace mlir;
 
@@ -64,7 +63,8 @@ struct StructureCFGPass
   llvm::StringRef getArgument() const override { return "structure-cfg"; }
 
   llvm::StringRef getDescription() const override {
-    return "Attempt to convert Control Flow operations to their structured counterparts";
+    return "Attempt to convert Control Flow operations to their structured "
+           "counterparts";
   }
 
   void getDependentDialects(::mlir::DialectRegistry &registry) const override {
@@ -85,7 +85,8 @@ struct StructureCFGPass
       bool hasElseBlock = !cond.getFalseDestOperands().empty();
 
       builder.setInsertionPoint(cond);
-      auto scfIf = builder.create<scf::IfOp>(cond->getLoc(), cond.getCondition(), hasElseBlock);
+      auto scfIf = builder.create<scf::IfOp>(cond->getLoc(),
+                                             cond.getCondition(), hasElseBlock);
       builder.setInsertionPointToStart(&scfIf.getThenRegion().front());
 
       mlir::BlockAndValueMapping mapping;
@@ -104,14 +105,16 @@ struct StructureCFGPass
         results.push_back(mapping.lookupOrNull(res));
       }
 
-      auto yieldOp = builder.create<scf::YieldOp>(cond.getTrueDest()->getTerminator()->getLoc(), results);
+      auto yieldOp = builder.create<scf::YieldOp>(
+          cond.getTrueDest()->getTerminator()->getLoc(), results);
 
       scfIf.getThenRegion().front().back().erase();
 
       if (hasElseBlock) {
         builder.setInsertionPointToStart(&scfIf.getElseRegion().front());
         scfIf.getElseRegion().front().getTerminator()->erase();
-        builder.create<scf::YieldOp>(cond.getLoc(), cond.getFalseDestOperands());
+        builder.create<scf::YieldOp>(cond.getLoc(),
+                                     cond.getFalseDestOperands());
       }
 
       auto *trueDest = cond.getTrueDest();
@@ -123,7 +126,8 @@ struct StructureCFGPass
       trueDest->erase();
 
       builder.setInsertionPointAfter(scfIf);
-      builder.createOrFold<cf::BranchOp>(yieldOp.getLoc(), falseDest, scfIf.getResults());
+      builder.createOrFold<cf::BranchOp>(yieldOp.getLoc(), falseDest,
+                                         scfIf.getResults());
     }
   }
 };
