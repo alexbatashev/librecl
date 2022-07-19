@@ -16,6 +16,10 @@ macro(add_librecl_runtime name type)
   )
   target_link_libraries(${name} PRIVATE fmt)
   add_backward(${name})
+
+  if (UNIX AND "${CMAKE_BUILD_TYPE}" MATCHES "Debug")
+    target_compile_options(${name} PRIVATE -gdwarf-4 -fno-omit-frame-pointer)
+  endif()
 endmacro()
 
 macro(add_librecl_tool name)

@@ -40,6 +40,24 @@ private:
   std::vector<cl_event> mWaitList;
 };
 
+class MemReadBufferCommand : public Command {
+public:
+  MemReadBufferCommand(cl_mem buffer, EnqueueType type, size_t offset,
+                       size_t size, void *ptr, std::span<cl_event> waitList);
+
+  ~MemReadBufferCommand() override = default;
+
+  cl_event recordCommand(cl_command_queue queue,
+                         vk::CommandBuffer commandBuffer) override;
+
+private:
+  cl_mem mSrc;
+  void *mDst;
+  size_t mOffset;
+  size_t mSize;
+  std::vector<cl_event> mWaitList;
+};
+
 class ExecKernelCommand : public Command {
 public:
   struct NDRange {

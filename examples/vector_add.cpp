@@ -148,14 +148,19 @@ int main() {
   check(clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, globalSize.data(),
   nullptr, 0, nullptr, &evt));
 
-  /*
   clFinish(queue);
 
   clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, N * sizeof(int), res.data(), 0,
-  nullptr, nullptr);
-  */
+                      nullptr, nullptr);
 
   // TODO release resources
+
+  for (size_t i = 0; i < 10; i++) {
+    if (res[i] != a[i] + b[i]) {
+      std::cerr << "Failed to verify result for index " << i << ", expected "
+                << a[i] + b[i] << " got " << res[i] << "\n";
+    }
+  }
 
   return 0;
 }

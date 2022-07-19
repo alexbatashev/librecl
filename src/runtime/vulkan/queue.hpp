@@ -29,6 +29,8 @@ struct _cl_command_queue {
 
   cl_device_id getDevice() { return mDevice; }
 
+  cl_int finish() noexcept;
+
 protected:
   vk::CommandBuffer getCommandBufferForThread();
 
