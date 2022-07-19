@@ -6,6 +6,18 @@
 //
 //===----------------------------------------------------------------------===//
 
+#pragma once
+
 #include <string_view>
 
-void log(std::string_view message);
+enum class LogLevel {
+  Error = 0,
+  Warning = 1,
+  Debug = 2,
+  Performance = 3,
+  Information = 4
+};
+
+void log(LogLevel level, std::string_view message);
+
+inline void log(std::string_view message) { log(LogLevel::Error, message); }

@@ -9,29 +9,48 @@
 #pragma once
 
 #include <exception>
+#include <fmt/core.h>
 #include <string>
 
-struct UnsupportedFeature : public std::exception {
+#include "utils.hpp"
+
+template <typename ErrorType> struct LCLError : public std::exception {
+  const char *what() const noexcept final { return mMessage.c_str(); }
+
+protected:
+  LCLError(const std::string &message) {
+    constexpr auto fmtString =
+        R"(
+  Error kind: {}
+  Error message: {}
+
+  {}
+)";
+    mMessage = fmt::format(fmtString, ErrorType::getErrorKind(), message,
+                           getStackTrace(3));
+  }
+
+private:
+  std::string mMessage;
+};
+
+struct UnsupportedFeature : public LCLError<UnsupportedFeature> {
   UnsupportedFeature(const std::string &errorMessage,
                      const std::string &supportedFeatures)
-      : mErrorMessage(errorMessage), mSupportedFeatures(supportedFeatures) {}
+      : LCLError(errorMessage), mSupportedFeatures(supportedFeatures) {}
 
-  const char *what() const noexcept final { return mErrorMessage.c_str(); }
+  static const char *getErrorKind() noexcept { return "UnsupportedFeature"; }
 
   const char *getSupportedFeatures() const noexcept {
     return mSupportedFeatures.c_str();
   }
 
 private:
-  std::string mErrorMessage;
   std::string mSupportedFeatures;
 };
 
-struct InternalBackendError : public std::exception {
-  InternalBackendError(const std::string &msg) : mMessage(msg) {}
+struct InternalBackendError : public LCLError<InternalBackendError> {
+  InternalBackendError(const std::string &msg) : LCLError(msg) {}
 
-  const char *what() const noexcept final { return mMessage.c_str(); }
-
-private:
-  std::string mMessage;
+  static const char *getErrorKind() noexcept { return "InternalBackendError"; }
 };

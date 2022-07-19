@@ -1,5 +1,7 @@
 macro(add_librecl_runtime name type)
-  add_library(${name} ${type} ${ARGN})
+  add_library(${name} ${type}
+    ${ARGN}
+  )
 
   target_include_directories(${name} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -12,6 +14,8 @@ macro(add_librecl_runtime name type)
     -DLCL_BUILD_DLL
     -DCL_TARGET_OPENCL_VERSION=300
   )
+  target_link_libraries(${name} PRIVATE fmt)
+  add_backward(${name})
 endmacro()
 
 macro(add_librecl_tool name)

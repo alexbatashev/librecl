@@ -8,9 +8,6 @@
 
 #include "program.hpp"
 
-template <class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-template <class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
 _cl_program::_cl_program(cl_context ctx, std::string_view program)
     : mContext(ctx) {
   mProgramSource = SourceProgram{std::string{program}};

@@ -7,14 +7,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "device.hpp"
+#include "framework/debug_modes.hpp"
+#include "framework/log.hpp"
 
+#include <fmt/core.h>
 #include <iostream>
+#include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/find_if.hpp>
 #include <range/v3/iterator/operations.hpp>
+#include <vulkan/vulkan.hpp>
 
 _cl_device_id::_cl_device_id(cl_platform_id plt, vk::PhysicalDevice device,
-                             cl_device_type type)
-    : mPlatform(plt), mDevice(std::move(device)), mType(type) {
+                             cl_device_type type, lcl::DebugMode mode)
+    : lcl::debuggable_object<_cl_device_id>(mode, "clGetDeviceIDs"),
+      mPlatform(plt), mDevice(std::move(device)), mType(type) {
   vk::PhysicalDeviceProperties props = mDevice.getProperties();
 
   mDeviceName = std::string(static_cast<const char *>(props.deviceName),
@@ -43,5 +49,19 @@ _cl_device_id::_cl_device_id(cl_platform_id plt, vk::PhysicalDevice device,
   auto [enabledFeatures] = mDeviceOptions.to_vulkan();
   deviceCreateInfo.pEnabledFeatures = &enabledFeatures;
 
+  std::vector<const char *> deviceExtensions;
+
+  deviceCreateInfo.enabledExtensionCount =
+      static_cast<uint32_t>(deviceExtensions.size());
+  deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
   mLogicalDevice = mDevice.createDevice(deviceCreateInfo);
+}
+
+bool _cl_device_id::hasVulkanExtension(vk::PhysicalDevice device,
+                                       std::string_view extName) {
+  auto extensions = device.enumerateDeviceExtensionProperties();
+  return ranges::any_of(
+      extensions, [extName](vk::ExtensionProperties candidate) {
+        return std::string_view{candidate.extensionName} == extName;
+      });
 }

@@ -17,7 +17,7 @@ cl_mem LCL_API clCreateBuffer(cl_context context, cl_mem_flags flags,
                               size_t size, void *host_ptr,
                               cl_int *errcode_ret) {
   if (!context) {
-    // log: context is NULL
+    log(LogLevel::Error, "context is NULL");
     *errcode_ret = CL_INVALID_CONTEXT;
     return nullptr;
   }

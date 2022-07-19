@@ -17,13 +17,13 @@ cl_context LCL_API clCreateContext(
                                   size_t cb, void *user_data),
     void *user_data, cl_int *errcode_ret) {
   if (properties != nullptr) {
-    // log: properties are not supported yet;
+    log(LogLevel::Error, "properties are not supported yet");
     *errcode_ret = CL_INVALID_VALUE;
     return nullptr;
   }
 
   if (num_devices == 0 || devices == nullptr) {
-    // log: no devices in context
+    log(LogLevel::Error, "no devices in context");
     *errcode_ret = CL_INVALID_VALUE;
     return nullptr;
   }

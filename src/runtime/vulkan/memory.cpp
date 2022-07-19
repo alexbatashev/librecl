@@ -8,12 +8,15 @@
 
 #include "memory.hpp"
 #include "context.hpp"
+#include "framework/debug_modes.hpp"
 
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_structs.hpp>
 
 _cl_mem::_cl_mem(cl_context ctx, cl_mem_flags, size_t size)
-    : mContext(ctx), mSize(size) {
+    : lcl::debuggable_object<_cl_mem>(ctx->getDebugMode(), "clCreateBuffer"),
+      mContext(ctx), mSize(size) {
   for (auto &dev : mContext->getDevices()) {
     uint32_t index = dev->getQueueFamilyIndex();
     VkBufferCreateInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -33,5 +36,21 @@ _cl_mem::_cl_mem(cl_context ctx, cl_mem_flags, size_t size)
     vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &buffer, &allocation,
                     nullptr);
     mBuffers[dev] = AllocationInfo{allocation, buffer};
+  }
+
+  auto debugName = getDebugName();
+  if (debugName)
+    setBackendObjectNames(debugName.value());
+}
+
+void _cl_mem::setBackendObjectNames(const std::string &name) {
+  vk::DebugUtilsObjectNameInfoEXT nameInfo;
+  nameInfo.objectType = vk::ObjectType::eBuffer;
+  nameInfo.pObjectName = name.c_str();
+  for (auto bufferPair : mBuffers) {
+    // C-style cast is required here
+    nameInfo.objectHandle =
+        (uint64_t)(static_cast<VkBuffer>(bufferPair.second.buffer));
+    bufferPair.first->getLogicalDevice().setDebugUtilsObjectNameEXT(nameInfo);
   }
 }

@@ -8,12 +8,16 @@
 
 #pragma once
 
+#include "framework/debug_modes.hpp"
+
 #include <CL/cl.h>
 #include <vulkan/vulkan.hpp>
 
-struct _cl_device_id {
+#include <string_view>
+
+struct _cl_device_id : public lcl::debuggable_object<_cl_device_id> {
   _cl_device_id(cl_platform_id plt, vk::PhysicalDevice device,
-                cl_device_type type);
+                cl_device_type type, lcl::DebugMode mode);
 
   cl_platform_id getPlatform() const { return mPlatform; }
   cl_platform_id getPlatform() { return mPlatform; }
@@ -33,6 +37,9 @@ struct _cl_device_id {
   std::string getSupportedOptions() const { return mDeviceOptions.to_string(); }
 
 private:
+  static bool hasVulkanExtension(vk::PhysicalDevice device,
+                                 std::string_view extName);
+
   struct Options {
     Options() = default;
     Options(vk::PhysicalDeviceFeatures features) {
