@@ -8,13 +8,15 @@
 
 #pragma once
 
+#include "framework/debug_modes.hpp"
+
 #include <CL/cl.h>
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.hpp>
 
 #include <unordered_map>
 
-struct _cl_mem {
+struct _cl_mem : public lcl::debuggable_object<_cl_mem> {
   struct AllocationInfo {
     VmaAllocation allocation;
     vk::Buffer buffer;
@@ -29,6 +31,9 @@ struct _cl_mem {
   cl_context getContext() { return mContext; }
 
   size_t getSize() const noexcept { return mSize; }
+
+protected:
+  void setBackendObjectNames(const std::string &name);
 
 private:
   cl_context mContext;

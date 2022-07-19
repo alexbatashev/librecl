@@ -2,7 +2,9 @@
 #include "platform.hpp"
 
 _cl_context::_cl_context(std::span<_cl_device_id *const> devices)
-    : mDevices(devices.begin(), devices.end()) {
+    : lcl::debuggable_object<_cl_context>(devices.front()->getDebugMode(),
+                                          "clCreateContext"),
+      mDevices(devices.begin(), devices.end()) {
   for (auto dev : mDevices) {
     VmaAllocatorCreateInfo allocatorCreateInfo = {};
     allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_1;

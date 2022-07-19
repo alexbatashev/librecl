@@ -14,3 +14,6 @@ set(SPIRV_CROSS_SHARED OFF CACHE BOOL "" FORCE)
 set(SPIRV_CROSS_CLI OFF CACHE BOOL "" FORCE)
 set(SPIRV_CROSS_EXCEPTIONS_TO_ASSERTIONS ON CACHE BOOL "" FORCE)
 add_subdirectory(SPIRV-Cross)
+
+add_subdirectory(backward-cpp)
+add_subdirectory(fmt)

@@ -12,6 +12,7 @@
 #include "VulkanBackend.hpp"
 
 #include "device.hpp"
+#include "framework/debug_modes.hpp"
 #include "framework/log.hpp"
 
 #include <CL/cl.h>
@@ -23,10 +24,11 @@
 #include <string>
 #include <vector>
 
-struct _cl_context {
+struct _cl_context : public lcl::debuggable_object<_cl_context> {
   using callback_t =
       std::function<void(const char *, const void *, size_t, void *)>;
-  _cl_context() = default;
+  // _cl_context() : lcl::debuggable_object<_cl_context>(lcl::DebugMode{},
+  // "clCreateContext") {}
   _cl_context(std::span<_cl_device_id *const> devices);
 
   void notifyError(const std::string &errMessage) {

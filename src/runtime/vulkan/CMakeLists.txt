@@ -19,6 +19,7 @@ add_librecl_runtime(lcl_icd_vulkan SHARED
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/kernel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/memory.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../framework/log.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../framework/debug_modes.cpp
 )
 
 

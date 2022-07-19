@@ -74,9 +74,10 @@ endif()
 
 include(AddLibreCL)
 
+add_subdirectory(third_party)
+
 add_subdirectory(examples)
 add_subdirectory(src)
 add_subdirectory(tools)
-add_subdirectory(third_party)
 add_subdirectory(test)
 

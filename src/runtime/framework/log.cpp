@@ -9,10 +9,38 @@
 #include "log.hpp"
 
 #include <cstdlib>
+#include <fmt/printf.h>
 #include <iostream>
+#include <string_view>
 
-void log(std::string_view message) {
-  if (std::getenv("LIBRECL_DEBUG")) {
-    std::clog << message << std::endl;
+void log(LogLevel level, std::string_view message) {
+  int iLevel = -1;
+  if (auto *strLevel = std::getenv("LIBRECL_DEBUG")) {
+    iLevel = std::stoi(strLevel);
   }
+  if (iLevel < static_cast<int>(level)) {
+    return;
+  }
+
+  std::string_view kind;
+
+  switch (level) {
+  case LogLevel::Debug:
+    kind = "DEBUG";
+    break;
+  case LogLevel::Warning:
+    kind = "WARNING";
+    break;
+  case LogLevel::Error:
+    kind = "ERROR";
+    break;
+  case LogLevel::Performance:
+    kind = "PERF";
+    break;
+  case LogLevel::Information:
+    kind = "INFO";
+    break;
+  }
+
+  fmt::print("[{}]: {}\n", kind, message);
 }
