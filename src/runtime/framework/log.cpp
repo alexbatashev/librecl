@@ -23,24 +23,38 @@ void log(LogLevel level, std::string_view message) {
   }
 
   std::string_view kind;
+  std::string_view color;
+
+  constexpr auto red = "\033[31m";
+  constexpr auto yellow = "\033[33m";
+  constexpr auto white = "\033[37m";
+  constexpr auto cyan = "\033[36m";
+  constexpr auto green = "\033[32m";
+  constexpr auto reset = "\033[0m";
+  constexpr auto colorPrefix = "\033[1m";
 
   switch (level) {
   case LogLevel::Debug:
-    kind = "DEBUG";
+    kind = "[DEBUG]:";
+    color = white;
     break;
   case LogLevel::Warning:
-    kind = "WARNING";
+    kind = "[WARNING]:";
+    color = yellow;
     break;
   case LogLevel::Error:
-    kind = "ERROR";
+    kind = "[ERROR]:";
+    color = red;
     break;
   case LogLevel::Performance:
-    kind = "PERF";
+    kind = "[PERF]:";
+    color = cyan;
     break;
   case LogLevel::Information:
-    kind = "INFO";
+    kind = "[INFO]:";
+    color = green;
     break;
   }
 
-  fmt::print("[{}]: {}\n", kind, message);
+  fmt::print("{}{}{:10}{} {}\n", colorPrefix, color, kind, reset, message);
 }

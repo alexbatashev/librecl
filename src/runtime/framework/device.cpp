@@ -31,7 +31,7 @@ cl_int LCL_API clGetDeviceIDs(cl_platform_id platform,
   using namespace ranges;
 
   if (platform == nullptr) {
-    // log: Not a LibreCL platform
+    log(LogLevel::Error, "not a LibreCL platform");
     // TODO more sophisticated platform check
     return CL_INVALID_PLATFORM;
   }
@@ -41,7 +41,7 @@ cl_int LCL_API clGetDeviceIDs(cl_platform_id platform,
         device_type == CL_DEVICE_TYPE_CUSTOM ||
         device_type == CL_DEVICE_TYPE_DEFAULT ||
         device_type == CL_DEVICE_TYPE_ALL)) {
-    // log: Unsupported device_type
+    log(LogLevel::Error, "unsupported device_type");
     return CL_INVALID_DEVICE_TYPE;
   }
 
@@ -58,12 +58,12 @@ cl_int LCL_API clGetDeviceIDs(cl_platform_id platform,
   const filter_t anyType = [](const _cl_device_id &) { return true; };
 
   if (devices == nullptr && num_devices == nullptr) {
-    // log: Both devices and num_devices are NULL
+    log(LogLevel::Error, "both devices and num_devices are NULL");
     return CL_INVALID_VALUE;
   }
 
   if (num_entries == 0 && devices != nullptr) {
-    // log: num_entries can't be 0 when devices != NULL
+    log(LogLevel::Error, "num_entries can't be 0 when devices != NULL");
     return CL_INVALID_VALUE;
   }
 
@@ -89,7 +89,7 @@ cl_int LCL_API clGetDeviceInfo(cl_device_id device, cl_device_info param_name,
                                size_t param_value_size, void *param_value,
                                size_t *param_value_size_ret) {
   if (device == nullptr) {
-    // log: device is nullptr
+    log(LogLevel::Error, "device is NULL");
     // TODO check platform is recognized by this plugin
     return CL_INVALID_DEVICE;
   }
@@ -104,7 +104,7 @@ cl_int LCL_API clGetDeviceInfo(cl_device_id device, cl_device_info param_name,
   }
   }
 
-  // log: unsupported cl_device_info
+  log(LogLevel::Error, "unsupported cl_device_info");
   return CL_INVALID_VALUE;
 }
 }

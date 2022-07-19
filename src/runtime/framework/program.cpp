@@ -60,7 +60,7 @@ cl_int LCL_API clBuildProgram(cl_program program, cl_uint num_devices,
                                                             void *user_data),
                               void *user_data) {
   if (!program) {
-    // log: program is nullptr
+    log(LogLevel::Error, "program is NULL");
     return CL_INVALID_PROGRAM;
   }
 

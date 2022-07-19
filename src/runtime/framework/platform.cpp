@@ -8,6 +8,7 @@
 
 #include "platform.hpp"
 #include "info.hpp"
+#include "log.hpp"
 #include "ocl_api.hpp"
 
 #include <CL/cl.h>
@@ -20,7 +21,7 @@ extern "C" {
 cl_int LCL_API clGetPlatformIDs(cl_uint num_entries, cl_platform_id *platforms,
                                 cl_uint *num_platforms) {
   if (num_platforms == nullptr && platforms == nullptr) {
-    // log: Both platforms and num_platforms are NULL
+    log(LogLevel::Error, "Both platforms and num_platforms are NULL");
     return CL_INVALID_VALUE;
   }
 
@@ -34,7 +35,7 @@ cl_int LCL_API clGetPlatformIDs(cl_uint num_entries, cl_platform_id *platforms,
 
   if (platforms) {
     if (num_entries == 0) {
-      // log: num_entries is 0
+      log(LogLevel::Error, "num_entries is 0");
       return CL_INVALID_VALUE;
     }
 
@@ -74,7 +75,8 @@ cl_int LCL_API clGetPlatformInfo(cl_platform_id platform,
                             paramValue, paramValueSizeRet);
   }
 
-  // log: unsupported cl_platform_info value
+  log(LogLevel::Error,
+      fmt::format("unsupported cl_platform_info value {}", paramName));
   return CL_INVALID_VALUE;
 }
 }

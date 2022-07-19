@@ -27,14 +27,10 @@
 struct _cl_context : public lcl::debuggable_object<_cl_context> {
   using callback_t =
       std::function<void(const char *, const void *, size_t, void *)>;
-  // _cl_context() : lcl::debuggable_object<_cl_context>(lcl::DebugMode{},
-  // "clCreateContext") {}
+
   _cl_context(std::span<_cl_device_id *const> devices);
 
-  void notifyError(const std::string &errMessage) {
-    log(errMessage);
-    mErrCallback(errMessage.data(), nullptr, 0, mUserData);
-  }
+  void notifyError(const std::string &errMessage);
 
   void setNotifier(callback_t cb, void *userData) {
     mErrCallback = cb;

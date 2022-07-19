@@ -19,14 +19,15 @@ template <typename ErrorType> struct LCLError : public std::exception {
 
 protected:
   LCLError(const std::string &message) {
-    mMessage =
-        fmt::format(R"(
+    constexpr auto fmtString =
+        R"(
   Error kind: {}
   Error message: {}
 
   {}
-    )",
-                    ErrorType::getErrorKind(), message, getStackTrace(3));
+)";
+    mMessage = fmt::format(fmtString, ErrorType::getErrorKind(), message,
+                           getStackTrace(3));
   }
 
 private:

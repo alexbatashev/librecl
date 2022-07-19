@@ -16,7 +16,6 @@
 #include <range/v3/algorithm/any_of.hpp>
 #include <string_view>
 #include <unordered_map>
-#include <vulkan/vulkan_enums.hpp>
 
 static PFN_vkCreateDebugReportCallbackEXT fpCreateDebugReportCallback;
 static PFN_vkCreateDebugUtilsMessengerEXT fpCreateDebugUtilsMessenger;
