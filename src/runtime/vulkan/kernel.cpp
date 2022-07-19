@@ -184,8 +184,6 @@ vk::DescriptorSet _cl_kernel::prepareKernelArgs(cl_device_id device) {
                mKernelArgs[idx].data);
   }
 
-  // vkUpdateDescriptorSets(device->getLogicalDevice(),
-  // writeDescriptorSets.size(), writeDescriptorSets.data(), 0, nullptr);
   device->getLogicalDevice().updateDescriptorSets(writeDescriptorSets, {});
 
   return descriptorSet;
