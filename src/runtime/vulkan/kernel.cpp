@@ -11,7 +11,10 @@
 #include "framework/utils.hpp"
 #include "memory.hpp"
 
+#include <CL/cl.h>
+#include <cstdint>
 #include <cstring>
+#include <fmt/core.h>
 #include <iostream>
 #include <variant>
 #include <vulkan/vulkan.hpp>
@@ -50,7 +53,7 @@ _cl_kernel::_cl_kernel(cl_program program, const std::string &kernelName)
           shader.first->getLogicalDevice().createComputePipeline(
               pipelineCache, computePipelineCreateInfo);
       mComputePipeline[shader.first] = computePipeline.value;
-    } catch (vk::FeatureNotPresentError err) {
+    } catch (const vk::FeatureNotPresentError &err) {
       throw UnsupportedFeature{err.what(), shader.first->getSupportedOptions()};
     }
   }
@@ -58,9 +61,8 @@ _cl_kernel::_cl_kernel(cl_program program, const std::string &kernelName)
 
 cl_int _cl_kernel::setArg(size_t index, size_t size, const void *value) {
   if (index > mKernelArgs.size()) {
-    // TODO improve log error
-    mProgram->getContext()->notifyError(
-        "Index exceeds number of arguments for kernel {}");
+    mProgram->getContext()->notifyError(fmt::format(
+        "Index exceeds number of arguments for kernel {}", mKernelName));
     return CL_INVALID_ARG_INDEX;
   }
 
@@ -68,15 +70,14 @@ cl_int _cl_kernel::setArg(size_t index, size_t size, const void *value) {
       mProgram->getKernelArgInfo(mKernelName);
 
   if (info.info[index].isBuffer) {
-    std::cerr << "SETTING UP A BUFFER idx=" << index << "\n";
     if (size != sizeof(cl_mem)) {
-      // TODO improve log error
-      mProgram->getContext()->notifyError(
-          "size is not equal to sizeof(cl_mem)");
+      mProgram->getContext()->notifyError(fmt::format(
+          "size {} is not equal to sizeof(cl_mem)={}", size, sizeof(cl_mem)));
       return CL_INVALID_ARG_SIZE;
     }
+
     // C-style cast is required here
-    cl_mem *buffer = (cl_mem *)value;
+    const cl_mem *buffer = (const cl_mem *)value;
     mKernelArgs[index].data = *buffer;
   } else {
     // FIXME this check is malfunction
@@ -132,6 +133,7 @@ vk::DescriptorSet _cl_kernel::prepareKernelArgs(cl_device_id device) {
                                   static_cast<uint32_t>(mKernelArgs.size())};
   vk::DescriptorPoolCreateInfo poolCreateInfo(vk::DescriptorPoolCreateFlags(),
                                               1, poolSize);
+
   vk::DescriptorPool pool =
       device->getLogicalDevice().createDescriptorPool(poolCreateInfo);
 
@@ -139,16 +141,33 @@ vk::DescriptorSet _cl_kernel::prepareKernelArgs(cl_device_id device) {
                                              &mDescriptorSetLayouts.at(device)};
   const std::vector<vk::DescriptorSet> descriptorSets =
       device->getLogicalDevice().allocateDescriptorSets(allocateInfo);
+
   vk::DescriptorSet descriptorSet = descriptorSets.front();
 
   std::vector<vk::DescriptorBufferInfo> bufferInfos;
+  bufferInfos.resize(mKernelArgs.size());
   std::vector<vk::WriteDescriptorSet> writeDescriptorSets;
+  writeDescriptorSets.resize(mKernelArgs.size());
 
   const auto addBuffer = [&](const vk::Buffer &buffer, size_t index) {
-    bufferInfos.emplace_back(buffer, 0, VK_WHOLE_SIZE);
-    writeDescriptorSets.emplace_back(descriptorSet, index, 0, 1,
-                                     vk::DescriptorType::eStorageBuffer,
-                                     nullptr, &bufferInfos.back());
+    {
+      vk::DescriptorBufferInfo bufferInfo;
+      bufferInfo.buffer = buffer;
+      bufferInfo.offset = 0;
+      bufferInfo.range = VK_WHOLE_SIZE;
+      bufferInfos[index] = std::move(bufferInfo);
+    }
+
+    vk::WriteDescriptorSet writeSet;
+    writeSet.dstSet = descriptorSet;
+    writeSet.dstBinding = index;
+    writeSet.dstArrayElement = 0;
+    writeSet.descriptorCount = 1;
+    writeSet.descriptorType = vk::DescriptorType::eStorageBuffer;
+    writeSet.pImageInfo = nullptr;
+    writeSet.pBufferInfo = &bufferInfos.back();
+    writeSet.pTexelBufferView = nullptr;
+    writeDescriptorSets[index] = std::move(writeSet);
   };
 
   for (size_t idx = 0; idx < mKernelArgs.size(); idx++) {
@@ -165,6 +184,8 @@ vk::DescriptorSet _cl_kernel::prepareKernelArgs(cl_device_id device) {
                mKernelArgs[idx].data);
   }
 
+  // vkUpdateDescriptorSets(device->getLogicalDevice(),
+  // writeDescriptorSets.size(), writeDescriptorSets.data(), 0, nullptr);
   device->getLogicalDevice().updateDescriptorSets(writeDescriptorSets, {});
 
   return descriptorSet;

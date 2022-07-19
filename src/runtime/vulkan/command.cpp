@@ -51,6 +51,41 @@ cl_event MemWriteBufferCommand::recordCommand(cl_command_queue queue,
   return nullptr;
 }
 
+MemReadBufferCommand::MemReadBufferCommand(cl_mem buffer, EnqueueType type,
+                                           size_t offset, size_t size,
+                                           void *ptr,
+                                           std::span<cl_event> waitList)
+    : mSrc(buffer), mOffset(offset), mSize(size), mDst(ptr),
+      mWaitList(waitList.begin(), waitList.end()), Command(type) {}
+
+cl_event MemReadBufferCommand::recordCommand(cl_command_queue queue,
+                                             vk::CommandBuffer commandBuffer) {
+  auto command = [=, this]() {
+    // TODO wait for all events
+    auto info = mSrc->getAllocInfoForDevice(queue->getDevice());
+    auto allocator = mSrc->getContext()->getAllocators().at(queue->getDevice());
+
+    void *mappedData;
+
+    VkResult err = vmaMapMemory(allocator, info.allocation, &mappedData);
+    if (err != VK_SUCCESS) {
+      // TODO add info about VK error
+      queue->getContext()->notifyError("Failed to map Vulkan buffer");
+      throw InternalBackendError("Failed to map Vulkan buffer");
+    }
+
+    std::memcpy(mDst, reinterpret_cast<char *>(mappedData) + mOffset, mSize);
+
+    vmaUnmapMemory(allocator, info.allocation);
+  };
+
+  if (mEnqueueType == EnqueueType::Blocking) {
+    command();
+  }
+
+  return nullptr;
+}
+
 cl_event ExecKernelCommand::recordCommand(cl_command_queue queue,
                                           vk::CommandBuffer buffer) {
   // vk::CommandBufferBeginInfo

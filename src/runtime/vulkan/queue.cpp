@@ -8,12 +8,24 @@
 
 #include "queue.hpp"
 
+#include <CL/cl.h>
+
 _cl_command_queue::_cl_command_queue(cl_device_id device, cl_context context)
     : mDevice(device), mContext(context) {
   vk::CommandPoolCreateInfo commandPoolCreateInfo(
       vk::CommandPoolCreateFlags(), mDevice->getQueueFamilyIndex());
   mCommandPool =
       mDevice->getLogicalDevice().createCommandPool(commandPoolCreateInfo);
+}
+
+cl_int _cl_command_queue::finish() noexcept {
+  try {
+    mDevice->getLogicalDevice().waitIdle();
+  } catch (...) {
+    return CL_OUT_OF_HOST_MEMORY;
+  }
+
+  return CL_SUCCESS;
 }
 
 vk::CommandBuffer _cl_command_queue::getCommandBufferForThread() {

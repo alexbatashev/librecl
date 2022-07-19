@@ -69,6 +69,26 @@ cl_int LCL_API clEnqueueWriteBuffer(cl_command_queue command_queue,
   return CL_SUCCESS;
 }
 
+cl_int LCL_API clEnqueueReadBuffer(cl_command_queue command_queue,
+                                   cl_mem buffer, cl_bool blocking_read,
+                                   size_t offset, size_t cb, void *ptr,
+                                   cl_uint num_events_in_wait_list,
+                                   const cl_event *event_wait_list,
+                                   cl_event *event) {
+  // TODO all checks from the spec
+
+  auto blocking = blocking_read ? Command::EnqueueType::Blocking
+                                : Command::EnqueueType::NonBlocking;
+
+  // TODO pass wait list
+  MemReadBufferCommand cmd{buffer, blocking, offset, cb, ptr, {}};
+
+  // TODO this can be an error?
+  command_queue->submit(cmd);
+
+  return CL_SUCCESS;
+}
+
 cl_int LCL_API clEnqueueNDRangeKernel(
     cl_command_queue command_queue, cl_kernel kernel, cl_uint work_dim,
     const size_t *global_work_offset, const size_t *global_work_size,
@@ -103,5 +123,14 @@ cl_int LCL_API clEnqueueNDRangeKernel(
   command_queue->submit(cmd);
 
   return CL_SUCCESS;
+}
+
+cl_int LCL_API clFinish(cl_command_queue command_queue) {
+  if (!command_queue) {
+    log(LogLevel::Error, "command_queue is NULL");
+    return CL_INVALID_COMMAND_QUEUE;
+  }
+
+  return command_queue->finish();
 }
 }
