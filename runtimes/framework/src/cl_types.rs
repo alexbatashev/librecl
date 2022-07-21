@@ -1,11 +1,13 @@
+#![allow(non_upper_case_globals)]
+#![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
+
 use crate::context::Context;
 use crate::device::Device;
 use crate::kernel::Kernel;
 use crate::platform::Platform;
 use crate::program::Program;
 use crate::queue::Queue;
-use libc::c_int;
-use libc::c_uint;
 
 pub type cl_int = libc::c_int;
 pub type cl_uint = libc::c_uint;
@@ -56,4 +58,6 @@ pub type cl_context_callback = extern "C" fn(
 
 pub type cl_build_callback = extern "C" fn(program: cl_program, user_data: *mut libc::c_void);
 
-pub static CL_SUCCESS: cl_int = 0;
+pub const CL_SUCCESS: cl_int = 0;
+pub const CL_INVALID_VALUE: cl_int = -30;
+pub const CL_INVALID_PLATFORM: cl_int = -32;

@@ -1,4 +1,5 @@
 use crate::device::Device;
+use api_generator::cl_get_platform_ids;
 use framework::*;
 use libc::c_void;
 use once_cell::sync::Lazy;
@@ -37,25 +38,27 @@ static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
     .unwrap();
 });
 
-pub struct Platform {
-    devices: Vec<Box<*mut dyn framework::Device>>,
+pub struct Platform<'a> {
+    devices: Vec<Box<*mut Device<'a>>>,
     instance: Arc<Instance>,
+    name: &str,
 }
 
-impl Platform {
-    pub fn new(devices: Vec<Box<*mut dyn framework::Device>>, instance: Arc<Instance>) -> Platform {
+impl<'a> Platform<'a> {
+    pub fn new(
+        vendor_name: &str,
+        devices: Vec<Box<*mut Device<'a>>>,
+        instance: Arc<Instance>,
+    ) -> Platform<'a> {
+        let platform_name = std::format!("LibreCL {} Vulkan Platform".vendor_name);
         return Platform {
             devices: devices,
             instance: instance,
+            name: &platform_name.clone(),
         };
     }
-    pub fn create_platforms() -> Vec<Box<*mut Platform>> {
+    pub fn create_platforms() -> Vec<Box<*mut Platform<'a>>> {
         // TODO this should be safer
-        /*let instance = Instance::new(InstanceCreateInfo {
-            ..Default::default()
-        })
-        .unwrap();*/
-
         let extensions = DeviceExtensions {
             khr_storage_buffer_storage_class: true,
             ..DeviceExtensions::none()
@@ -69,8 +72,7 @@ impl Platform {
                     .map(|q| (p, q))
             });
 
-        let mut platform_to_device: HashMap<u32, Vec<Box<*mut dyn framework::Device>>> =
-            HashMap::new();
+        let mut platform_to_device: HashMap<u32, Vec<Box<*mut Device>>> = HashMap::new();
 
         for (device, queue_index) in devices {
             let cl_device = Box::leak(Box::new(Device::new(device, queue_index))) as *mut Device;
@@ -88,8 +90,17 @@ impl Platform {
 
         let mut platforms = vec![];
 
-        for (_, devices) in platform_to_device {
-            let cl_platform = Box::leak(Box::new(Platform::new(devices, unsafe {
+        for (vendor, devices) in platform_to_device {
+            let vendor_name = match vendor {
+                4318 => "NVIDIA",
+                5045 => "ARM",
+                4098 => "AMD",
+                32902 => "Intel",
+                4203 => "Apple",
+                20803 => "Qualcomm",
+                _ => "Unknown Vendor",
+            };
+            let cl_platform = Box::leak(Box::new(Platform::new(vendor_name, devices, unsafe {
                 VK_INSTANCE.clone()
             }))) as *mut Platform;
             platforms.push(Box::new(cl_platform));
@@ -99,46 +110,13 @@ impl Platform {
     }
 }
 
-// impl framework::Platform for Platform {}
-
-#[no_mangle]
-pub extern "C" fn clGetPlatformIDs(
-    num_entries: cl_uint,
-    platforms_raw: *mut *mut c_void,
-    num_platforms_raw: *mut cl_uint,
-) -> cl_int {
-    let num_platforms = unsafe { num_platforms_raw.as_ref() };
-    let platforms = unsafe { platforms_raw.as_ref() };
-
-    lcl_contract!(
-        num_entries != 0 || (!num_platforms.is_none() && *num_platforms.unwrap() != 0u32),
-        "num_entries and num_platforms can not be 0 at the same time",
-        1
-    );
-
-    lcl_contract!(
-        platforms.is_none() && num_platforms.is_none(),
-        "num_platforms and platforms can not be NULL at the same time",
-        1
-    );
-
-    if !platforms.is_none() {
-        let platforms_array = unsafe {
-            std::slice::from_raw_parts_mut(
-                platforms_raw as *mut *mut Platform,
-                num_entries as usize,
-            )
-        };
-        for i in 0..num_entries {
-            platforms_array[i as usize] = unsafe { *GLOBAL_PLATFORMS[i as usize] };
-        }
+impl<'a> framework::Platform for Platform<'a> {
+    fn get_platform_name(&self) -> &str {
+        return platform_name;
     }
+}
 
-    if !num_platforms.is_none() {
-        unsafe {
-            *num_platforms_raw = GLOBAL_PLATFORMS.len() as u32;
-        };
-    }
-
-    return CL_SUCCESS;
+#[cl_get_platform_ids]
+fn get_platforms() -> Vec<Box<*mut Platform<'static>>> {
+    return unsafe { GLOBAL_PLATFORMS.clone() };
 }

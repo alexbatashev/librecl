@@ -1,21 +1,39 @@
+use backtrace::Backtrace;
 use libc::c_int;
 use libc::c_uint;
 use libc::c_void;
 use libc::size_t;
+use stdext::function_name;
 
-pub trait Platform: Sync {
-    fn create_platforms() -> Vec<Box<dyn Platform>>
-    where
-        Self: Sized;
+use crate::cl_platform_id;
+use crate::cl_platform_info;
+use crate::lcl_contract;
+use crate::CL_INVALID_PLATFORM;
+use crate::CL_SUCCESS;
+
+pub trait Platform {
+    fn get_platform_name(&self) -> &str;
 }
 
 #[no_mangle]
 pub extern "C" fn clGetPlatformInfo(
-    platform: *const dyn Platform,
-    param_name: libc::c_uint,
+    platform: cl_platform_id,
+    param_name: cl_platform_info,
     param_value_size: libc::size_t,
     param_value: *mut libc::c_void,
     param_size_ret: *mut libc::size_t,
 ) -> libc::c_int {
-    return 0;
+    lcl_contract!(
+        platform != std::ptr::null_mut(),
+        "platfrom can't be NULL",
+        CL_INVALID_PLATFORM
+    );
+
+    match param_name {
+        cl_platform_info::CL_PLATFORM_NAME => {
+            let platform_name = unsafe { platform.as_ref().unwrap().get_platform_name() };
+        }
+        _ => {}
+    }
+    return CL_SUCCESS;
 }
