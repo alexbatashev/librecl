@@ -4,11 +4,9 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
-[dependencies]
-opencl = { path="../runtimes/opencl" }
-
 [dev-dependencies]
 opencl = { path="../runtimes/opencl" }
+libc = "0.2.126"
 
 [[test]]
 name = "integration"

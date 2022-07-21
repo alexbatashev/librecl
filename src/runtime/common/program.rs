@@ -1,4 +1,4 @@
-use crate::cl_types::*;
+use crate::common::cl_types::*;
 pub trait Program {}
 
 #[no_mangle]

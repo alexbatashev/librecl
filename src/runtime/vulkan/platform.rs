@@ -1,6 +1,4 @@
-use crate::device::Device;
-use api_generator::cl_get_platform_ids;
-use framework::*;
+use crate::vulkan::device::Device;
 use libc::c_void;
 use once_cell::sync::Lazy;
 use std::alloc::Layout;
@@ -14,23 +12,6 @@ use vulkano::{
     instance::{Instance, InstanceCreateInfo},
 };
 
-macro_rules! box_array {
-    ($val:expr ; $len:expr) => {{
-        // Use a generic function so that the pointer cast remains type-safe
-        fn vec_to_boxed_array<T>(vec: Vec<T>) -> Box<[T; $len]> {
-            let boxed_slice = vec.into_boxed_slice();
-
-            let ptr = ::std::boxed::Box::into_raw(boxed_slice) as *mut [T; $len];
-
-            unsafe { Box::from_raw(ptr) }
-        }
-
-        vec_to_boxed_array(vec![$val; $len])
-    }};
-}
-
-static mut GLOBAL_PLATFORMS: Lazy<Vec<Box<*mut Platform>>> =
-    Lazy::new(|| Platform::create_platforms());
 static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
     return Instance::new(InstanceCreateInfo {
         ..Default::default()
@@ -41,7 +22,7 @@ static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
 pub struct Platform<'a> {
     devices: Vec<Box<*mut Device<'a>>>,
     instance: Arc<Instance>,
-    name: &str,
+    name: String,
 }
 
 impl<'a> Platform<'a> {
@@ -50,11 +31,11 @@ impl<'a> Platform<'a> {
         devices: Vec<Box<*mut Device<'a>>>,
         instance: Arc<Instance>,
     ) -> Platform<'a> {
-        let platform_name = std::format!("LibreCL {} Vulkan Platform".vendor_name);
+        let platform_name = std::format!("LibreCL {} Vulkan Platform", vendor_name);
         return Platform {
             devices: devices,
             instance: instance,
-            name: &platform_name.clone(),
+            name: platform_name,
         };
     }
     pub fn create_platforms() -> Vec<Box<*mut Platform<'a>>> {
@@ -110,13 +91,8 @@ impl<'a> Platform<'a> {
     }
 }
 
-impl<'a> framework::Platform for Platform<'a> {
+impl<'a> crate::common::platform::Platform for Platform<'a> {
     fn get_platform_name(&self) -> &str {
-        return platform_name;
+        return self.name.as_str();
     }
-}
-
-#[cl_get_platform_ids]
-fn get_platforms() -> Vec<Box<*mut Platform<'static>>> {
-    return unsafe { GLOBAL_PLATFORMS.clone() };
 }

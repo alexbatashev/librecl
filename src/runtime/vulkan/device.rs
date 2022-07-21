@@ -12,4 +12,4 @@ impl<'a> Device<'a> {
     }
 }
 
-impl<'a> framework::Device for Device<'a> {}
+// impl<'a> framework::Device for Device<'a> {}

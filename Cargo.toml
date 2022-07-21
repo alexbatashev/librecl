@@ -7,9 +7,6 @@ edition = "2021"
 
 [workspace]
 members = [
-  "runtimes/api_generator",
-  "runtimes/opencl",
-  "runtimes/framework",
-  "runtimes/vulkan",
-  "tests"
+  "src/runtime",
+  #"tests"
 ]
