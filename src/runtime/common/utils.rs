@@ -88,7 +88,6 @@ macro_rules! set_info_str {
         let size_ptr_safe = unsafe { $size_ptr.as_ref() };
 
         if !size_ptr_safe.is_none() {
-            println!("String len is {}", $str.len());
             unsafe {
                 *$size_ptr = $str.len() + 1;
             }

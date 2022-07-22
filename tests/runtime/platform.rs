@@ -1,7 +1,7 @@
 use lcl_icd_runtime::c_cl::{self, CL_INVALID_VALUE, CL_PLATFORM_NAME, CL_SUCCESS};
 
 #[test]
-fn test_lcl_platforms_positive() {
+fn creation() {
     let mut num_platforms: u32 = 0;
     let mut err = c_cl::clGetPlatformIDs(0, std::ptr::null_mut(), &mut num_platforms as *mut u32);
     assert_eq!(err, CL_SUCCESS);
@@ -46,7 +46,7 @@ fn test_lcl_platforms_positive() {
 }
 
 #[test]
-fn test_lcl_platforms_negative() {
+fn errors() {
     let err = c_cl::clGetPlatformIDs(0, std::ptr::null_mut(), std::ptr::null_mut());
     assert_eq!(err, CL_INVALID_VALUE);
 }

@@ -22,6 +22,6 @@ name = "lcl_icd_runtime"
 path = "./lib.rs"
 
 [features]
-default = ["vulkan"]
+# default = ["vulkan"]
 vulkan = ["vulkano"]
 metal = ["metal_api"]

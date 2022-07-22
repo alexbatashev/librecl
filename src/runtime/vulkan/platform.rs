@@ -4,6 +4,7 @@ use crate::vulkan::device::Device;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::rc::Rc;
 use vulkano::{
     device::{
         physical::{PhysicalDevice, PhysicalDeviceType},
@@ -20,7 +21,7 @@ static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
 });
 
 pub struct Platform {
-    devices: Vec<Arc<ClDevice>>,
+    devices: Vec<Rc<ClDevice>>,
     instance: Arc<Instance>,
     platform_name: String,
 }
@@ -28,7 +29,7 @@ pub struct Platform {
 impl Platform {
     pub fn new(
         vendor_name: &str,
-        devices: Vec<Arc<ClDevice>>,
+        devices: Vec<Rc<ClDevice>>,
         instance: Arc<Instance>,
     ) -> Platform {
         let platform_name = std::format!("LibreCL {} Vulkan Platform", vendor_name);
@@ -56,7 +57,7 @@ impl Platform {
         let mut platform_to_device: HashMap<u32, Vec<Arc<ClDevice>>> = HashMap::new();
 
         for (device, queue_index) in devices {
-            let cl_device = Arc::new(Device::new(device, queue_index).into());
+            let cl_device = Rc::new(Device::new(device, queue_index).into());
 
             let id = device.properties().vendor_id;
 

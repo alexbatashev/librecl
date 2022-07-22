@@ -26,7 +26,7 @@ pub extern "C" fn clGetDeviceIDs(
     platform: cl_platform_id,
     device_type: cl_device_type,
     num_entries: cl_uint,
-    devices_raw: cl_device_id,
+    devices_raw: *mut cl_device_id,
     num_devices: *mut cl_uint,
 ) -> cl_int {
     let platform_safe = unsafe { platform.as_ref() };

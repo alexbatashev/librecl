@@ -33,6 +33,7 @@ use super::device::ClDevice;
 pub trait Platform {
     fn get_platform_name(&self) -> &str;
     fn get_devices(&self) -> &Vec<Arc<ClDevice>>;
+    fn add_device(&mut self, device: Arc<ClDevice>);
 }
 
 #[enum_dispatch]
