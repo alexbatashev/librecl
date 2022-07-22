@@ -1,0 +1,48 @@
+name: Build and Test pipeline
+
+on:
+  workflow_call:
+    runs-on:
+      type: "string"
+      required: true
+    cargo-flags:
+      type: "string"
+      required: false
+      default: ""
+
+jobs:
+  build:
+    name: Build runtime
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Cache build artifacts
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-build-${{ github.sha }}
+        restore-keys: ${{ runner.os }}-build-
+    - name: Build
+      run: cargo build --workspace --no-default-features ${{ inputs.cargo-flags }}
+
+  runtime_tests:
+    name: Run RT tests
+    needs: [build]
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Cache build artifacts
+      uses: actions/cache@v3
+      with:
+        path: target
+        key: ${{ runner.os }}-build-${{ github.sha }}
+        restore-keys: ${{ runner.os }}-build-
+    - name: Install dependencies
+      run: |
+        cargo install cargo-nextest
+    - name: Test
+      run: cargo nextest --workspace --no-default-features ${{ inputs.cargo-flags }}

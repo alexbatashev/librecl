@@ -1,0 +1,20 @@
+name: Precommit
+
+on:
+  pull_request:
+    branches:
+    - develop
+
+jobs:
+  linux:
+    name: Linux
+    uses: ./github/workflows/pipeline.yaml
+    with:
+      cargo-flags: "--feature vulkan"
+      runs-on: "ubuntu-latest"
+  macos:
+    name: macOS
+    uses: ./github/workflows/pipeline.yaml
+    with:
+      cargo-flags: "--feature metal"
+      runs-on: "macos-12"
