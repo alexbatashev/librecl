@@ -11,7 +11,7 @@ use metal_api::Device as MTLDevice;
 use crate::metal::Device;
 
 pub struct Platform {
-    devices: Vec<Arc<ClDevice>>,
+    devices: Vec<Rc<ClDevice>>,
     name: String,
 }
 
@@ -30,9 +30,9 @@ impl Platform {
         let all_devices = MTLDevice::all();
 
         for d in all_devices {
-            let device: Arc<ClDevice> = Arc::new(Device::new(&platform, d).into());
+            let device: Rc<ClDevice> = Rc::new(Device::new(&platform, d).into());
             unsafe {
-                (Arc::as_ptr(&mut platform) as *mut ClPlatform)
+                (Rc::as_ptr(&mut platform) as *mut ClPlatform)
                     .as_mut()
                     .unwrap()
                     .add_device(device);
@@ -48,11 +48,15 @@ impl CommonPlatform for Platform {
         return self.name.as_str();
     }
 
-    fn get_devices(&self) -> &Vec<Arc<ClDevice>> {
+    fn get_devices(&self) -> &Vec<Rc<ClDevice>> {
         return &self.devices;
     }
 
-    fn add_device(&mut self, device: Arc<ClDevice>) {
+    fn add_device(&mut self, device: Rc<ClDevice>) {
         self.devices.push(device);
+    }
+
+    fn create_context(&self, devices: &Vec<Rc<ClDevice>>) -> Rc<ClContext> {
+        unimplemented!();
     }
 }

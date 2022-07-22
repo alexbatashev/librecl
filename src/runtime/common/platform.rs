@@ -24,16 +24,19 @@ use crate::vulkan::platform::Platform as VkPlatform;
 use crate::metal::Platform as MTLPlatform;
 
 use std::sync::Arc;
+use std::rc::Rc;
 
 use crate::lcl_contract;
 
 use super::device::ClDevice;
+use super::context::ClContext;
 
 #[enum_dispatch(ClPlatform)]
 pub trait Platform {
     fn get_platform_name(&self) -> &str;
-    fn get_devices(&self) -> &Vec<Arc<ClDevice>>;
-    fn add_device(&mut self, device: Arc<ClDevice>);
+    fn get_devices(&self) -> &Vec<Rc<ClDevice>>;
+    fn add_device(&mut self, device: Rc<ClDevice>);
+    fn create_context(&self, devices: &Vec<Rc<ClDevice>>) -> Rc<ClContext>;
 }
 
 #[enum_dispatch]

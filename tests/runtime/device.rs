@@ -39,4 +39,5 @@ fn creation() {
         devices.as_mut_ptr(),
         std::ptr::null_mut(),
     );
+    assert_eq!(err, CL_SUCCESS);
 }

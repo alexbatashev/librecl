@@ -2,8 +2,8 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-use crate::common::context::Context;
 use crate::common::device::ClDevice;
+use crate::common::context::ClContext;
 use crate::common::kernel::Kernel;
 use crate::common::platform::ClPlatform;
 use crate::common::program::Program;
@@ -122,7 +122,7 @@ pub type cl_queue_properties = libc::c_uint;
 
 pub type cl_platform_id = *mut ClPlatform;
 pub type cl_device_id = *mut ClDevice;
-pub type cl_context = *mut dyn Context;
+pub type cl_context = *mut ClContext;
 pub type cl_command_queue = *mut dyn Queue;
 pub type cl_program = *mut dyn Program;
 pub type cl_kernel = *mut dyn Kernel;

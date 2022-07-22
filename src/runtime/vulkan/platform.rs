@@ -1,4 +1,5 @@
 use crate::common::device::ClDevice;
+use crate::common::context::ClContext;
 use crate::common::platform::ClPlatform;
 use crate::vulkan::device::Device;
 use once_cell::sync::Lazy;
@@ -54,7 +55,7 @@ impl Platform {
                     .map(|q| (p, q))
             });
 
-        let mut platform_to_device: HashMap<u32, Vec<Arc<ClDevice>>> = HashMap::new();
+        let mut platform_to_device: HashMap<u32, Vec<Rc<ClDevice>>> = HashMap::new();
 
         for (device, queue_index) in devices {
             let cl_device = Rc::new(Device::new(device, queue_index).into());
@@ -93,7 +94,15 @@ impl crate::common::platform::Platform for Platform {
         return self.platform_name.as_str();
     }
 
-    fn get_devices(&self) -> &Vec<Arc<ClDevice>> {
+    fn get_devices(&self) -> &Vec<Rc<ClDevice>> {
         return &self.devices;
+    }
+
+    fn add_device(&mut self, device: Rc<ClDevice>) {
+        unimplemented!();
+    }
+
+    fn create_context(&self, devices: &Vec<Rc<ClDevice>>) -> Rc<ClContext> {
+        unimplemented!();
     }
 }

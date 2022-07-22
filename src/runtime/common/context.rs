@@ -1,6 +1,23 @@
 use crate::common::cl_types::*;
+use enum_dispatch::enum_dispatch;
 
+#[cfg(feature = "vulkan")]
+use crate::vulkan::Context as VkContext;
+
+#[cfg(feature = "metal")]
+use crate::metal::Context as MTLContext;
+
+#[enum_dispatch(ClContext)]
 pub trait Context {}
+
+#[enum_dispatch]
+#[repr(C)]
+pub enum ClContext{
+    #[cfg(feature = "vulkan")]
+    Vulkan(VkContext),
+    #[cfg(feature = "metal")]
+    Metal(MTLContext),
+}
 
 #[no_mangle]
 pub extern "C" fn clCreateContext(
