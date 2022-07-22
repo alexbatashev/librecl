@@ -46,4 +46,4 @@ jobs:
       run: |
         cargo install cargo-nextest
     - name: Test
-      run: cargo nextest --workspace --no-default-features ${{ inputs.cargo-flags }}
+      run: cargo nextest --all --no-default-features ${{ inputs.cargo-flags }}
