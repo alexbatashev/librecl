@@ -64,7 +64,7 @@ macro_rules! format_error {
                 $message,
                 bt
             );
-        })();
+        })()
     };
 }
 #[macro_export]

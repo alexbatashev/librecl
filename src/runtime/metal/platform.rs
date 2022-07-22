@@ -1,5 +1,5 @@
-use crate::common::platform::ClPlatform;
 use crate::common::device::ClDevice;
+use crate::common::platform::ClPlatform;
 
 use std::sync::Arc;
 
@@ -43,4 +43,3 @@ impl crate::common::platform::Platform for Platform {
         return self.name.as_str();
     }
 }
-

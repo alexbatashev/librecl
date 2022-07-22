@@ -1,3 +1,4 @@
+use crate::common::device::ClDevice;
 use crate::common::platform::ClPlatform;
 use crate::vulkan::device::Device;
 use once_cell::sync::Lazy;
@@ -19,18 +20,22 @@ static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
 });
 
 pub struct Platform {
-    devices: Vec<Arc<Device>>,
+    devices: Vec<Arc<ClDevice>>,
     instance: Arc<Instance>,
-    name: String,
+    platform_name: String,
 }
 
 impl Platform {
-    pub fn new(vendor_name: &str, devices: Vec<Arc<Device>>, instance: Arc<Instance>) -> Platform {
+    pub fn new(
+        vendor_name: &str,
+        devices: Vec<Arc<ClDevice>>,
+        instance: Arc<Instance>,
+    ) -> Platform {
         let platform_name = std::format!("LibreCL {} Vulkan Platform", vendor_name);
         return Platform {
-            devices: devices,
-            instance: instance,
-            name: platform_name,
+            devices,
+            instance,
+            platform_name,
         };
     }
     pub fn create_platforms(platforms: &mut Vec<Arc<ClPlatform>>) {
@@ -48,10 +53,10 @@ impl Platform {
                     .map(|q| (p, q))
             });
 
-        let mut platform_to_device: HashMap<u32, Vec<Arc<Device>>> = HashMap::new();
+        let mut platform_to_device: HashMap<u32, Vec<Arc<ClDevice>>> = HashMap::new();
 
         for (device, queue_index) in devices {
-            let cl_device = Arc::new(Device::new(device, queue_index));
+            let cl_device = Arc::new(Device::new(device, queue_index).into());
 
             let id = device.properties().vendor_id;
 
@@ -84,6 +89,10 @@ impl Platform {
 
 impl crate::common::platform::Platform for Platform {
     fn get_platform_name(&self) -> &str {
-        return self.name.as_str();
+        return self.platform_name.as_str();
+    }
+
+    fn get_devices(&self) -> &Vec<Arc<ClDevice>> {
+        return &self.devices;
     }
 }

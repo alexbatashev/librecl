@@ -27,9 +27,12 @@ use std::sync::Arc;
 
 use crate::lcl_contract;
 
+use super::device::ClDevice;
+
 #[enum_dispatch(ClPlatform)]
 pub trait Platform {
     fn get_platform_name(&self) -> &str;
+    fn get_devices(&self) -> &Vec<Arc<ClDevice>>;
 }
 
 #[enum_dispatch]
@@ -114,15 +117,11 @@ pub extern "C" fn clGetPlatformInfo(
 
     let param_name = PlatformInfoNames::try_from(param_name_num);
 
-    println!("Requested param name is {}", param_name_num);
-    // TODO correct error code
     lcl_contract!(
         param_name.is_ok(),
-        "invalid param_name value ",
+        "invalid param_name value",
         CL_INVALID_VALUE
     );
-
-    println!("Requested param is {:?}", param_name);
 
     match param_name.unwrap() {
         PlatformInfoNames::CL_PLATFORM_NAME => {

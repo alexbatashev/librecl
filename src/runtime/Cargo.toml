@@ -14,6 +14,7 @@ cxx = "1.0"
 vulkano = { version = "0.30.0", optional = true }
 enum_dispatch = "0.3.8"
 metal_api = { version = "0.24.0", optional = true, package = "metal" }
+bitflags = "1.3.2"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -21,5 +22,6 @@ name = "lcl_icd_runtime"
 path = "./lib.rs"
 
 [features]
+default = ["vulkan"]
 vulkan = ["vulkano"]
 metal = ["metal_api"]
