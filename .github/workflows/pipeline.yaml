@@ -2,13 +2,14 @@ name: Build and Test pipeline
 
 on:
   workflow_call:
-    runs-on:
-      type: "string"
-      required: true
-    cargo-flags:
-      type: "string"
-      required: false
-      default: ""
+    inputs:
+      runs-on:
+        type: "string"
+        required: true
+      cargo-flags:
+        type: "string"
+        required: false
+        default: ""
 
 jobs:
   build:
