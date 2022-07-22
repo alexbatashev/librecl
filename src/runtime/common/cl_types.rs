@@ -31,6 +31,8 @@ pub enum PlatformInfoNames {
     CL_PLATFORM_EXTENSIONS_WITH_VERSION = 0x0907,
 }
 
+pub const CL_PLATFORM_NAME: u32 = 0x0902;
+
 impl TryFrom<cl_uint> for PlatformInfoNames {
     type Error = ();
 

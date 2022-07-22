@@ -1,33 +1,57 @@
 use crate::format_error;
 use crate::set_info_str;
-// use crate::CL_INVALID_VALUE;
-use backtrace::Backtrace;
-use libc::c_int;
-use libc::c_uint;
-use libc::c_void;
-use libc::size_t;
-use stdext::function_name;
 
-// use crate::cl_platform_info;
-use crate::lcl_contract;
-// use crate::CL_INVALID_PLATFORM;
-// use crate::CL_SUCCESS;
+use once_cell::sync::Lazy;
+
+#[cfg(feature = "vulkan")]
+use crate::vulkan;
+
+#[cfg(feature = "metal")]
+use crate::metal;
+
 use crate::common::cl_types::cl_int;
 use crate::common::cl_types::cl_platform_id;
 use crate::common::cl_types::cl_uint;
 use crate::common::cl_types::PlatformInfoNames;
 use crate::common::cl_types::{CL_INVALID_PLATFORM, CL_INVALID_VALUE, CL_SUCCESS};
 
+use enum_dispatch::enum_dispatch;
+
+#[cfg(feature = "vulkan")]
+use crate::vulkan::platform::Platform as VkPlatform;
+
+#[cfg(feature = "metal")]
+use crate::metal::Platform as MTLPlatform;
+
+use std::sync::Arc;
+
+use crate::lcl_contract;
+
+#[enum_dispatch(ClPlatform)]
 pub trait Platform {
     fn get_platform_name(&self) -> &str;
 }
 
+#[enum_dispatch]
 #[repr(C)]
-pub struct ClPlatform {
-    pimpl: Box<*mut dyn Platform>,
+pub enum ClPlatform {
+    #[cfg(feature = "vulkan")]
+    Vulkan(VkPlatform),
+    #[cfg(feature = "metal")]
+    Metal(MTLPlatform),
 }
 
-static mut GLOBAL_PLATFORMS: Vec<Box<ClPlatform>> = vec![];
+static mut GLOBAL_PLATFORMS: Lazy<Vec<Arc<ClPlatform>>> = Lazy::new(|| {
+    let mut platforms: Vec<Arc<ClPlatform>> = vec![];
+
+    #[cfg(feature = "vulkan")]
+    vulkan::platform::Platform::create_platforms(platforms.as_mut());
+
+    #[cfg(feature = "metal")]
+    metal::Platform::create_platforms(platforms.as_mut());
+
+    return platforms;
+});
 
 #[no_mangle]
 pub extern "C" fn clGetPlatformIDs(
@@ -58,7 +82,10 @@ pub extern "C" fn clGetPlatformIDs(
             )
         };
         for i in 0..num_entries {
-            platforms_array[i as usize] = unsafe { GLOBAL_PLATFORMS[i as usize].as_mut() };
+            use std::ops::Deref;
+            platforms_array[i as usize] = unsafe {
+                (GLOBAL_PLATFORMS[i as usize].deref()) as *const ClPlatform as *mut ClPlatform
+            };
         }
     }
 
@@ -99,8 +126,7 @@ pub extern "C" fn clGetPlatformInfo(
 
     match param_name.unwrap() {
         PlatformInfoNames::CL_PLATFORM_NAME => {
-            let platform_name =
-                unsafe { platform_safe.unwrap().pimpl.as_ref().get_platform_name() };
+            let platform_name = platform_safe.unwrap().get_platform_name();
             // TODO check param value size
             set_info_str!(platform_name, param_value, param_size_ret);
         }

@@ -1,7 +1,6 @@
+use crate::common::platform::ClPlatform;
 use crate::vulkan::device::Device;
-use libc::c_void;
 use once_cell::sync::Lazy;
-use std::alloc::Layout;
 use std::collections::HashMap;
 use std::sync::Arc;
 use vulkano::{
@@ -19,18 +18,14 @@ static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
     .unwrap();
 });
 
-pub struct Platform<'a> {
-    devices: Vec<Box<*mut Device<'a>>>,
+pub struct Platform {
+    devices: Vec<Arc<Device>>,
     instance: Arc<Instance>,
     name: String,
 }
 
-impl<'a> Platform<'a> {
-    pub fn new(
-        vendor_name: &str,
-        devices: Vec<Box<*mut Device<'a>>>,
-        instance: Arc<Instance>,
-    ) -> Platform<'a> {
+impl Platform {
+    pub fn new(vendor_name: &str, devices: Vec<Arc<Device>>, instance: Arc<Instance>) -> Platform {
         let platform_name = std::format!("LibreCL {} Vulkan Platform", vendor_name);
         return Platform {
             devices: devices,
@@ -38,7 +33,7 @@ impl<'a> Platform<'a> {
             name: platform_name,
         };
     }
-    pub fn create_platforms() -> Vec<Box<*mut Platform<'a>>> {
+    pub fn create_platforms(platforms: &mut Vec<Arc<ClPlatform>>) {
         // TODO this should be safer
         let extensions = DeviceExtensions {
             khr_storage_buffer_storage_class: true,
@@ -53,10 +48,10 @@ impl<'a> Platform<'a> {
                     .map(|q| (p, q))
             });
 
-        let mut platform_to_device: HashMap<u32, Vec<Box<*mut Device>>> = HashMap::new();
+        let mut platform_to_device: HashMap<u32, Vec<Arc<Device>>> = HashMap::new();
 
         for (device, queue_index) in devices {
-            let cl_device = Box::leak(Box::new(Device::new(device, queue_index))) as *mut Device;
+            let cl_device = Arc::new(Device::new(device, queue_index));
 
             let id = device.properties().vendor_id;
 
@@ -66,10 +61,8 @@ impl<'a> Platform<'a> {
 
             platform_to_device
                 .entry(id)
-                .and_modify(|e| e.push(Box::new(cl_device)));
+                .and_modify(|e| e.push(cl_device));
         }
-
-        let mut platforms = vec![];
 
         for (vendor, devices) in platform_to_device {
             let vendor_name = match vendor {
@@ -81,17 +74,15 @@ impl<'a> Platform<'a> {
                 20803 => "Qualcomm",
                 _ => "Unknown Vendor",
             };
-            let cl_platform = Box::leak(Box::new(Platform::new(vendor_name, devices, unsafe {
-                VK_INSTANCE.clone()
-            }))) as *mut Platform;
-            platforms.push(Box::new(cl_platform));
+            let cl_platform = Arc::new(
+                Platform::new(vendor_name, devices, unsafe { VK_INSTANCE.clone() }).into(),
+            );
+            platforms.push(cl_platform);
         }
-
-        return platforms;
     }
 }
 
-impl<'a> crate::common::platform::Platform for Platform<'a> {
+impl crate::common::platform::Platform for Platform {
     fn get_platform_name(&self) -> &str {
         return self.name.as_str();
     }

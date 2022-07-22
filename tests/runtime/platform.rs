@@ -1,4 +1,4 @@
-use opencl::c_cl::{self, CL_INVALID_VALUE, CL_PLATFORM_NAME, CL_SUCCESS};
+use lcl_icd_runtime::c_cl::{self, CL_INVALID_VALUE, CL_PLATFORM_NAME, CL_SUCCESS};
 
 #[test]
 fn test_lcl_platforms_positive() {
@@ -19,13 +19,13 @@ fn test_lcl_platforms_positive() {
         for p in platforms {
 
 
-            let mut name_len: u64 = 0;
+            let mut name_len: usize = 0;
             let mut err = c_cl::clGetPlatformInfo(
                 p,
                 CL_PLATFORM_NAME,
                 0,
                 std::ptr::null_mut(),
-                &mut name_len as *mut u64,
+                &mut name_len as *mut usize,
             );
             assert_eq!(err, CL_SUCCESS);
             let mut name_bytes: Vec<u8> = vec![];

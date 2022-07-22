@@ -4,8 +4,11 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
+[dependencies]
+librecl_runtime = { path="../src/runtime" }
+
 [dev-dependencies]
-opencl = { path="../runtimes/opencl" }
+librecl_runtime = { path="../src/runtime" }
 libc = "0.2.126"
 
 [[test]]

@@ -1,5 +1,22 @@
 use crate::common::cl_types::*;
 
+use enum_dispatch::enum_dispatch;
+
+#[cfg(feature = "metal")]
+use crate::metal::Device as MTLDevice;
+#[cfg(feature = "vulkan")]
+use crate::vulkan::device::Device as VkDevice;
+
+#[enum_dispatch]
+#[repr(C)]
+pub enum ClDevice {
+    #[cfg(feature = "vulkan")]
+    Vulkan(VkDevice),
+    #[cfg(feature = "metal")]
+    Metal(MTLDevice),
+}
+
+#[enum_dispatch(ClDevice)]
 pub trait Device {}
 
 #[no_mangle]

@@ -1,13 +1,13 @@
 use vulkano::device::physical::{PhysicalDevice, QueueFamily};
 
-pub struct Device<'a> {
-    physical_device: PhysicalDevice<'a>,
+pub struct Device {
+    physical_device: Box<PhysicalDevice<'static>>,
 }
 
-impl<'a> Device<'a> {
-    pub fn new(physical_device: PhysicalDevice<'a>, queue_family: QueueFamily) -> Device<'a> {
+impl Device {
+    pub fn new(physical_device: PhysicalDevice<'static>, queue_family: QueueFamily) -> Device {
         return Device {
-            physical_device: physical_device,
+            physical_device: Box::new(physical_device),
         };
     }
 }
