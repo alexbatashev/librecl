@@ -19,6 +19,7 @@ pub enum ClDevice {
 pub trait Device {
     fn get_device_type(&self) -> cl_device_type;
     fn get_device_name(&self) -> String;
+    fn is_available(&self) -> bool;
 }
 
 #[no_mangle]

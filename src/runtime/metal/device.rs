@@ -24,4 +24,8 @@ impl common::device::Device for Device {
     fn get_device_name(&self) -> String {
         unimplemented!();
     }
+    fn is_available(&self) -> bool {
+        // TODO some Intel-based Macs support hybrid graphics and eGPUs.
+        return true;
+    }
 }

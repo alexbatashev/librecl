@@ -37,4 +37,9 @@ impl crate::common::device::Device for Device {
     fn get_device_name(&self) -> String {
         return self.physical_device.properties().device_name.clone();
     }
+
+    fn is_available(&self) -> bool {
+        // TODO modern laptops allow external GPUs to be connected
+        return true;
+    }
 }

@@ -1,4 +1,4 @@
-use crate::common::cl_types::*;
+use crate::{common::cl_types::*, lcl_contract, format_error};
 use enum_dispatch::enum_dispatch;
 
 #[cfg(feature = "vulkan")]
@@ -12,7 +12,7 @@ pub trait Context {}
 
 #[enum_dispatch]
 #[repr(C)]
-pub enum ClContext{
+pub enum ClContext {
     #[cfg(feature = "vulkan")]
     Vulkan(VkContext),
     #[cfg(feature = "metal")]
@@ -21,14 +21,34 @@ pub enum ClContext{
 
 #[no_mangle]
 pub extern "C" fn clCreateContext(
-    properties: *const cl_context_properties,
+    _properties: *const cl_context_properties,
     num_devices: cl_uint,
     devices: *const cl_device_id,
     callback: cl_context_callback,
     user_data: *mut libc::c_void,
     errcode_ret: *mut cl_int,
 ) -> cl_context {
-    unimplemented!();
+    // TODO support properties
+
+    lcl_contract!(
+        num_devices > 0,
+        "context requires at leas one device",
+        CL_INVALID_VALUE,
+        errcode_ret
+    );
+
+    let devices_safe = unsafe { devices.as_ref() };
+
+    lcl_contract!(
+        devices_safe.is_some(),
+        "devices can't be NULL",
+        CL_INVALID_VALUE,
+        errcode_ret
+    );
+
+    
+
+    return std::ptr::null_mut();
 }
 
 #[no_mangle]

@@ -1,10 +1,10 @@
-#![feature(get_mut_unchecked)]
-
 use crate::common::device::ClDevice;
+use crate::common::context::ClContext;
 use crate::common::platform::ClPlatform;
 use crate::common::platform::Platform as CommonPlatform;
 
 use std::sync::Arc;
+use std::rc::Rc;
 
 use metal_api::Device as MTLDevice;
 
@@ -32,7 +32,7 @@ impl Platform {
         for d in all_devices {
             let device: Rc<ClDevice> = Rc::new(Device::new(&platform, d).into());
             unsafe {
-                (Rc::as_ptr(&mut platform) as *mut ClPlatform)
+                (Arc::as_ptr(&mut platform) as *mut ClPlatform)
                     .as_mut()
                     .unwrap()
                     .add_device(device);
