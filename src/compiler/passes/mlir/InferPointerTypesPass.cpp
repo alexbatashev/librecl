@@ -71,7 +71,7 @@ struct FunctionPattern : public OpConversionPattern<FuncT> {
   using Base::OpConversionPattern;
 
   LogicalResult
-  matchAndRewrite(FuncT func, FuncT::Adaptor adaptor,
+  matchAndRewrite(FuncT func, typename FuncT::Adaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto funcType = func.getFunctionType();
 

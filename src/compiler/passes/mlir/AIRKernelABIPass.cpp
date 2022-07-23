@@ -60,7 +60,8 @@ template <typename FuncTy> static void processFunction(FuncTy func) {
     }
   }
 
-  mlir::Type indexType = mlir::VectorType::get({3}, builder.getI32Type(), 0);
+  mlir::Type indexType =
+      mlir::VectorType::get({3}, builder.getIntegerType(32, false), 0);
 
   for (int i = 0; i < 4; i++) {
     argTypes.push_back(indexType);
@@ -129,6 +130,7 @@ template <typename FuncTy> static void processFunction(FuncTy func) {
 struct AIRKernelABIPass
     : public mlir::PassWrapper<AIRKernelABIPass,
                                mlir::OperationPass<mlir::gpu::GPUModuleOp>> {
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(AIRKernelABIPass);
 
   static constexpr ::llvm::StringLiteral getArgumentName() {
     return ::llvm::StringLiteral("air-kernel-abi");

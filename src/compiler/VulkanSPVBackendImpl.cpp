@@ -187,10 +187,13 @@ VulkanSPVBackendImpl::compile(std::unique_ptr<llvm::Module> module) {
     for (auto arg : func.getArgumentTypes()) {
       size_t size = getTypeSize(arg);
       if (arg.isa<mlir::rawmem::PointerType>()) {
-        args.emplace_back(ArgumentInfo::ArgType::GlobalBuffer, args.size(),
-                          size);
+        args.push_back(ArgumentInfo{.type = ArgumentInfo::ArgType::GlobalBuffer,
+                                    .index = args.size(),
+                                    .size = size});
       } else {
-        args.emplace_back(ArgumentInfo::ArgType::POD, args.size(), size);
+        args.push_back(ArgumentInfo{.type = ArgumentInfo::ArgType::POD,
+                                    .index = args.size(),
+                                    .size = size});
       }
     }
 

@@ -60,8 +60,10 @@ struct GloaglIDPattern : public OpConversionPattern<gpu::GlobalIdOp> {
 
     Value extracted =
         rewriter.create<vector::ExtractElementOp>(op.getLoc(), gidArg, id);
+    Value extended = rewriter.create<arith::ExtUIOp>(
+        op.getLoc(), rewriter.getI64Type(), extracted);
     rewriter.replaceOpWithNewOp<arith::IndexCastOp>(op, rewriter.getIndexType(),
-                                                    extracted);
+                                                    extended);
 
     return success();
   }
