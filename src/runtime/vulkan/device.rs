@@ -1,3 +1,4 @@
+use super::queue::InOrderQueue;
 use crate::common::cl_types::*;
 use crate::common::device::ClDevice;
 use crate::common::device::Device as CommonDevice;
@@ -5,7 +6,6 @@ use crate::common::platform::ClPlatform;
 use std::sync::{Arc, Weak};
 use vulkano::device::physical::{PhysicalDevice, QueueFamily};
 use vulkano::device::{Device as VkDevice, DeviceCreateInfo, QueueCreateInfo};
-use super::queue::InOrderQueue;
 
 pub struct Device {
     physical_device: PhysicalDevice<'static>,
@@ -15,7 +15,11 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn new(platform: Weak<ClPlatform>, physical_device: PhysicalDevice<'static>, queue_family: QueueFamily) -> Device {
+    pub fn new(
+        platform: Weak<ClPlatform>,
+        physical_device: PhysicalDevice<'static>,
+        queue_family: QueueFamily,
+    ) -> Device {
         // TODO figure out if we need queues at all
         let (device, _) = VkDevice::new(
             physical_device,
@@ -30,7 +34,7 @@ impl Device {
             physical_device,
             logical_device: device,
             device_type: cl_device_type::GPU,
-            platform
+            platform,
         };
     }
 }

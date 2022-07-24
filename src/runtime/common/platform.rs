@@ -9,10 +9,10 @@ use crate::vulkan;
 #[cfg(feature = "metal")]
 use crate::metal;
 
-use crate::common::cl_types::cl_int;
-use crate::common::cl_types::cl_platform_id;
 use crate::common::cl_types::cl_context;
 use crate::common::cl_types::cl_device_id;
+use crate::common::cl_types::cl_int;
+use crate::common::cl_types::cl_platform_id;
 use crate::common::cl_types::cl_uint;
 use crate::common::cl_types::PlatformInfoNames;
 use crate::common::cl_types::{CL_INVALID_PLATFORM, CL_INVALID_VALUE, CL_SUCCESS};
@@ -25,8 +25,8 @@ use crate::vulkan::platform::Platform as VkPlatform;
 #[cfg(feature = "metal")]
 use crate::metal::Platform as MTLPlatform;
 
-use std::sync::Arc;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::lcl_contract;
 
@@ -38,7 +38,12 @@ pub trait Platform {
     fn get_platform_name(&self) -> &str;
     fn get_devices(&self) -> &Vec<Rc<ClDevice>>;
     fn add_device(&mut self, device: Rc<ClDevice>);
-    fn create_context(&self, devices: &[cl_device_id], callback: cl_context_callback, user_data: *mut libc::c_void) -> cl_context;
+    fn create_context(
+        &self,
+        devices: &[cl_device_id],
+        callback: cl_context_callback,
+        user_data: *mut libc::c_void,
+    ) -> cl_context;
 }
 
 #[enum_dispatch]

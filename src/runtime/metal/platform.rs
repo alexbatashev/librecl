@@ -1,12 +1,12 @@
-use crate::common::device::ClDevice;
-use crate::common::context::ClContext;
-use crate::common::platform::ClPlatform;
-use crate::common::platform::Platform as CommonPlatform;
 use crate::common::cl_types::cl_context;
 use crate::common::cl_types::cl_device_id;
+use crate::common::context::ClContext;
+use crate::common::device::ClDevice;
+use crate::common::platform::ClPlatform;
+use crate::common::platform::Platform as CommonPlatform;
 
-use std::sync::Arc;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use metal_api::Device as MTLDevice;
 
@@ -58,7 +58,12 @@ impl CommonPlatform for Platform {
         self.devices.push(device);
     }
 
-    fn create_context(&self, devices: &[cl_device_id], callback: cl_context_callback, user_data: *mut libc::c_void) -> cl_context {
+    fn create_context(
+        &self,
+        devices: &[cl_device_id],
+        callback: cl_context_callback,
+        user_data: *mut libc::c_void,
+    ) -> cl_context {
         unimplemented!();
     }
 }

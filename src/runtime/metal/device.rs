@@ -1,7 +1,7 @@
 use metal_api::Device as MTLDevice;
 
-use crate::common::{self, platform::ClPlatform};
 use crate::common::cl_types::*;
+use crate::common::{self, platform::ClPlatform};
 use std::sync::{Arc, Weak};
 
 pub struct Device {

@@ -1,6 +1,6 @@
-use crate::{common::cl_types::*, format_error, lcl_contract};
 use crate::common::context::Context as CommonContext;
 use crate::common::device::Device as CommonDevice;
+use crate::{common::cl_types::*, format_error, lcl_contract};
 use enum_dispatch::enum_dispatch;
 
 #[cfg(feature = "vulkan")]

@@ -1,5 +1,4 @@
-mod platform;
-mod device;
-mod test_utils;
 mod context;
-
+mod device;
+mod platform;
+mod test_utils;
