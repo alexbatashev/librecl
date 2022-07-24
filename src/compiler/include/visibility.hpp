@@ -16,6 +16,6 @@
 #define LCL_COMP_EXPORT __declspec(dllimport)
 #endif // LCL_CPMP_BUILD_DLL
 #else  // _WIN32
-#define LCL_COMP_EXPORT __attribute__ ((visibility ("default")))
+#define LCL_COMP_EXPORT __attribute__((visibility("default")))
 #endif // _WIIN32
 #endif // LCL_COMP_EXPORT

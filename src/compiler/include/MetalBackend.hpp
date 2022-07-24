@@ -36,4 +36,4 @@ public:
 private:
   std::shared_ptr<detail::MetalBackendImpl> mImpl;
 };
-}
+} // namespace lcl

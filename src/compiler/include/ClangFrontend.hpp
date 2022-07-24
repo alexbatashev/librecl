@@ -12,8 +12,8 @@
 #include "visibility.hpp"
 
 #include <memory>
-#include <string_view>
 #include <span>
+#include <string_view>
 
 namespace lcl {
 namespace detail {
