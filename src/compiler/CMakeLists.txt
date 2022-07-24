@@ -133,3 +133,5 @@ target_link_libraries(lcl_compiler PRIVATE
   LLVMSPIRVLib
   LCLPasses
 )
+
+install(TARGETS lcl_compiler)

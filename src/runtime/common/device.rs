@@ -20,6 +20,8 @@ pub trait Device {
     fn get_device_type(&self) -> cl_device_type;
     fn get_device_name(&self) -> String;
     fn is_available(&self) -> bool;
+    fn get_platform(&self) -> cl_platform_id;
+    fn create_queue(&self, context: cl_context, device: cl_device_id) -> cl_command_queue;
 }
 
 #[no_mangle]
@@ -31,8 +33,6 @@ pub extern "C" fn clGetDeviceIDs(
     num_devices: *mut cl_uint,
 ) -> cl_int {
     let platform_safe = unsafe { platform.as_ref() };
-    let num_devices_safe = unsafe { num_devices.as_mut() };
-    let devices_safe = unsafe { devices_raw.as_mut() };
 
     lcl_contract!(
         platform_safe.is_some(),
@@ -41,7 +41,7 @@ pub extern "C" fn clGetDeviceIDs(
     );
 
     lcl_contract!(
-        num_devices_safe.is_some() || devices_safe.is_some(),
+        !num_devices.is_null() || !devices_raw.is_null(),
         "ether devices or num_devices must be non-NULL",
         CL_INVALID_VALUE
     );
@@ -55,21 +55,20 @@ pub extern "C" fn clGetDeviceIDs(
         .filter(|&d| device_type.contains(d.get_device_type()))
         .into_iter();
 
-    if num_devices_safe.is_some() {
+    if !num_devices.is_null() {
         // TODO find safe way to do this
         unsafe {
             *num_devices = devices.by_ref().count() as u32;
         }
     }
 
-    if devices_safe.is_some() {
-        let final_entries = std::cmp::min(num_entries as usize, devices.by_ref().count());
+    if !devices_raw.is_null() {
         let devices_array = unsafe {
-            std::slice::from_raw_parts_mut(devices_raw as *mut *mut ClDevice, final_entries)
+            std::slice::from_raw_parts_mut(devices_raw as *mut *mut ClDevice, num_entries as usize)
         };
-        for (i, d) in devices.take(final_entries).enumerate() {
-            use std::ops::Deref;
-            devices_array[i] = d.deref() as *const ClDevice as *mut ClDevice;
+        for (i, d) in devices.take(num_entries as usize).enumerate() {
+            let device_ptr = std::rc::Rc::as_ptr(&d) as *mut ClDevice;
+            devices_array[i] = device_ptr;
         }
     }
 

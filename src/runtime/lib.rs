@@ -13,4 +13,5 @@ pub mod c_cl {
     pub use crate::common::platform::clGetPlatformIDs;
     pub use crate::common::platform::clGetPlatformInfo;
     pub use crate::common::device::clGetDeviceIDs;
+    pub use crate::common::context::clCreateContext;
 }

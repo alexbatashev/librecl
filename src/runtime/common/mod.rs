@@ -4,5 +4,5 @@ pub mod device;
 mod kernel;
 pub mod platform;
 mod program;
-mod queue;
+pub mod queue;
 mod utils;

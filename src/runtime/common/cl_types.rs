@@ -7,7 +7,7 @@ use crate::common::context::ClContext;
 use crate::common::kernel::Kernel;
 use crate::common::platform::ClPlatform;
 use crate::common::program::Program;
-use crate::common::queue::Queue;
+use crate::common::queue::ClQueue;
 use bitflags::bitflags;
 use std::convert::TryFrom;
 
@@ -123,20 +123,22 @@ pub type cl_queue_properties = libc::c_uint;
 pub type cl_platform_id = *mut ClPlatform;
 pub type cl_device_id = *mut ClDevice;
 pub type cl_context = *mut ClContext;
-pub type cl_command_queue = *mut dyn Queue;
+pub type cl_command_queue = *mut ClQueue;
 pub type cl_program = *mut dyn Program;
 pub type cl_kernel = *mut dyn Kernel;
 
-pub type cl_context_callback = extern "C" fn(
+pub type cl_context_callback = Option<extern "C" fn(
     errinfo: *const libc::c_char,
     private_info: *const libc::c_void,
     cb: libc::size_t,
     user_data: *mut libc::c_void,
-);
+)>;
 
-pub type cl_build_callback = extern "C" fn(program: cl_program, user_data: *mut libc::c_void);
+pub type cl_build_callback = Option<extern "C" fn(program: cl_program, user_data: *mut libc::c_void)>;
 
 pub const CL_SUCCESS: cl_int = 0;
+pub const CL_DEVICE_NOT_AVAILABLE: cl_int = -2;
 pub const CL_INVALID_VALUE: cl_int = -30;
 pub const CL_INVALID_PLATFORM: cl_int = -32;
 pub const CL_INVALID_DEVICE: cl_int = -33;
+pub const CL_INVALID_CONTEXT: cl_int = -34;

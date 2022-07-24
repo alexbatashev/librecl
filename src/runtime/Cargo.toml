@@ -2,6 +2,8 @@
 name = "librecl_runtime"
 version = "0.1.0"
 edition = "2021"
+licesnse = "Apache 2.0"
+description = "descr"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -21,7 +23,29 @@ crate-type = ["cdylib", "rlib"]
 name = "lcl_icd_runtime"
 path = "./lib.rs"
 
+[build-dependencies]
+cmake = "0.1"
+
 [features]
 # default = ["vulkan"]
 vulkan = ["vulkano"]
 metal = ["metal_api"]
+
+[package.metadata.generate-rpm]
+license = "Apache 2.0"
+description = "descr"
+assets = [
+  {source = "target/release/liblcl_icd_runtime.so", dest = "/usr/lib/liblcl_icd_runtime.so", permission = 655, config = false, doc = false}
+]
+
+[package.metadata.deb]
+maintainer = "Alexander Batashev <alexbatashev@gmail.com>"
+copyright = "2022, LibreCL"
+license-file = ["../../LICENSE", "4"]
+extended-description = """Implementation of OpenCL interfaces on top of other APIs"""
+depends = "$auto"
+section = "utility"
+priority = "optional"
+assets = [
+    ["target/release/liblcl_icd_runtime.so", "usr/lib/", "755"],
+]

@@ -1,4 +1,6 @@
-use crate::{common::cl_types::*, lcl_contract, format_error};
+use crate::common::device::Device;
+use crate::common::platform::Platform;
+use crate::{common::cl_types::*, format_error, lcl_contract};
 use enum_dispatch::enum_dispatch;
 
 #[cfg(feature = "vulkan")]
@@ -8,7 +10,10 @@ use crate::vulkan::Context as VkContext;
 use crate::metal::Context as MTLContext;
 
 #[enum_dispatch(ClContext)]
-pub trait Context {}
+pub trait Context {
+    fn notify_error(&self, message: String);
+    fn has_device(&self, device: cl_device_id) -> bool;
+}
 
 #[enum_dispatch]
 #[repr(C)]
@@ -37,18 +42,46 @@ pub extern "C" fn clCreateContext(
         errcode_ret
     );
 
-    let devices_safe = unsafe { devices.as_ref() };
-
     lcl_contract!(
-        devices_safe.is_some(),
+        !devices.is_null(),
         "devices can't be NULL",
         CL_INVALID_VALUE,
         errcode_ret
     );
 
-    
+    let devices_array = unsafe { std::slice::from_raw_parts(devices, num_devices as usize) };
 
-    return std::ptr::null_mut();
+    lcl_contract!(
+        devices_array.iter().all(|&d| !d.is_null()),
+        "some of devices are NULL",
+        CL_INVALID_DEVICE,
+        errcode_ret
+    );
+    lcl_contract!(
+        devices_array
+            .iter()
+            .all(|&d| unsafe { d.as_ref().unwrap() }.is_available()),
+        "some devices are unavailable",
+        CL_DEVICE_NOT_AVAILABLE,
+        errcode_ret
+    );
+
+    // TODO figure out if there's a simpler way to call functions on CL objects
+    let context = unsafe {
+        devices_array
+            .first()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .get_platform()
+            .as_ref()
+            .unwrap()
+    }
+    .create_context(devices_array, callback, user_data);
+
+    unsafe { *errcode_ret = CL_SUCCESS };
+
+    return context;
 }
 
 #[no_mangle]
