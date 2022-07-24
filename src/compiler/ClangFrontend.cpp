@@ -9,6 +9,7 @@
 #include "ClangFrontend.hpp"
 #include "frontend_impl.hpp"
 
+#include "include/ClangFrontend.hpp"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"

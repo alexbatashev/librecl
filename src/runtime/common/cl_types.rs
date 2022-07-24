@@ -6,7 +6,7 @@ use crate::common::context::ClContext;
 use crate::common::device::ClDevice;
 use crate::common::kernel::Kernel;
 use crate::common::platform::ClPlatform;
-use crate::common::program::Program;
+use crate::common::program::ClProgram;
 use crate::common::queue::ClQueue;
 use bitflags::bitflags;
 use std::convert::TryFrom;
@@ -124,7 +124,7 @@ pub type cl_platform_id = *mut ClPlatform;
 pub type cl_device_id = *mut ClDevice;
 pub type cl_context = *mut ClContext;
 pub type cl_command_queue = *mut ClQueue;
-pub type cl_program = *mut dyn Program;
+pub type cl_program = *mut ClProgram;
 pub type cl_kernel = *mut dyn Kernel;
 
 pub type cl_context_callback = Option<
