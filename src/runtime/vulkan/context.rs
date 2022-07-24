@@ -1,6 +1,4 @@
-use crate::common::cl_types::cl_context;
-use crate::common::cl_types::cl_context_callback;
-use crate::common::cl_types::cl_device_id;
+use crate::common::cl_types::*;
 use crate::common::context::ClContext;
 use crate::common::context::Context as CommonContext;
 use librecl_compiler::ClangFrontend;
@@ -41,7 +39,7 @@ impl CommonContext for Context {
     fn has_device(&self, device: cl_device_id) -> bool {
         return self.devices.contains(&device);
     }
-    fn create_program_with_source(source: String) -> cl_program {
+    fn create_program_with_source(&self, source: String) -> cl_program {
         unimplemented!();
     }
 }

@@ -11,9 +11,9 @@ libc = "0.2.126"
 stdext = "0.3.1"
 backtrace = "0.3.66"
 once_cell = "1.13.0"
-vulkano = { version = "0.30.0", optional = true }
+vulkano = { version = "0.30.0", optional = false }
 enum_dispatch = "0.3.8"
-metal_api = { version = "0.24.0", optional = true, package = "metal" }
+metal_api = { version = "0.24.0", optional = false, package = "metal" }
 bitflags = "1.3.2"
 
 [lib]
@@ -23,8 +23,8 @@ path = "./lib.rs"
 
 [features]
 # default = ["vulkan"]
-vulkan = ["vulkano"]
-metal = ["metal_api"]
+vulkan = []
+metal = []
 
 [build-dependencies]
 build-target = "0.4.0"

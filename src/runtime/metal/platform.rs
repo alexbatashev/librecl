@@ -1,5 +1,4 @@
-use crate::common::cl_types::cl_context;
-use crate::common::cl_types::cl_device_id;
+use crate::common::cl_types::*;
 use crate::common::context::ClContext;
 use crate::common::device::ClDevice;
 use crate::common::platform::ClPlatform;

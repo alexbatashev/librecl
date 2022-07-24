@@ -1,3 +1,4 @@
+use crate::common::context::Context;
 use crate::{
     common::{cl_types::*, program},
     format_error, lcl_contract,
@@ -24,7 +25,7 @@ pub enum ClProgram {
 
 #[no_mangle]
 pub extern "C" fn clCreateProgramWithSource(
-    context: *mut cl_context,
+    context: cl_context,
     count: cl_uint,
     strings: *const *const libc::c_char,
     lengths: *const libc::size_t,
@@ -37,10 +38,7 @@ pub extern "C" fn clCreateProgramWithSource(
         errcode_ret
     );
 
-    let ctx_safe = unsafe {
-        context.as_ref();
-    }
-    .unwrap();
+    let ctx_safe = unsafe { context.as_ref() }.unwrap();
 
     lcl_contract!(
         ctx_safe,
@@ -57,7 +55,7 @@ pub extern "C" fn clCreateProgramWithSource(
         errcode_ret
     );
 
-    let mut program_source;
+    let mut program_source: String = String::new();
 
     let strings_array = unsafe { std::slice::from_raw_parts(strings, count as usize) };
 
@@ -70,7 +68,7 @@ pub extern "C" fn clCreateProgramWithSource(
                 CL_INVALID_VALUE,
                 errcode_ret
             );
-            let c_str = unsafe { std::ffi::CStr::from_ptr(s) };
+            let c_str = unsafe { std::ffi::CStr::from_ptr(*s) };
             program_source.push_str(c_str.to_str().unwrap());
         }
     } else {
@@ -83,26 +81,16 @@ pub extern "C" fn clCreateProgramWithSource(
                 CL_INVALID_VALUE,
                 errcode_ret
             );
-            lcl_contract!(
-                ctx_safe,
-                !l.is_null(),
-                "neither of lengths can be NULL",
-                CL_INVALID_VALUE,
-                errcode_ret
-            );
 
-            let length = unsafe { *l };
+            let cur_string = unsafe { String::from_raw_parts(*s as *const u8 as *mut u8, *l, *l) };
+            std::mem::forget(&cur_string);
 
-            let cur_string =
-                unsafe { String::from_raw_parts(*s as *const u8 as *mut u8, length, length) };
-            std::mem::forget(cur_string);
-
-            program_source.push_str(cur_string);
+            program_source.push_str(&cur_string);
         }
     }
 
     let program = ctx_safe.create_program_with_source(program_source);
-    unsafe { errcode_ret = CL_SUCCESS };
+    unsafe { *errcode_ret = CL_SUCCESS };
 
     return program;
 }

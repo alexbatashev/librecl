@@ -13,7 +13,7 @@ use crate::metal::Context as MTLContext;
 pub trait Context {
     fn notify_error(&self, message: String);
     fn has_device(&self, device: cl_device_id) -> bool;
-    fn create_program_with_source(source: String) -> cl_program;
+    fn create_program_with_source(&self, source: String) -> cl_program;
 }
 
 #[enum_dispatch]
