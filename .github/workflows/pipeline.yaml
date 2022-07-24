@@ -25,16 +25,8 @@ jobs:
         path: target
         key: ${{ runner.os }}-build-${{ github.sha }}
         restore-keys: ${{ runner.os }}-build-
-    - name: Install dependencies
-      run: |
-        cargo install cargo-generate-rpm
-        cargo install cargo-deb
     - name: Build
-      run: cargo build --workspace --no-default-features ${{ inputs.cargo-flags }}
-    - name: Package RPM
-      run: cargo generate-rpm -p src/runtime
-    - name: Package DEB
-      run: cargo deb -p librecl_runtime -- ${{ inputs.cargo-flags }}
+      run: cargo build --workspace
 
   runtime_tests:
     name: Run RT tests
@@ -59,4 +51,4 @@ jobs:
       run: |
         curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
     - name: Test
-      run: cargo nextest run --all --no-default-features ${{ inputs.cargo-flags }}
+      run: cargo nextest run --all

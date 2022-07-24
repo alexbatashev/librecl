@@ -10,11 +10,9 @@ jobs:
     name: Linux
     uses: ./.github/workflows/pipeline.yaml
     with:
-      cargo-flags: "--features=vulkan"
       runs-on: "ubuntu-latest"
   macos:
     name: macOS
     uses: ./.github/workflows/pipeline.yaml
     with:
-      cargo-flags: "--features=metal"
       runs-on: "macos-12"
