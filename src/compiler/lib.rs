@@ -15,7 +15,7 @@ pub struct FrontendResult {
     handle: *mut libc::c_void,
 }
 
-impl FrontendResult {
+impl Drop for FrontendResult {
     fn drop(&mut self) {
         unsafe { release_result(self.handle) };
     }
@@ -31,7 +31,9 @@ impl ClangFrontend {
             handle: unsafe { create_clang_frontend() },
         };
     }
+}
 
+impl Drop for ClangFrontend {
     fn drop(&mut self) {
         unsafe { release_clang_frontend(self.handle) };
     }

@@ -26,6 +26,9 @@ path = "./lib.rs"
 vulkan = ["vulkano"]
 metal = ["metal_api"]
 
+[build-dependencies]
+build-target = "0.4.0"
+
 [package.metadata.generate-rpm]
 license = "Apache 2.0"
 description = "descr"
