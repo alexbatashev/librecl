@@ -6,6 +6,20 @@
     _ZTSN3lcl*; /* typeinfo name */
     _ZTVN3lcl*; /* vtable */
     create_clang_frontend;
+    release_clang_frontend;
+    result_is_ok;
+    result_get_error;
+    create_vulkan_backend;
+    release_vulkan_backend;
+    backend_compile;
+    process_source;
+    release_result;
+    binary_program_get_num_kernels;
+    binary_program_get_kernel_args;
+    binary_program_get_num_kernel_args;
+    binary_program_get_size;
+    binary_program_copy_data;
+    binary_program_get_kernel_name;
 
   local:
     *;

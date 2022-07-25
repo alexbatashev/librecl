@@ -37,6 +37,10 @@ impl Device {
             platform,
         };
     }
+
+    pub fn get_logical_device(&self) -> Arc<VkDevice> {
+        return self.logical_device.clone();
+    }
 }
 
 impl CommonDevice for Device {

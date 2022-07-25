@@ -1,4 +1,5 @@
 pub mod cl_types;
+pub mod command_pool;
 pub mod context;
 pub mod device;
 pub mod kernel;

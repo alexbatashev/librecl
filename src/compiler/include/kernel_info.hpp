@@ -10,12 +10,13 @@
 
 #include "visibility.hpp"
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
 namespace lcl {
 struct LCL_COMP_EXPORT ArgumentInfo {
-  enum class ArgType { GlobalBuffer, USMPointer, Image, POD };
+  enum class ArgType : uint32_t { GlobalBuffer, USMPointer, Image, POD };
 
   ArgType type;
   uint64_t index;

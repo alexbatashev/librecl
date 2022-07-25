@@ -9,7 +9,7 @@ use enum_dispatch::enum_dispatch;
 pub trait MemObject {}
 
 #[cfg(feature = "vulkan")]
-use crate::vulkan::Buffer as VkBuffer;
+use crate::vulkan::SingleDeviceBuffer as VkSDBuffer;
 
 #[cfg(feature = "metal")]
 use crate::metal::Buffer as MTLBuffer;
@@ -18,7 +18,7 @@ use crate::metal::Buffer as MTLBuffer;
 #[repr(C)]
 pub enum ClMem {
     #[cfg(feature = "vulkan")]
-    VulkanBuffer(VkBuffer),
+    VulkanSDBuffer(VkSDBuffer),
     #[cfg(feature = "metal")]
     MetalBuffer(MTLBuffer),
 }
@@ -49,7 +49,7 @@ pub extern "C" fn clCreateBuffer(
     );
 
     // TODO check flags
-    let mem = context_safe.create_buffer(size, flags);
+    let mem = context_safe.create_buffer(context, size, flags);
     unsafe {
         *errcode_ret = CL_SUCCESS;
     }

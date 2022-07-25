@@ -10,10 +10,10 @@ impl CommonContext for Context {
     fn has_device(&self, device: cl_device_id) -> bool {
         unimplemented!();
     }
-    fn create_program_with_source(&self, source: String) -> cl_program {
+    fn create_program_with_source(&self, context: cl_context, source: String) -> cl_program {
         unimplemented!();
     }
-    fn create_buffer(&self, size: usize, flags: cl_mem_flags) -> cl_mem {
+    fn create_buffer(&self, context: cl_context, size: usize, flags: cl_mem_flags) -> cl_mem {
         unimplemented!();
     }
 }
