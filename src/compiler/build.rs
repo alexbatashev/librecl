@@ -57,6 +57,7 @@ fn main() {
 
     println!("cargo:rustc-link-search=native={}/lib64/", dst.display());
     println!("cargo:rerun-if-changed=../../third_party/llvm-project");
+    println!("cargo:rerun-if-changed=../../build_dependencies.sh");
     println!("cargo:rerun-if-changed=../compiler");
     println!("cargo:rustc-link-lib=lcl_compiler");
 }

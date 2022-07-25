@@ -11,7 +11,7 @@ Help() {
   exit 0
 }
 
-if "$CI"; then
+if [[ "$CI" = 'true' ]]; then
   echo "enabling ccache for GitHub Actions"
   CACHE_LOC="-DLLVM_CCACHE_DIR=\"$GITHUB_WORKSPACE/cache\" -DLLVM_CCACHE_BUILD=ON -DLLVM_CCACHE_MAXSIZE=\"5G\""
   BUILD_TYPE=Release
@@ -37,6 +37,8 @@ else
     esac
   done
 fi
+
+set -e
 
 cd $BASE
 
