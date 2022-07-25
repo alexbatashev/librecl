@@ -40,7 +40,7 @@ fi
 
 cd $BASE
 
-if [ -d $BASE/third_party/llvm-project/build ]; then
+if [[ ! -d $BASE/third_party/llvm-project/build ]]; then
   cd third_party/llvm-project
 
   mkdir -p build
