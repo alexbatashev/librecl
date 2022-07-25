@@ -4,6 +4,9 @@ else ()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
 endif ()
 
+# TODO fix old stuff
+include_directories(include/)
+
 add_subdirectory(dialects/RawMemory)
 add_subdirectory(passes/mlir)
 
@@ -15,6 +18,7 @@ add_library(lcl_compiler SHARED
   VulkanBackend.cpp
   VulkanSPVBackendImpl.cpp
   TranslateToCpp.cpp
+  rust_bindings.cpp
   passes/llvm/FixupStructuredCFGPass.cpp
 )
 
@@ -133,3 +137,8 @@ target_link_libraries(lcl_compiler PRIVATE
   LLVMSPIRVLib
   LCLPasses
 )
+
+install(TARGETS lcl_compiler)
+
+FILE(GLOB headers "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp")
+install(FILES ${headers} DESTINATION include)

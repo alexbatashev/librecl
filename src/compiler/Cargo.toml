@@ -1,0 +1,18 @@
+[package]
+name = "librecl_compiler"
+version = "0.1.0"
+edition = "2021"
+licesnse = "Apache 2.0"
+publish = false
+
+[lib]
+path = "./lib.rs"
+
+[dependencies]
+libc = "0.2.126"
+
+[build-dependencies]
+cmake = "0.1"
+which = "4.2.5"
+build-target = "0.4.0"
+

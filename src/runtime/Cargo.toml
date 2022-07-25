@@ -1,0 +1,55 @@
+[package]
+name = "librecl_runtime"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+librecl_compiler = { path = "../compiler" }
+libc = "0.2.126"
+stdext = "0.3.1"
+backtrace = "0.3.66"
+once_cell = "1.13.0"
+enum_dispatch = "0.3.8"
+bitflags = "1.3.2"
+cfg-if = "1.0.0"
+tokio = { version = "1.20.0", features = ["rt-multi-thread"] }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+name = "lcl_icd_runtime"
+path = "./lib.rs"
+
+[features]
+# default = ["vulkan"]
+vulkan = []
+metal = []
+
+[target.'cfg(target_os="macos")'.dependencies]
+metal_api = { version = "0.24.0", optional = false, package = "metal" }
+
+[target.'cfg(not(target_os="macos"))'.dependencies]
+vulkano = { version = "0.30.0", optional = false }
+
+[build-dependencies]
+build-target = "0.4.0"
+
+[package.metadata.generate-rpm]
+license = "Apache 2.0"
+description = "descr"
+assets = [
+  {source = "target/release/liblcl_icd_runtime.so", dest = "/usr/lib/liblcl_icd_runtime.so", permission = 655, config = false, doc = false}
+]
+
+[package.metadata.deb]
+maintainer = "Alexander Batashev <alexbatashev@gmail.com>"
+copyright = "2022, LibreCL"
+license-file = ["../../LICENSE", "4"]
+extended-description = """Implementation of OpenCL interfaces on top of other APIs"""
+depends = "$auto"
+section = "utility"
+priority = "optional"
+assets = [
+    ["target/release/liblcl_icd_runtime.so", "usr/lib/", "755"],
+]

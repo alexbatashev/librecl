@@ -331,6 +331,22 @@ static LogicalResult printOperation(CppEmitter &emitter,
 }
 
 static LogicalResult printOperation(CppEmitter &emitter,
+                                    arith::ExtUIOp castOp) {
+  raw_ostream &os = emitter.ostream();
+  Operation &op = *castOp.getOperation();
+
+  if (failed(emitter.emitAssignPrefix(op)))
+    return failure();
+  os << "(";
+  if (failed(emitter.emitType(op.getLoc(), op.getResult(0).getType())))
+    return failure();
+  os << ") ";
+  os << emitter.getOrCreateName(castOp.getOperand());
+
+  return success();
+}
+
+static LogicalResult printOperation(CppEmitter &emitter,
                                     vector::ExtractElementOp extOp) {
   if (failed(emitter.emitAssignPrefix(*extOp.getOperation())))
     return failure();
@@ -351,7 +367,7 @@ static LogicalResult printOperation(CppEmitter &emitter,
   // TODO support multiple indices
   emitter.ostream() << '[';
   if (loadOp.indices().size() == 0) {
-    emitter.ostream() << '0';
+    emitter.ostream() << "0]";
   } else if (loadOp.indices().size() == 1) {
     emitter.ostream() << emitter.getOrCreateName(loadOp.indices().front())
                       << ']';
@@ -1120,7 +1136,7 @@ LogicalResult CppEmitter::emitOperation(Operation &op, bool trailingSemicolon) {
               [&](auto op) { return printOperation(*this, op); })
           .Case<arith::IndexCastOp>(
               [&](auto op) { return printOperation(*this, op); })
-          .Case<arith::TruncIOp, arith::ExtSIOp>(
+          .Case<arith::TruncIOp, arith::ExtSIOp, arith::ExtUIOp>(
               [&](auto op) { return printOperation(*this, op); })
           .Case<arith::AddFOp>(
               [&](auto op) { return printOperation(*this, op); })
@@ -1151,7 +1167,7 @@ LogicalResult CppEmitter::emitType(Location loc, Type type) {
              << type;
     }
 
-    os << "vec<";
+    os << "metal::vec<";
     auto scalarRes = emitType(loc, vType.getElementType());
     if (failed(scalarRes)) {
       return scalarRes;

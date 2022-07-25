@@ -5,6 +5,7 @@
     _ZTIN3lcl*; /* typeinfo */
     _ZTSN3lcl*; /* typeinfo name */
     _ZTVN3lcl*; /* vtable */
+    create_clang_frontend;
 
   local:
     *;
