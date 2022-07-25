@@ -1,8 +1,5 @@
 use crate::common::context::Context;
-use crate::{
-    common::{cl_types::*, program},
-    format_error, lcl_contract,
-};
+use crate::{common::cl_types::*, format_error, lcl_contract};
 use enum_dispatch::enum_dispatch;
 
 #[cfg(feature = "vulkan")]
@@ -12,7 +9,14 @@ use crate::vulkan::Program as VkProgram;
 use crate::metal::Program as MTLProgram;
 
 #[enum_dispatch(ClProgram)]
-pub trait Program {}
+pub trait Program {
+    fn get_context() -> cl_context;
+
+    // TODO allow options
+    fn compile_program(devices: &[cl_device_id]);
+    // TO
+    fn link_programs(devices: &[cl_device_id]);
+}
 
 #[enum_dispatch]
 #[repr(C)]
@@ -104,5 +108,19 @@ pub extern "C" fn clBuildProgram(
     callback: cl_build_callback,
     user_data: *mut libc::c_void,
 ) -> cl_int {
+    lcl_contract!(
+        !program.is_null(),
+        "program can't be NULL",
+        CL_INVALID_PROGRAM
+    );
+    let mut program_safe = unsafe { program.as_mut() }.unwrap();
+
+    let context = unsafe { program_safe.get_context().as_mut() }.unwrap();
+
+    lcl_contract!(context, (device_list.is_null() && num_devices == 0) || (!device_list.is_null() && num_devices > 0), "either num_devices is > 0 and device_list is not NULL, or num_devices == 0 and device_list is NULL", CL_INVALID_VALUE);
+
+    // TODO support options
+    let build_function = |devices: &[cl_device_id], program: ClProgram| {};
+
     unimplemented!()
 }

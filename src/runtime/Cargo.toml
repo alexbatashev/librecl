@@ -13,6 +13,7 @@ backtrace = "0.3.66"
 once_cell = "1.13.0"
 enum_dispatch = "0.3.8"
 bitflags = "1.3.2"
+cfg-if = "1.0.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -24,10 +25,10 @@ path = "./lib.rs"
 vulkan = []
 metal = []
 
-[target.'cfg(macos)'.dependencies]
+[target.'cfg(target_os="macos")'.dependencies]
 metal_api = { version = "0.24.0", optional = false, package = "metal" }
 
-[target.'cfg(not(macos))'.dependencies]
+[target.'cfg(not(target_os="macos"))'.dependencies]
 vulkano = { version = "0.30.0", optional = false }
 
 [build-dependencies]

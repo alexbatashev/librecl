@@ -95,7 +95,17 @@ macro_rules! lcl_contract {
             return std::ptr::null_mut();
         }
     };
-    ($ctx:expr, $cond:expr, $message:tt, $exit_code:tt, $ret_err:tt) => {
+    ($ctx:tt, $cond:expr, $message:tt, $exit_code:tt) => {
+        if !$cond {
+            let name = stdext::function_name!();
+            let assertion_message =
+                std::format!("Assertion {} failed: {}", stringify!($cond), $message);
+            let full_message = format_error!(name, assertion_message, $exit_code);
+            $ctx.notify_error(full_message);
+            return $exit_code;
+        }
+    };
+    ($ctx:tt, $cond:expr, $message:tt, $exit_code:tt, $ret_err:tt) => {
         if !$cond {
             let name = stdext::function_name!();
             let assertion_message =

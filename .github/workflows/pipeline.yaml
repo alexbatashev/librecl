@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     steps:
     - name: Install Ubuntu dependencies
-      if: matrix.os == 'ubuntu-22.04'
+      if: runner.os == 'Linux'
       run: |
         sudo apt install -yqq ccache ninja-build libtbb-dev spirv-tools
         curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin

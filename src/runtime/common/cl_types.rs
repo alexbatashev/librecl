@@ -145,3 +145,4 @@ pub const CL_INVALID_VALUE: cl_int = -30;
 pub const CL_INVALID_PLATFORM: cl_int = -32;
 pub const CL_INVALID_DEVICE: cl_int = -33;
 pub const CL_INVALID_CONTEXT: cl_int = -34;
+pub const CL_INVALID_PROGRAM: cl_int = -44;

@@ -9,6 +9,12 @@ use crate::vulkan;
 #[cfg(feature = "metal")]
 use crate::metal;
 
+#[cfg(test)]
+use crate::mock;
+
+#[cfg(test)]
+use crate::mock::Platform as MockPlatform;
+
 use crate::common::cl_types::cl_context;
 use crate::common::cl_types::cl_device_id;
 use crate::common::cl_types::cl_int;
@@ -53,16 +59,25 @@ pub enum ClPlatform {
     Vulkan(VkPlatform),
     #[cfg(feature = "metal")]
     Metal(MTLPlatform),
+    #[cfg(test)]
+    Mock(MockPlatform),
 }
 
 static mut GLOBAL_PLATFORMS: Lazy<Vec<Arc<ClPlatform>>> = Lazy::new(|| {
     let mut platforms: Vec<Arc<ClPlatform>> = vec![];
 
-    #[cfg(feature = "vulkan")]
-    vulkan::platform::Platform::create_platforms(platforms.as_mut());
+    cfg_if::cfg_if! {
+        if #[cfg(not(test))] {
+        #[cfg(feature = "vulkan")]
+        vulkan::platform::Platform::create_platforms(platforms.as_mut());
 
-    #[cfg(feature = "metal")]
-    metal::Platform::create_platforms(platforms.as_mut());
+        #[cfg(feature = "metal")]
+        metal::Platform::create_platforms(platforms.as_mut());
+        } else {
+        #[cfg(test)]
+        mock::Platform::create_platforms(platforms.as_mut());
+        }
+    }
 
     return platforms;
 });
@@ -143,4 +158,14 @@ pub extern "C" fn clGetPlatformInfo(
         _ => {}
     }
     return CL_SUCCESS;
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::c_cl::{self, CL_INVALID_VALUE, CL_PLATFORM_NAME, CL_SUCCESS};
+    #[test]
+    fn all_null_pointers() {
+        let err = c_cl::clGetPlatformIDs(0, std::ptr::null_mut(), std::ptr::null_mut());
+        assert_eq!(err, CL_INVALID_VALUE);
+    }
 }

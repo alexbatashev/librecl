@@ -6,6 +6,9 @@ pub mod vulkan;
 #[cfg(feature = "metal")]
 pub mod metal;
 
+#[cfg(test)]
+mod mock;
+
 pub use crate::common::platform::Platform;
 
 pub mod c_cl {
