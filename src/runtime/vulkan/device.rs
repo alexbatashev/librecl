@@ -61,3 +61,6 @@ impl CommonDevice for Device {
         return InOrderQueue::new(context, device);
     }
 }
+
+// TODO actually implement thread safety
+unsafe impl Sync for Device {}

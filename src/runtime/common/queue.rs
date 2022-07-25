@@ -62,3 +62,55 @@ pub extern "C" fn clCreateCommandQueueWithProperties(
 
     return queue;
 }
+
+#[no_mangle]
+pub extern "C" fn clEnqueueWriteBuffer(
+    command_queue: cl_command_queue,
+    buffer: cl_mem,
+    blocking_write: cl_bool,
+    offset: libc::size_t,
+    cb: libc::size_t,
+    ptr: *const libc::c_void,
+    num_events_in_wait_list: cl_uint,
+    // TODO support events
+    event_wait_list: *const libc::c_void,
+    event: *const libc::c_void,
+) -> cl_int {
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern "C" fn clEnqueueReadBuffer(
+    command_queue: cl_command_queue,
+    buffer: cl_mem,
+    blocking_read: cl_bool,
+    offset: libc::size_t,
+    cb: libc::size_t,
+    ptr: *mut libc::c_void,
+    num_events_in_wait_list: cl_uint,
+    // TODO support events
+    event_wait_list: *const libc::c_void,
+    event: *const libc::c_void,
+) -> cl_int {
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern "C" fn clEnqueueNDRangeKernel(
+    command_queue: cl_command_queue,
+    kernel: cl_kernel,
+    work_dim: cl_uint,
+    global_work_offset: *const libc::size_t,
+    global_work_size: *const libc::size_t,
+    local_work_size: *const libc::size_t,
+    num_events_in_wait_list: cl_uint,
+    event_wait_list: *const libc::c_void,
+    event: *const libc::c_void,
+) {
+    unimplemented!();
+}
+
+#[no_mangle]
+pub extern "C" fn clFinish(command_queue: cl_command_queue) -> cl_int {
+    unimplemented!();
+}

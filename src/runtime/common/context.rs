@@ -2,6 +2,7 @@ use crate::common::device::Device;
 use crate::common::platform::Platform;
 use crate::{common::cl_types::*, format_error, lcl_contract};
 use enum_dispatch::enum_dispatch;
+use tokio::runtime::Runtime;
 
 #[cfg(feature = "vulkan")]
 use crate::vulkan::Context as VkContext;
@@ -14,6 +15,9 @@ pub trait Context {
     fn notify_error(&self, message: String);
     fn has_device(&self, device: cl_device_id) -> bool;
     fn create_program_with_source(&self, source: String) -> cl_program;
+    fn get_threading_runtime(&self) -> &Runtime;
+    fn get_associated_devices(&self) -> &[cl_device_id];
+    fn create_buffer(&self, size: usize, flags: cl_mem_flags) -> cl_mem;
 }
 
 #[enum_dispatch]

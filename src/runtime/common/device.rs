@@ -4,7 +4,7 @@ use enum_dispatch::enum_dispatch;
 #[cfg(feature = "metal")]
 use crate::metal::Device as MTLDevice;
 #[cfg(feature = "vulkan")]
-use crate::vulkan::device::Device as VkDevice;
+use crate::vulkan::Device as VkDevice;
 
 #[enum_dispatch]
 #[repr(C)]
@@ -15,8 +15,10 @@ pub enum ClDevice {
     Metal(MTLDevice),
 }
 
+unsafe impl Sync for ClDevice {}
+
 #[enum_dispatch(ClDevice)]
-pub trait Device {
+pub trait Device: Sync {
     fn get_device_type(&self) -> cl_device_type;
     fn get_device_name(&self) -> String;
     fn is_available(&self) -> bool;

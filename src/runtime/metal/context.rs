@@ -13,4 +13,7 @@ impl CommonContext for Context {
     fn create_program_with_source(&self, source: String) -> cl_program {
         unimplemented!();
     }
+    fn create_buffer(&self, size: usize, flags: cl_mem_flags) -> cl_mem {
+        unimplemented!();
+    }
 }

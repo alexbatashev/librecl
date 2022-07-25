@@ -36,3 +36,5 @@ impl common::device::Device for Device {
         unimplemented!();
     }
 }
+
+unsafe impl Sync for Device {}

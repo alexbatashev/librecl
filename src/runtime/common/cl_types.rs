@@ -4,7 +4,8 @@
 
 use crate::common::context::ClContext;
 use crate::common::device::ClDevice;
-use crate::common::kernel::Kernel;
+use crate::common::kernel::ClKernel;
+use crate::common::memory::ClMem;
 use crate::common::platform::ClPlatform;
 use crate::common::program::ClProgram;
 use crate::common::queue::ClQueue;
@@ -13,6 +14,7 @@ use std::convert::TryFrom;
 
 pub type cl_int = libc::c_int;
 pub type cl_uint = libc::c_uint;
+pub type cl_bool = libc::c_uint;
 
 pub type cl_device_info = libc::c_uint;
 
@@ -125,7 +127,8 @@ pub type cl_device_id = *mut ClDevice;
 pub type cl_context = *mut ClContext;
 pub type cl_command_queue = *mut ClQueue;
 pub type cl_program = *mut ClProgram;
-pub type cl_kernel = *mut dyn Kernel;
+pub type cl_kernel = *mut ClKernel;
+pub type cl_mem = *mut ClMem;
 
 pub type cl_context_callback = Option<
     extern "C" fn(
@@ -139,10 +142,31 @@ pub type cl_context_callback = Option<
 pub type cl_build_callback =
     Option<extern "C" fn(program: cl_program, user_data: *mut libc::c_void)>;
 
+bitflags! {
+    #[repr(C)]
+    pub struct cl_mem_flags: libc::c_ulong {
+        const ReadWrite = 0;
+        const WriteOnly = 1;
+        const ReadOnly = 2;
+        const UseHostPtr = 3;
+        const AllocHostPtr = 4;
+        const CopyHostPtr = 5;
+        const Reserved1 = 6;
+        const HostWriteOnly = 7;
+        const HostReadOnly = 8;
+        const HostNoAccess = 9;
+        const SVMFineGrainBuffer = 10;
+        const SVMAtomics = 11;
+        const KernelReadAndWrite = 12;
+    }
+}
+
 pub const CL_SUCCESS: cl_int = 0;
 pub const CL_DEVICE_NOT_AVAILABLE: cl_int = -2;
+pub const CL_BUILD_PROGRAM_FAILURE: cl_int = -11;
 pub const CL_INVALID_VALUE: cl_int = -30;
 pub const CL_INVALID_PLATFORM: cl_int = -32;
 pub const CL_INVALID_DEVICE: cl_int = -33;
 pub const CL_INVALID_CONTEXT: cl_int = -34;
 pub const CL_INVALID_PROGRAM: cl_int = -44;
+pub const CL_INVALID_BUFFER_SIZE: cl_int = -61;

@@ -1,4 +1,5 @@
 use crate::common::context::Context;
+use crate::common::device::ClDevice;
 use crate::{common::cl_types::*, format_error, lcl_contract};
 use enum_dispatch::enum_dispatch;
 
@@ -10,12 +11,14 @@ use crate::metal::Program as MTLProgram;
 
 #[enum_dispatch(ClProgram)]
 pub trait Program {
-    fn get_context() -> cl_context;
+    fn get_context(&self) -> cl_context;
 
     // TODO allow options
-    fn compile_program(devices: &[cl_device_id]);
-    // TO
-    fn link_programs(devices: &[cl_device_id]);
+    fn compile_program(&self, devices: &[&ClDevice]) -> bool;
+    // TODO allow options and multiple programs
+    fn link_programs(&self, devices: &[&ClDevice]) -> bool;
+
+    fn create_kernel(&self, kernel_name: &str) -> cl_kernel;
 }
 
 #[enum_dispatch]
@@ -120,7 +123,41 @@ pub extern "C" fn clBuildProgram(
     lcl_contract!(context, (device_list.is_null() && num_devices == 0) || (!device_list.is_null() && num_devices > 0), "either num_devices is > 0 and device_list is not NULL, or num_devices == 0 and device_list is NULL", CL_INVALID_VALUE);
 
     // TODO support options
-    let build_function = |devices: &[cl_device_id], program: ClProgram| {};
+    let build_function = |devices: &[&ClDevice], program: &ClProgram| {
+        if !program.compile_program(devices) {
+            return CL_BUILD_PROGRAM_FAILURE;
+        }
+        if !program.link_programs(devices) {
+            return CL_BUILD_PROGRAM_FAILURE;
+        }
 
-    unimplemented!()
+        return CL_SUCCESS;
+    };
+
+    let devices_array: Vec<&ClDevice> = if num_devices > 0 {
+        unsafe { std::slice::from_raw_parts(device_list, num_devices as usize) }
+    } else {
+        context.get_associated_devices()
+    }
+    .iter()
+    .map(|d| unsafe { d.as_ref() }.unwrap())
+    .collect();
+
+    if callback.is_some() {
+        let _guard = context.get_threading_runtime().enter();
+        let safe_data = unsafe { user_data.as_ref() };
+        tokio::spawn(async move {
+            build_function(devices_array.as_slice(), program_safe);
+            let user_data_unwrapped = if safe_data.is_some() {
+                safe_data.unwrap() as *const libc::c_void as *mut libc::c_void
+            } else {
+                std::ptr::null_mut()
+            };
+            callback.unwrap()(program_safe as *mut ClProgram, user_data_unwrapped);
+        });
+
+        return CL_SUCCESS;
+    } else {
+        return build_function(devices_array.as_slice(), program_safe);
+    }
 }
