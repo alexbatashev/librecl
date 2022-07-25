@@ -9,6 +9,5 @@ edition = "2021"
 members = [
   "src/compiler",
   "src/runtime",
-  "tests",
   "utils/ocl_args"
 ]
