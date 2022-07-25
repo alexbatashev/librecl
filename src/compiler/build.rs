@@ -44,7 +44,7 @@ fn main() {
     let use_mold = false;
     if use_mold {
         cfg.define("LIBRECL_LINKER", "mold");
-        println!("cargo:rustc-link-arg=-fuse-ld={}", mold.unwrap().display());
+        println!("cargo:rustc-link-arg=-fuse-ld=mold");
     } else if which("lld").is_ok() {
         cfg.define("LIBRECL_LINKER", "lld");
     }
