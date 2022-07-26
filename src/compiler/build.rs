@@ -76,7 +76,8 @@ fn main() {
     let dst = cfg.build();
 
     println!("cargo:rustc-link-search=native={}/lib64/", dst.display());
+    println!("cargo:rustc-link-search=native={}/lib/", dst.display());
     rerun_if_changed_anything_in_dir(Path::new("../../third_party/llvm-project"));
     rerun_if_changed_anything_in_dir(Path::new("../compiler"));
-    println!("cargo:rustc-link-lib=lcl_compiler");
+    println!("cargo:rustc-link-lib=dylib=lcl_compiler");
 }
