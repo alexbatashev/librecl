@@ -1,7 +1,6 @@
 use crate::common::cl_types::cl_context;
 use crate::common::cl_types::cl_context_callback;
 use crate::common::cl_types::cl_device_id;
-use crate::common::context::ClContext;
 use crate::common::device::ClDevice;
 use crate::common::platform::ClPlatform;
 use crate::common::platform::Platform as CommonPlatform;
@@ -11,18 +10,43 @@ use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
+use vulkano::instance::debug::DebugUtilsMessageSeverity;
+use vulkano::instance::debug::DebugUtilsMessageType;
+use vulkano::instance::debug::DebugUtilsMessengerCreateInfo;
 use vulkano::{
     device::{
-        physical::{PhysicalDevice, PhysicalDeviceType, QueueFamily},
-        Device as VkDevice, DeviceCreateInfo, DeviceExtensions, QueueCreateInfo,
+        physical::{PhysicalDevice, QueueFamily},
+        DeviceExtensions,
     },
-    instance::{Instance, InstanceCreateInfo},
+    instance::{self, debug::Message, Instance, InstanceCreateInfo, InstanceExtensions},
 };
 
+fn debug_message_handler(msg: &Message) {
+    println!("[VULKAN]: {}", msg.description);
+}
+
 static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
-    return Instance::new(InstanceCreateInfo {
+    let layers: Vec<_> = instance::layers_list()
+        .unwrap()
+        .filter(|l| l.description().contains("VK_LAYER_KHRONOS_validation"))
+        .collect();
+    let extensions = InstanceExtensions {
+        ext_debug_utils: true,
+        ..InstanceExtensions::none()
+    };
+    println!("LAYERS COUNT: {}", layers.len());
+    let instance_create_info = InstanceCreateInfo {
+        enabled_layers: [String::from("VK_LAYER_KHRONOS_validation")].to_vec(),
+        enabled_extensions: extensions,
         ..Default::default()
-    })
+    };
+    let mut debug_utils_messengers =
+        DebugUtilsMessengerCreateInfo::user_callback(Arc::new(debug_message_handler));
+    debug_utils_messengers.message_severity = DebugUtilsMessageSeverity::errors_and_warnings();
+    debug_utils_messengers.message_type = DebugUtilsMessageType::all();
+    return unsafe {
+        Instance::with_debug_utils_messengers(instance_create_info, [debug_utils_messengers])
+    }
     .unwrap();
 });
 
@@ -88,7 +112,6 @@ impl Platform {
                 let (device, queue_index) = device_parts;
                 let cl_device =
                     Rc::new(Device::new(Arc::downgrade(&cl_platform), device, queue_index).into());
-                let ptr: *const ClDevice = Rc::as_ptr(&cl_device);
                 unsafe {
                     (Arc::as_ptr(&cl_platform) as *mut ClPlatform)
                         .as_mut()

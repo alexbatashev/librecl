@@ -10,7 +10,19 @@ use crate::vulkan::InOrderQueue as VkInOrderQueue;
 use crate::metal::Queue as MTLQueue;
 
 #[enum_dispatch(ClQueue)]
-pub trait Queue {}
+pub trait Queue {
+    // TODO return event, todo async
+    fn enqueue_buffer_write(&self, src: *const libc::c_void, dst: cl_mem);
+    fn enqueue_buffer_read(&self, src: cl_mem, dst: *mut libc::c_void);
+    fn submit(
+        &self,
+        kernel: cl_kernel,
+        offset: [u32; 3],
+        global_size: [u32; 3],
+        local_size: [u32; 3],
+    );
+    fn finish(&self);
+}
 
 #[enum_dispatch]
 #[repr(C)]
@@ -76,7 +88,26 @@ pub extern "C" fn clEnqueueWriteBuffer(
     event_wait_list: *const libc::c_void,
     event: *const libc::c_void,
 ) -> cl_int {
-    unimplemented!();
+    lcl_contract!(
+        !command_queue.is_null(),
+        "queue can't be null",
+        CL_INVALID_COMMAND_QUEUE
+    );
+
+    let queue = unsafe { command_queue.as_ref() }.unwrap();
+
+    lcl_contract!(
+        !buffer.is_null(),
+        "buffer can't be NULL",
+        CL_INVALID_MEM_OBJECT
+    );
+
+    // TODO proper error handling
+
+    // TODO blocking - non-blocking
+    queue.enqueue_buffer_write(ptr, buffer);
+
+    return CL_SUCCESS;
 }
 
 #[no_mangle]
@@ -92,7 +123,26 @@ pub extern "C" fn clEnqueueReadBuffer(
     event_wait_list: *const libc::c_void,
     event: *const libc::c_void,
 ) -> cl_int {
-    unimplemented!();
+    lcl_contract!(
+        !command_queue.is_null(),
+        "queue can't be null",
+        CL_INVALID_COMMAND_QUEUE
+    );
+
+    let queue = unsafe { command_queue.as_ref() }.unwrap();
+
+    lcl_contract!(
+        !buffer.is_null(),
+        "buffer can't be NULL",
+        CL_INVALID_MEM_OBJECT
+    );
+
+    // TODO proper error handling
+
+    // TODO blocking - non-blocking
+    queue.enqueue_buffer_read(buffer, ptr);
+
+    return CL_SUCCESS;
 }
 
 #[no_mangle]
@@ -106,11 +156,54 @@ pub extern "C" fn clEnqueueNDRangeKernel(
     num_events_in_wait_list: cl_uint,
     event_wait_list: *const libc::c_void,
     event: *const libc::c_void,
-) {
-    unimplemented!();
+) -> cl_int {
+    lcl_contract!(
+        !command_queue.is_null(),
+        "queue can't be null",
+        CL_INVALID_COMMAND_QUEUE
+    );
+
+    lcl_contract!(
+        work_dim > 0 && work_dim <= 4,
+        "invalid work_dim",
+        CL_INVALID_VALUE
+    );
+
+    let queue = unsafe { command_queue.as_ref() }.unwrap();
+
+    let offset = [0u32, 0, 0];
+
+    let global_size_slice =
+        unsafe { std::slice::from_raw_parts(global_work_size, work_dim as usize) };
+
+    let global_size = match work_dim {
+        1 => [global_size_slice[0] as u32, 1, 1],
+        2 => [global_size_slice[0] as u32, global_size_slice[1] as u32, 1],
+        3 => [
+            global_size_slice[0] as u32,
+            global_size_slice[1] as u32,
+            global_size_slice[2] as u32,
+        ],
+        _ => panic!(),
+    };
+
+    // TODO fix local size
+    let local_size = [1u32, 1, 1];
+
+    queue.submit(kernel, offset, global_size, local_size);
+
+    return CL_SUCCESS;
 }
 
 #[no_mangle]
 pub extern "C" fn clFinish(command_queue: cl_command_queue) -> cl_int {
-    unimplemented!();
+    lcl_contract!(
+        !command_queue.is_null(),
+        "queue can't be null",
+        CL_INVALID_COMMAND_QUEUE
+    );
+    let queue = unsafe { command_queue.as_ref() }.unwrap();
+    queue.finish();
+
+    return CL_SUCCESS;
 }

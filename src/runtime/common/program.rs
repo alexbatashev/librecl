@@ -20,7 +20,7 @@ pub trait Program {
     // TODO allow options and multiple programs
     fn link_programs(&mut self, devices: &[&ClDevice]) -> bool;
 
-    fn create_kernel(&self, kernel_name: &str) -> cl_kernel;
+    fn create_kernel(&self, program: cl_program, kernel_name: &str) -> cl_kernel;
 }
 
 #[enum_dispatch]

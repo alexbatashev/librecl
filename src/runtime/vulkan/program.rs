@@ -5,6 +5,8 @@ use crate::common::device::ClDevice;
 use crate::common::program::Program as CommonProgram;
 use librecl_compiler::{Backend, KernelInfo};
 use librecl_compiler::{BinaryProgram, FrontendResult};
+use std::sync::Arc;
+use vulkano::shader::ShaderModule;
 
 pub enum ProgramContent {
     Source(String),
@@ -16,6 +18,7 @@ pub struct Program {
     frontend_result: Option<FrontendResult>,
     kernels: Vec<KernelInfo>,
     binary: Vec<u8>,
+    module: Option<Arc<ShaderModule>>,
 }
 
 impl Program {
@@ -26,7 +29,12 @@ impl Program {
             frontend_result: Option::None,
             kernels: vec![],
             binary: vec![],
+            module: Option::None,
         };
+    }
+
+    pub fn get_module(&self) -> &ShaderModule {
+        return &self.module.as_ref().unwrap();
     }
 }
 
@@ -59,8 +67,7 @@ impl CommonProgram for Program {
 
         return self.frontend_result.is_some() && self.frontend_result.as_ref().unwrap().is_ok();
     }
-    fn link_programs(&mut self, _devices: &[&ClDevice]) -> bool {
-        // TODO do we need devices here?
+    fn link_programs(&mut self, devices: &[&ClDevice]) -> bool {
         if !self.frontend_result.is_some() {
             return false;
         }
@@ -75,18 +82,37 @@ impl CommonProgram for Program {
 
         self.kernels = result.get_kernels();
         self.binary = result.get_binary();
+        // TODO support multiple devices.
+        let device = match devices[0] {
+            ClDevice::Vulkan(device) => device.get_logical_device(),
+        };
+        // TODO handle error
+        self.module = Some(
+            unsafe {
+                ShaderModule::from_words(
+                    device.clone(),
+                    bytemuck::cast_slice(self.binary.as_slice()),
+                )
+            }
+            .unwrap(),
+        );
         self.frontend_result = Option::None;
 
         // TODO how to handle compiler errors?
         return true;
     }
 
-    fn create_kernel(&self, kernel_name: &str) -> cl_kernel {
+    fn create_kernel(&self, program: cl_program, kernel_name: &str) -> cl_kernel {
         let maybe_kernel: Option<&KernelInfo> =
             (&self.kernels).into_iter().find(|&k| k.name == kernel_name);
         match maybe_kernel {
             Some(kernel_info) => Box::leak(Box::new(
-                Kernel::new(kernel_info.name.clone(), kernel_info.arguments.clone()).into(),
+                Kernel::new(
+                    program,
+                    kernel_info.name.clone(),
+                    kernel_info.arguments.clone(),
+                )
+                .into(),
             )),
             _ => {
                 // TODO this should not have happened

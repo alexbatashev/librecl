@@ -1,9 +1,12 @@
 use crate::common::cl_types::*;
 use crate::common::context::ClContext;
 use crate::common::context::Context as CommonContext;
+use crate::common::memory::ClMem;
 use librecl_compiler::ClangFrontend;
 use librecl_compiler::VulkanBackend;
 use tokio::runtime::Runtime;
+use vulkano::device::DeviceOwned;
+use vulkano::VulkanObject;
 
 use super::Program;
 use super::ProgramContent;
@@ -74,9 +77,18 @@ impl CommonContext for Context {
     fn get_threading_runtime(&self) -> &Runtime {
         return &self.threading_runtime;
     }
-    fn create_buffer(&self, context: cl_context, size: usize, flags: cl_mem_flags) -> cl_mem {
+    fn create_buffer(&self, context: cl_context, size: usize, _flags: cl_mem_flags) -> cl_mem {
         if self.devices.len() == 1 {
-            return Box::leak(Box::new(SingleDeviceBuffer::new(context).into()));
+            let buffer: ClMem = SingleDeviceBuffer::new(context, size).into();
+            let bb = Box::new(buffer);
+            std::mem::forget(&bb);
+            let mem: *mut ClMem = Box::into_raw(bb);
+
+            match unsafe { mem.as_ref() }.unwrap() {
+                ClMem::VulkanSDBuffer(ref b) => b.get_buffer().device().internal_object(),
+            };
+
+            return mem;
         } else {
             unimplemented!();
         }

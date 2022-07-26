@@ -6,8 +6,9 @@
 #include <string>
 #include <vector>
 
-constexpr size_t N = 10'000;
+constexpr unsigned int N = 10'000;
 
+/*
 constexpr auto programSrc = R"(
 __kernel void vectorAdd(__global float *a, __global float *b, __global float *c, const unsigned int n) {
   int id = get_global_id(0);
@@ -17,10 +18,19 @@ __kernel void vectorAdd(__global float *a, __global float *b, __global float *c,
   }
 }
 )";
+*/
 
-std::vector<int> getReference(const std::vector<int> &a,
-                              const std::vector<int> &b) {
-  std::vector<int> res;
+constexpr auto programSrc = R"(
+__kernel void vectorAdd(__global float *a, __global float *b, __global float *c) {
+  int id = get_global_id(0);
+
+  c[id] = a[id] + b[id];
+}
+)";
+
+std::vector<float> getReference(const std::vector<float> &a,
+                              const std::vector<float> &b) {
+  std::vector<float> res;
   res.resize(a.size());
 
   for (size_t i = 0; i < a.size(); i++) {
@@ -65,7 +75,7 @@ void printPlatformDeviceInfo(cl_platform_id platform, cl_device_id device) {
 }
 
 int main() {
-  std::vector<int> a, b, res;
+  std::vector<float> a, b, res;
   a.resize(N);
   b.resize(N);
   res.resize(N);
@@ -124,24 +134,26 @@ int main() {
   check(err);
 
   cl_mem bufA =
-      clCreateBuffer(context, CL_MEM_READ_ONLY, N * sizeof(int), nullptr, &err);
+      clCreateBuffer(context, CL_MEM_READ_ONLY, N * sizeof(float), nullptr, &err);
   check(err);
   cl_mem bufB =
-      clCreateBuffer(context, CL_MEM_READ_ONLY, N * sizeof(int), nullptr, &err);
+      clCreateBuffer(context, CL_MEM_READ_ONLY, N * sizeof(float), nullptr, &err);
   check(err);
-  cl_mem bufC = clCreateBuffer(context, CL_MEM_WRITE_ONLY, N * sizeof(int),
+  cl_mem bufC = clCreateBuffer(context, CL_MEM_WRITE_ONLY, N * sizeof(float),
                                nullptr, &err);
   check(err);
 
-  check(clEnqueueWriteBuffer(queue, bufA, CL_TRUE, 0, N * sizeof(int), a.data(),
+  /*
+  check(clEnqueueWriteBuffer(queue, bufA, CL_TRUE, 0, N * sizeof(float), a.data(),
                              0, nullptr, nullptr));
-  check(clEnqueueWriteBuffer(queue, bufB, CL_TRUE, 0, N * sizeof(int), b.data(),
+  check(clEnqueueWriteBuffer(queue, bufB, CL_TRUE, 0, N * sizeof(float), b.data(),
                              0, nullptr, nullptr));
+  */
 
   check(clSetKernelArg(kernel, 0, sizeof(cl_mem), &bufA));
   check(clSetKernelArg(kernel, 1, sizeof(cl_mem), &bufB));
   check(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bufC));
-  check(clSetKernelArg(kernel, 3, sizeof(size_t), &N));
+  // check(clSetKernelArg(kernel, 3, sizeof(unsigned int), &N));
 
   std::array<size_t, 1> globalSize = { N };
   cl_event evt;
