@@ -1,5 +1,5 @@
 #[link(name = "lcl_compiler", kind = "dylib")]
-extern {
+extern "C" {
     fn create_clang_frontend() -> *mut libc::c_void;
     fn release_clang_frontend(fe: *mut libc::c_void);
     fn process_source(
