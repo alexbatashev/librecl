@@ -1,9 +1,13 @@
+use std::collections::HashMap;
+
 use crate::common::context::Context;
 use crate::{
     common::{cl_types::*, program::Program},
     format_error, lcl_contract,
 };
 use enum_dispatch::enum_dispatch;
+use once_cell::sync::Lazy;
+use std::rc::Rc;
 
 #[enum_dispatch(ClMem)]
 pub trait MemObject {}
@@ -53,5 +57,6 @@ pub extern "C" fn clCreateBuffer(
     unsafe {
         *errcode_ret = CL_SUCCESS;
     }
+
     return mem;
 }

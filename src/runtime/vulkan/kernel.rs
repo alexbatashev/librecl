@@ -9,6 +9,7 @@ use crate::common::memory::ClMem;
 use crate::common::program::Program as CommpnProgram;
 use crate::common::{cl_types::*, program::ClProgram};
 use std::ops::Deref;
+use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::device::{Device as VkDevice, DeviceOwned};
 

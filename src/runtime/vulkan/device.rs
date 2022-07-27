@@ -54,8 +54,11 @@ impl Device {
     }
 
     pub fn get_logical_device(&self) -> Arc<VkDevice> {
-        self.logical_device.internal_object();
         return self.logical_device.clone();
+    }
+
+    pub fn get_physical_device(&self) -> PhysicalDevice {
+        return self.physical_device.clone();
     }
 
     pub fn get_queue(&self) -> Arc<Queue> {

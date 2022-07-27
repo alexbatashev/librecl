@@ -17,7 +17,7 @@ pub trait Context {
     fn create_program_with_source(&self, context: cl_context, source: String) -> cl_program;
     fn get_threading_runtime(&self) -> &Runtime;
     fn get_associated_devices(&self) -> &[cl_device_id];
-    fn create_buffer(&self, context: cl_context, size: usize, flags: cl_mem_flags) -> cl_mem;
+    fn create_buffer(&mut self, context: cl_context, size: usize, flags: cl_mem_flags) -> cl_mem;
 }
 
 #[enum_dispatch]

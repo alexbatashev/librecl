@@ -1,11 +1,11 @@
 use crate::common::cl_types::*;
-use crate::common::context::Context as CommonContext;
+use crate::common::context::{ClContext, Context as CommonContext};
 use crate::common::device::ClDevice;
 use crate::common::memory::MemObject;
 use std::sync::Arc;
 use vulkano::VulkanObject;
 use vulkano::{
-    buffer::{BufferUsage, CpuAccessibleBuffer, ImmutableBuffer},
+    buffer::{vma::VmaBuffer, BufferUsage, CpuAccessibleBuffer, ImmutableBuffer},
     command_buffer::{CommandBufferExecFuture, PrimaryAutoCommandBuffer},
     device::DeviceOwned,
     sync::NowFuture,
@@ -13,9 +13,9 @@ use vulkano::{
 
 #[derive(Clone)]
 pub struct SingleDeviceBuffer {
-    _context: cl_context,
+    context: cl_context,
     size: usize,
-    buffer: Arc<CpuAccessibleBuffer<[u8]>>,
+    buffer: Arc<VmaBuffer>,
 }
 
 pub struct SingleDeviceImplicitBuffer {
@@ -26,48 +26,55 @@ pub struct SingleDeviceImplicitBuffer {
 }
 
 impl SingleDeviceBuffer {
-    pub fn new(context: cl_context, size: usize) -> SingleDeviceBuffer {
+    pub fn new(
+        allocator: Arc<vk_mem::Allocator>,
+        context: cl_context,
+        size: usize,
+    ) -> SingleDeviceBuffer {
         let ctx_safe = unsafe { context.as_ref() }.unwrap();
         let device = match unsafe { ctx_safe.get_associated_devices()[0].as_ref() }.unwrap() {
             ClDevice::Vulkan(device) => device.get_logical_device(),
             _ => panic!("unexpected enum value"),
         };
         let buffer = SingleDeviceBuffer {
-            _context: context,
+            context,
             size,
-            buffer: unsafe {
-                CpuAccessibleBuffer::<[u8]>::uninitialized_array(
-                    device.clone(),
-                    size as u64,
-                    BufferUsage::all(),
-                    false,
-                )
-            }
-            .unwrap(),
+            buffer: VmaBuffer::allocate(device, allocator, BufferUsage::storage_buffer(), size),
         };
         buffer.buffer.device().internal_object();
         return buffer;
     }
 
+    // TODO support offset and size
     pub fn write(&self, data: *const libc::c_void) {
+        let context = match unsafe { self.context.as_ref() }.unwrap() {
+            ClContext::Vulkan(context) => context,
+            _ => panic!(),
+        };
         // TODO errors
-        let mut lock = self.buffer.write().unwrap();
 
-        let data_slice = unsafe { std::slice::from_raw_parts(data as *const u8, self.size) };
+        let dst = unsafe { self.buffer.map(context.get_allocator()) };
 
-        lock.clone_from_slice(data_slice);
+        unsafe {
+            libc::memcpy(dst as *mut libc::c_void, data, self.size);
+        }
     }
 
     pub fn read(&self, data: *mut libc::c_void) {
+        let context = match unsafe { self.context.as_ref() }.unwrap() {
+            ClContext::Vulkan(context) => context,
+            _ => panic!(),
+        };
         // TODO errors
-        let lock = self.buffer.read().unwrap();
 
-        let data_slice = unsafe { std::slice::from_raw_parts_mut(data as *mut u8, self.size) };
+        let src = unsafe { self.buffer.map(context.get_allocator()) };
 
-        data_slice.clone_from_slice(lock.as_ref());
+        unsafe {
+            libc::memcpy(data, src as *const libc::c_void, self.size);
+        }
     }
 
-    pub fn get_buffer(&self) -> Arc<CpuAccessibleBuffer<[u8]>> {
+    pub fn get_buffer(&self) -> Arc<VmaBuffer> {
         return self.buffer.clone();
     }
 }

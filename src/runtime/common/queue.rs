@@ -9,6 +9,8 @@ use crate::vulkan::InOrderQueue as VkInOrderQueue;
 #[cfg(feature = "metal")]
 use crate::metal::Queue as MTLQueue;
 
+use super::memory::ClMem;
+
 #[enum_dispatch(ClQueue)]
 pub trait Queue {
     // TODO return event, todo async

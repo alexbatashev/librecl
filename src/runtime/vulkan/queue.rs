@@ -34,7 +34,7 @@ impl InOrderQueue {
 
 impl CommonQueue for InOrderQueue {
     fn enqueue_buffer_write(&self, src: *const libc::c_void, dst: cl_mem) {
-        let transfer_fn = match unsafe { dst.as_mut() }.unwrap() {
+        let transfer_fn = match unsafe { dst.as_ref() }.unwrap() {
             ClMem::VulkanSDBuffer(ref buffer) => || {
                 buffer.write(src);
             },

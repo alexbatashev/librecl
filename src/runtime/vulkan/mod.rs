@@ -6,7 +6,6 @@ mod memory;
 pub mod platform;
 mod program;
 mod queue;
-mod vma_buffer;
 
 // pub use crate::vulkan::command_pool::*;
 pub use crate::vulkan::context::*;

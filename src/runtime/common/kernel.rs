@@ -85,13 +85,14 @@ pub extern "C" fn clSetKernelArg(
         CL_INVALID_VALUE
     );
 
-    let mut kernel_safe = unsafe { kernel.as_mut() }.unwrap();
+    let kernel_safe = unsafe { kernel.as_mut() }.unwrap();
 
     let arg_info = kernel_safe.get_arg_info()[arg_index as usize].clone();
 
     match arg_info.arg_type {
         KernelArgType::GlobalBuffer => {
-            kernel_safe.set_buffer_arg(arg_index as usize, arg_value as cl_mem)
+            let mem = unsafe { *(arg_value as *const cl_mem) };
+            kernel_safe.set_buffer_arg(arg_index as usize, mem)
         }
         KernelArgType::POD => kernel_safe.set_data_arg(arg_index as usize, unsafe {
             std::slice::from_raw_parts(arg_value as *const u8, arg_size)
