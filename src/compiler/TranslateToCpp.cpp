@@ -246,6 +246,31 @@ static LogicalResult printOperation(CppEmitter &emitter,
   return printConstantOp(emitter, operation, value);
 }
 
+static LogicalResult printOperation(CppEmitter &emitter,
+                                    arith::ShLIOp shOp) {
+  if (failed(emitter.emitAssignPrefix(*shOp.getOperation())))
+    return failure();
+
+  emitter.ostream() << emitter.getOrCreateName(shOp.getLhs());
+  emitter.ostream() << " << ";
+  emitter.ostream() << emitter.getOrCreateName(shOp.getRhs());
+
+  return success();
+}
+
+static LogicalResult printOperation(CppEmitter &emitter,
+                                    arith::ShRSIOp shOp) {
+  if (failed(emitter.emitAssignPrefix(*shOp.getOperation())))
+    return failure();
+
+  // TODO implement make signed!!!
+  emitter.ostream() << emitter.getOrCreateName(shOp.getLhs());
+  emitter.ostream() << " >> ";
+  emitter.ostream() << emitter.getOrCreateName(shOp.getRhs());
+
+  return success();
+}
+
 static LogicalResult printOperation(CppEmitter &emitter, arith::CmpIOp cmpOp) {
   if (failed(emitter.emitAssignPrefix(*cmpOp.getOperation())))
     return failure();
@@ -1131,6 +1156,10 @@ LogicalResult CppEmitter::emitOperation(Operation &op, bool trailingSemicolon) {
               [&](auto op) { return printOperation(*this, op); })
           // Arithmetic ops.
           .Case<arith::ConstantOp>(
+              [&](auto op) { return printOperation(*this, op); })
+          .Case<arith::ShLIOp>(
+              [&](auto op) { return printOperation(*this, op); })
+          .Case<arith::ShRSIOp>(
               [&](auto op) { return printOperation(*this, op); })
           .Case<arith::CmpIOp>(
               [&](auto op) { return printOperation(*this, op); })

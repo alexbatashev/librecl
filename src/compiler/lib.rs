@@ -13,6 +13,8 @@ extern "C" {
     fn result_get_error(handle: *const libc::c_void) -> *const libc::c_char;
     fn create_vulkan_backend() -> *mut libc::c_void;
     fn release_vulkan_backend(be: *mut libc::c_void);
+    fn create_metal_backend() -> *mut libc::c_void;
+    fn release_metal_backend(be: *mut libc::c_void);
     fn backend_compile(be: *mut libc::c_void, inp: *mut libc::c_void) -> *mut libc::c_char;
     fn binary_program_get_num_kernels(handle: *mut libc::c_void) -> libc::size_t;
     fn binary_program_get_num_kernel_args(
@@ -179,6 +181,31 @@ impl Backend for VulkanBackend {
 impl Drop for VulkanBackend {
     fn drop(&mut self) {
         unsafe { release_vulkan_backend(self.handle) };
+    }
+}
+
+pub struct MetalBackend {
+    handle: *mut libc::c_void,
+}
+
+impl MetalBackend {
+    pub fn new() -> MetalBackend {
+        let handle = unsafe { create_metal_backend() };
+        return MetalBackend { handle };
+    }
+}
+
+impl Backend for MetalBackend {
+    fn compile(&self, res: &FrontendResult) -> BinaryProgram {
+        let compile_result =
+            unsafe { backend_compile(self.handle, res.get_handle()) as *mut libc::c_void };
+        return BinaryProgram::new(compile_result);
+    }
+}
+
+impl Drop for MetalBackend {
+    fn drop(&mut self) {
+        unsafe { release_metal_backend(self.handle) };
     }
 }
 

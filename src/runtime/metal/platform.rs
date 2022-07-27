@@ -1,3 +1,4 @@
+use super::Context;
 use crate::common::cl_types::*;
 use crate::common::context::ClContext;
 use crate::common::device::ClDevice;
@@ -63,6 +64,6 @@ impl CommonPlatform for Platform {
         callback: cl_context_callback,
         user_data: *mut libc::c_void,
     ) -> cl_context {
-        unimplemented!();
+        return Context::new(devices, callback, user_data);
     }
 }

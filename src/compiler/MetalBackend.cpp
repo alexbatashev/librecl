@@ -40,17 +40,55 @@ namespace lcl {
 namespace detail {
 class LCL_COMP_EXPORT MetalBackendImpl : public VulkanSPVBackendImpl {
 public:
-  MetalBackendImpl() : VulkanSPVBackendImpl(/*initializeSPV*/ false) {
-    mPM.addNestedPass<mlir::gpu::GPUModuleOp>(createAIRKernelABIPass());
-    mPM.addPass(createExpandGPUBuiltinsPass());
-    mPM.addPass(mlir::createCanonicalizerPass());
-    mPM.addPass(createGPUToCppPass());
+  MetalBackendImpl() : VulkanSPVBackendImpl(/*initializeSPV*/ false), mHelperPM(&(VulkanSPVBackendImpl::mContext)) {
+    mHelperPM.addNestedPass<mlir::gpu::GPUModuleOp>(createAIRKernelABIPass());
+    mHelperPM.addPass(createExpandGPUBuiltinsPass());
+    mHelperPM.addPass(mlir::createCanonicalizerPass());
+    mHelperPM.addPass(createGPUToCppPass());
   }
 
   BinaryProgram compile(std::unique_ptr<llvm::Module> module) override {
     VulkanSPVBackendImpl::prepareLLVMModule(module);
     auto mlirModule = VulkanSPVBackendImpl::convertLLVMIRToMLIR(module);
     // auto spv = VulkanSPVBackendImpl::convertMLIRToSPIRV(mlirModule);
+
+    std::vector<KernelInfo> kernels;
+
+    // TODO account for data layout types
+    const auto getTypeSize = [](mlir::Type type) -> size_t {
+      if (type.isa<mlir::rawmem::PointerType>()) {
+        return 8;
+      }
+      if (type.isIntOrFloat()) {
+        return type.getIntOrFloatBitWidth() / 8;
+      }
+
+      return -1;
+    };
+
+    mlirModule->walk([&kernels, &getTypeSize](mlir::gpu::GPUFuncOp func) {
+      if (!func.isKernel())
+        return;
+      std::string name = func.getName().str();
+      std::vector<ArgumentInfo> args;
+
+      for (auto arg : func.getArgumentTypes()) {
+        size_t size = getTypeSize(arg);
+        if (arg.isa<mlir::rawmem::PointerType>()) {
+          args.push_back(ArgumentInfo{.type = ArgumentInfo::ArgType::GlobalBuffer,
+                                      .index = args.size(),
+                                      .size = size});
+        } else {
+          args.push_back(ArgumentInfo{.type = ArgumentInfo::ArgType::POD,
+                                      .index = args.size(),
+                                      .size = size});
+        }
+      }
+
+      kernels.emplace_back(name, args);
+    });
+
+    mHelperPM.run(mlirModule.get());
 
     std::string source;
     {
@@ -60,8 +98,6 @@ public:
 
       mslStream.flush();
     }
-
-    std::cout << source << "\n";
 
     /*
         spirv_cross::CompilerMSL mslComp(reinterpret_cast<uint32_t
@@ -80,7 +116,7 @@ public:
         reinterpret_cast<unsigned char *>(source.data()),
         reinterpret_cast<unsigned char *>(source.data() + source.size())};
     // TODO kernels
-    return BinaryProgram{binary, {}};
+    return BinaryProgram{binary, kernels};
   }
 
   void setMSLPrinter(std::function<void(std::string_view)> printer) {
@@ -88,6 +124,7 @@ public:
   }
 
 private:
+  mlir::PassManager mHelperPM;
   std::function<void(std::string_view)> mMSLPrinter = [](std::string_view) {};
 };
 } // namespace detail
