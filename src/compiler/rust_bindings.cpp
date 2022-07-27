@@ -7,9 +7,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangFrontend.hpp"
+#include "VulkanBackend.hpp"
+#include "backend.hpp"
 #include "frontend.hpp"
+#include "include/visibility.hpp"
+#include "kernel_info.hpp"
 #include "visibility.hpp"
 
+#include <cstring>
 #include <string_view>
 #include <vector>
 
@@ -19,6 +24,12 @@ LCL_COMP_EXPORT lcl::ClangFrontend *create_clang_frontend() {
 }
 LCL_COMP_EXPORT void release_clang_frontend(lcl::ClangFrontend *fe) {
   delete fe;
+}
+LCL_COMP_EXPORT lcl::VulkanBackend *create_vulkan_backend() {
+  return new lcl::VulkanBackend();
+}
+LCL_COMP_EXPORT void release_vulkan_backend(lcl::VulkanBackend *be) {
+  delete be;
 }
 
 LCL_COMP_EXPORT lcl::FrontendResult *process_source(lcl::Frontend *fe,
@@ -35,5 +46,42 @@ LCL_COMP_EXPORT lcl::FrontendResult *process_source(lcl::Frontend *fe,
 
 LCL_COMP_EXPORT void release_result(lcl::FrontendResult *fe_res) {
   delete fe_res;
+}
+
+LCL_COMP_EXPORT int result_is_ok(const lcl::FrontendResult *res) {
+  return res->success();
+}
+
+LCL_COMP_EXPORT const char *result_get_error(const lcl::FrontendResult *res) {
+  return res->error().c_str();
+}
+LCL_COMP_EXPORT lcl::BinaryProgram *backend_compile(lcl::Backend *backend,
+                                                    lcl::FrontendResult *res) {
+  return new lcl::BinaryProgram(std::move(backend->compile(*res)));
+}
+LCL_COMP_EXPORT size_t
+binary_program_get_num_kernels(lcl::BinaryProgram *prog) {
+  return prog->kernels.size();
+}
+LCL_COMP_EXPORT size_t
+binary_program_get_num_kernel_args(lcl::BinaryProgram *prog, size_t idx) {
+  return prog->kernels[idx].arguments.size();
+}
+LCL_COMP_EXPORT void binary_program_get_kernel_args(lcl::BinaryProgram *prog,
+                                                    size_t index, void *dst) {
+  std::memcpy(dst, prog->kernels[index].arguments.data(),
+              prog->kernels[index].arguments.size() *
+                  sizeof(lcl::ArgumentInfo));
+}
+LCL_COMP_EXPORT size_t binary_program_get_size(lcl::BinaryProgram *prog) {
+  return prog->binary.size();
+}
+LCL_COMP_EXPORT void binary_program_copy_data(lcl::BinaryProgram *prog,
+                                              void *dst) {
+  std::memcpy(dst, prog->binary.data(), prog->binary.size());
+}
+LCL_COMP_EXPORT const char *
+binary_program_get_kernel_name(lcl::BinaryProgram *prog, size_t index) {
+  return prog->kernels[index].kernelName.c_str();
 }
 }

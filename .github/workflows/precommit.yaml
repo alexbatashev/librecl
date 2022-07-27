@@ -10,7 +10,7 @@ jobs:
     name: Linux
     uses: ./.github/workflows/pipeline.yaml
     with:
-      runs-on: "ubuntu-latest"
+      runs-on: "ubuntu-22.04"
   macos:
     name: macOS
     uses: ./.github/workflows/pipeline.yaml

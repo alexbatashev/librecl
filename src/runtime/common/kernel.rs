@@ -4,11 +4,13 @@ use crate::{
     format_error, lcl_contract,
 };
 use enum_dispatch::enum_dispatch;
+use librecl_compiler::{KernelArgInfo, KernelArgType};
 
 #[enum_dispatch(ClKernel)]
 pub trait Kernel {
-    fn set_data_arg(&self, index: usize, bytes: &[u8]);
-    fn set_buffer_arg(&self, index: usize);
+    fn set_data_arg(&mut self, index: usize, bytes: &[u8]);
+    fn set_buffer_arg(&mut self, index: usize, buffer: cl_mem);
+    fn get_arg_info(&self) -> &[KernelArgInfo];
 }
 
 #[cfg(feature = "vulkan")]
@@ -62,7 +64,7 @@ pub extern "C" fn clCreateKernel(
         errcode_ret
     );
 
-    let kernel = program_safe.create_kernel(kernel_name_safe);
+    let kernel = program_safe.create_kernel(program, kernel_name_safe);
     unsafe { *errcode_ret = CL_SUCCESS };
 
     return kernel;
@@ -75,5 +77,28 @@ pub extern "C" fn clSetKernelArg(
     arg_size: libc::size_t,
     arg_value: *const libc::c_void,
 ) -> cl_int {
-    unimplemented!();
+    // TODO proper error handling
+    lcl_contract!(!kernel.is_null(), "kernel can't be NULL", CL_INVALID_VALUE);
+    lcl_contract!(
+        !arg_value.is_null(),
+        "arg_value can't be NULL",
+        CL_INVALID_VALUE
+    );
+
+    let kernel_safe = unsafe { kernel.as_mut() }.unwrap();
+
+    let arg_info = kernel_safe.get_arg_info()[arg_index as usize].clone();
+
+    match arg_info.arg_type {
+        KernelArgType::GlobalBuffer => {
+            let mem = unsafe { *(arg_value as *const cl_mem) };
+            kernel_safe.set_buffer_arg(arg_index as usize, mem)
+        }
+        KernelArgType::POD => kernel_safe.set_data_arg(arg_index as usize, unsafe {
+            std::slice::from_raw_parts(arg_value as *const u8, arg_size)
+        }),
+        _ => panic!("Unsupported!"),
+    }
+
+    return CL_SUCCESS;
 }

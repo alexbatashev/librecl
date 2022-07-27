@@ -1,7 +1,27 @@
 use cmake::Config;
 use std::env;
+use std::path::Path;
 use std::process::Command;
 use which::which;
+
+// Borrowed from Rust repo
+// https://github.com/rust-lang/rust/blob/master/compiler/rustc_llvm/build.rs
+fn rerun_if_changed_anything_in_dir(dir: &Path) {
+    let mut stack = dir
+        .read_dir()
+        .unwrap()
+        .map(|e| e.unwrap())
+        .filter(|e| &*e.file_name() != ".git")
+        .collect::<Vec<_>>();
+    while let Some(entry) = stack.pop() {
+        let path = entry.path();
+        if entry.file_type().unwrap().is_dir() {
+            stack.extend(path.read_dir().unwrap().map(|e| e.unwrap()));
+        } else {
+            println!("cargo:rerun-if-changed={}", path.display());
+        }
+    }
+}
 
 fn main() {
     let dir = String::from(env::current_dir().unwrap().as_os_str().to_str().unwrap());
@@ -56,8 +76,9 @@ fn main() {
     let dst = cfg.build();
 
     println!("cargo:rustc-link-search=native={}/lib64/", dst.display());
-    println!("cargo:rerun-if-changed=../../third_party/llvm-project");
-    println!("cargo:rerun-if-changed=../../build_dependencies.sh");
-    println!("cargo:rerun-if-changed=../compiler");
-    println!("cargo:rustc-link-lib=lcl_compiler");
+    println!("cargo:rustc-link-search=native={}/lib/", dst.display());
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}/lib", dst.display());
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}/lib64", dst.display());
+    rerun_if_changed_anything_in_dir(Path::new("../../third_party/llvm-project"));
+    rerun_if_changed_anything_in_dir(Path::new("../compiler"));
 }

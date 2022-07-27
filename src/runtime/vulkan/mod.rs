@@ -1,3 +1,4 @@
+// mod command_pool;
 mod context;
 mod device;
 mod kernel;
@@ -6,6 +7,7 @@ pub mod platform;
 mod program;
 mod queue;
 
+// pub use crate::vulkan::command_pool::*;
 pub use crate::vulkan::context::*;
 pub use crate::vulkan::device::*;
 pub use crate::vulkan::kernel::*;

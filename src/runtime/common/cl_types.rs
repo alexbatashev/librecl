@@ -168,5 +168,7 @@ pub const CL_INVALID_VALUE: cl_int = -30;
 pub const CL_INVALID_PLATFORM: cl_int = -32;
 pub const CL_INVALID_DEVICE: cl_int = -33;
 pub const CL_INVALID_CONTEXT: cl_int = -34;
+pub const CL_INVALID_COMMAND_QUEUE: cl_int = -36;
+pub const CL_INVALID_MEM_OBJECT: cl_int = -38;
 pub const CL_INVALID_PROGRAM: cl_int = -44;
 pub const CL_INVALID_BUFFER_SIZE: cl_int = -61;

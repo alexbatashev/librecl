@@ -1,3 +1,4 @@
+use crate::common::context::ClContext;
 use crate::common::context::Context;
 use crate::common::device::ClDevice;
 use crate::{common::cl_types::*, format_error, lcl_contract};
@@ -12,13 +13,14 @@ use crate::metal::Program as MTLProgram;
 #[enum_dispatch(ClProgram)]
 pub trait Program {
     fn get_context(&self) -> cl_context;
+    fn get_safe_context_mut<'a, 'b>(&'a mut self) -> &'b mut ClContext;
 
     // TODO allow options
-    fn compile_program(&self, devices: &[&ClDevice]) -> bool;
+    fn compile_program(&mut self, devices: &[&ClDevice]) -> bool;
     // TODO allow options and multiple programs
-    fn link_programs(&self, devices: &[&ClDevice]) -> bool;
+    fn link_programs(&mut self, devices: &[&ClDevice]) -> bool;
 
-    fn create_kernel(&self, kernel_name: &str) -> cl_kernel;
+    fn create_kernel(&self, program: cl_program, kernel_name: &str) -> cl_kernel;
 }
 
 #[enum_dispatch]
@@ -96,7 +98,7 @@ pub extern "C" fn clCreateProgramWithSource(
         }
     }
 
-    let program = ctx_safe.create_program_with_source(program_source);
+    let program = ctx_safe.create_program_with_source(context, program_source);
     unsafe { *errcode_ret = CL_SUCCESS };
 
     return program;
@@ -123,7 +125,7 @@ pub extern "C" fn clBuildProgram(
     lcl_contract!(context, (device_list.is_null() && num_devices == 0) || (!device_list.is_null() && num_devices > 0), "either num_devices is > 0 and device_list is not NULL, or num_devices == 0 and device_list is NULL", CL_INVALID_VALUE);
 
     // TODO support options
-    let build_function = |devices: &[&ClDevice], program: &ClProgram| {
+    let build_function = |devices: &[&ClDevice], program: &mut ClProgram| {
         if !program.compile_program(devices) {
             return CL_BUILD_PROGRAM_FAILURE;
         }

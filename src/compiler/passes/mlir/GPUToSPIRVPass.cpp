@@ -274,8 +274,10 @@ void lcl::populateRawMemoryToSPIRVTypeConversions(
     }
 
     // TODO add Block decoration
+    spirv::StructType::MemberDecorationInfo dec(0, 0, spirv::Decoration::BufferBlock, 0);
+    // TODO correct stride
     auto ptrElement =
-        spirv::StructType::get({spirv::RuntimeArrayType::get(type, 1)}, {0});
+        spirv::StructType::get({spirv::RuntimeArrayType::get(type, 4)}, {0}, {});
 
     return spirv::PointerType::get(ptrElement, sc);
     // return spirv::PointerType::get(type, sc);
