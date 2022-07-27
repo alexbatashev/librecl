@@ -8,3 +8,6 @@ pub mod platform;
 pub mod program;
 pub mod queue;
 mod utils;
+mod error_handling;
+
+pub use crate::common::error_handling::*;

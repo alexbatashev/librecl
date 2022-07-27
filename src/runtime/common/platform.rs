@@ -1,4 +1,7 @@
+use super::ClError;
+use crate::common::cl_types::ClErrorCode;
 use crate::format_error;
+use crate::return_error;
 use crate::set_info_str;
 
 use once_cell::sync::Lazy;
@@ -141,7 +144,12 @@ pub extern "C" fn clGetPlatformInfo(
         CL_INVALID_PLATFORM
     );
 
-    let param_name = PlatformInfoNames::try_from(param_name_num);
+    let param_name = PlatformInfoNames::try_from(param_name_num).map_err(|err| {
+        ClError::new(
+            ClErrorCode::InvalidValue,
+            format!("Unknown param_name value {}", param_name_num),
+        )
+    });
 
     lcl_contract!(
         param_name.is_ok(),
@@ -149,23 +157,70 @@ pub extern "C" fn clGetPlatformInfo(
         CL_INVALID_VALUE
     );
 
-    match param_name.unwrap() {
-        PlatformInfoNames::CL_PLATFORM_NAME => {
+    return_error!(param_name);
+
+    match param_name {
+        Ok(PlatformInfoNames::CL_PLATFORM_NAME) => {
             let platform_name = platform_safe.unwrap().get_platform_name();
             // TODO check param value size
             set_info_str!(platform_name, param_value, param_size_ret);
         }
+        // Error has been handled before
+        Err(err) => {},
         _ => {}
-    }
+    };
     return CL_SUCCESS;
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::c_cl::{self, CL_INVALID_VALUE, CL_PLATFORM_NAME, CL_SUCCESS};
+    use crate::c_cl::*;
     #[test]
     fn all_null_pointers() {
-        let err = c_cl::clGetPlatformIDs(0, std::ptr::null_mut(), std::ptr::null_mut());
+        let err = clGetPlatformIDs(0, std::ptr::null_mut(), std::ptr::null_mut());
+        assert_eq!(err, CL_INVALID_VALUE);
+    }
+    #[test]
+    fn all_zeros() {
+        let mut platforms: Vec<cl_platform_id> = vec![];
+
+        let err = clGetPlatformIDs(0, platforms.as_mut_ptr(), std::ptr::null_mut());
+        assert_eq!(err, CL_INVALID_VALUE);
+    }
+    #[test]
+    fn returns_same_platforms() {
+        let mut num_platforms: cl_uint = 0;
+        let mut err = clGetPlatformIDs(0, std::ptr::null_mut(), &mut num_platforms);
+        assert_eq!(err, CL_SUCCESS);
+
+        let mut platforms1: Vec<cl_platform_id> = vec![];
+        platforms1.resize(num_platforms as usize, std::ptr::null_mut());
+        err = clGetPlatformIDs(num_platforms, platforms1.as_mut_ptr(), std::ptr::null_mut());
+        assert_eq!(err, CL_SUCCESS);
+
+        let mut platforms2: Vec<cl_platform_id> = vec![];
+        platforms2.resize(num_platforms as usize, std::ptr::null_mut());
+        err = clGetPlatformIDs(num_platforms, platforms2.as_mut_ptr(), std::ptr::null_mut());
+        assert_eq!(err, CL_SUCCESS);
+
+        for (a, b) in std::iter::zip(platforms1.iter(), platforms2.iter()) {
+            assert_eq!(a, b);
+        }
+    }
+
+    #[test]
+    fn invalid_platform_info_name() {
+        let mut num_platforms: cl_uint = 0;
+        let mut err = clGetPlatformIDs(0, std::ptr::null_mut(), &mut num_platforms);
+        assert_eq!(err, CL_SUCCESS);
+
+        let mut platforms: Vec<cl_platform_id> = vec![];
+        platforms.resize(num_platforms as usize, std::ptr::null_mut());
+        err = clGetPlatformIDs(num_platforms, platforms.as_mut_ptr(), std::ptr::null_mut());
+        assert_eq!(err, CL_SUCCESS);
+
+        let mut size_ret: usize = 0;
+        err = clGetPlatformInfo(platforms[0], 1000000, 0, std::ptr::null_mut(), &mut size_ret);
         assert_eq!(err, CL_INVALID_VALUE);
     }
 }
