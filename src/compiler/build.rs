@@ -77,7 +77,8 @@ fn main() {
 
     println!("cargo:rustc-link-search=native={}/lib64/", dst.display());
     println!("cargo:rustc-link-search=native={}/lib/", dst.display());
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}/lib", dst.display());
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}/lib64", dst.display());
     rerun_if_changed_anything_in_dir(Path::new("../../third_party/llvm-project"));
     rerun_if_changed_anything_in_dir(Path::new("../compiler"));
-    println!("cargo:rustc-link-lib=dylib=lcl_compiler");
 }
