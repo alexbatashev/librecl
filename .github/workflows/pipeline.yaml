@@ -26,7 +26,7 @@ jobs:
         sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-11 15
         wget -P /tmp/ https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
         tar -xvf /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz -C /tmp/
-        sudo install /tmp/sccache /usr/bin/sccache
+        sudo install /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl/sccache /usr/bin/sccache
     - name: Install dependencies (macOS)
       if: ${{ runner.os == 'macOS' }}
       run: |
