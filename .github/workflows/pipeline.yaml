@@ -42,10 +42,9 @@ jobs:
         key: ${{ runner.os }}-build-${{ github.sha }}
         restore-keys: ${{ runner.os }}-build-
     - name: Build
-      with:
-        env:
-          RUSTC_WRAPPER: sccache
-          SCCACHE_DIR: ${{ github.workspace }}/cache
+      env:
+        RUSTC_WRAPPER: sccache
+        SCCACHE_DIR: ${{ github.workspace }}/cache
       run: cargo build --workspace -vv
     - name: Runtime smoke test
       run: cargo nextest run --all
