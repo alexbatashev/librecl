@@ -3,30 +3,7 @@ use crate::{
     common::{cl_types::*, program::Program},
     format_error, lcl_contract,
 };
-use enum_dispatch::enum_dispatch;
-use librecl_compiler::{KernelArgInfo, KernelArgType};
 
-#[enum_dispatch(ClKernel)]
-pub trait Kernel {
-    fn set_data_arg(&mut self, index: usize, bytes: &[u8]);
-    fn set_buffer_arg(&mut self, index: usize, buffer: cl_mem);
-    fn get_arg_info(&self) -> &[KernelArgInfo];
-}
-
-#[cfg(feature = "vulkan")]
-use crate::vulkan::Kernel as VkKernel;
-
-#[cfg(feature = "metal")]
-use crate::metal::Kernel as MTLKernel;
-
-#[enum_dispatch]
-#[repr(C)]
-pub enum ClKernel {
-    #[cfg(feature = "vulkan")]
-    Vulkan(VkKernel),
-    #[cfg(feature = "metal")]
-    Metal(MTLKernel),
-}
 
 #[no_mangle]
 pub extern "C" fn clCreateKernel(

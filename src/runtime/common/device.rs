@@ -6,26 +6,6 @@ use crate::metal::Device as MTLDevice;
 #[cfg(feature = "vulkan")]
 use crate::vulkan::Device as VkDevice;
 
-#[enum_dispatch]
-#[repr(C)]
-pub enum ClDevice {
-    #[cfg(feature = "vulkan")]
-    Vulkan(VkDevice),
-    #[cfg(feature = "metal")]
-    Metal(MTLDevice),
-}
-
-unsafe impl Sync for ClDevice {}
-
-#[enum_dispatch(ClDevice)]
-pub trait Device: Sync {
-    fn get_device_type(&self) -> cl_device_type;
-    fn get_device_name(&self) -> String;
-    fn is_available(&self) -> bool;
-    fn get_platform(&self) -> cl_platform_id;
-    fn create_queue(&self, context: cl_context, device: cl_device_id) -> cl_command_queue;
-}
-
 #[no_mangle]
 pub extern "C" fn clGetDeviceIDs(
     platform: cl_platform_id,

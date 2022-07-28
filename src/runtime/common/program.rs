@@ -2,36 +2,6 @@ use crate::common::context::ClContext;
 use crate::common::context::Context;
 use crate::common::device::ClDevice;
 use crate::{common::cl_types::*, format_error, lcl_contract};
-use enum_dispatch::enum_dispatch;
-
-#[cfg(feature = "vulkan")]
-use crate::vulkan::Program as VkProgram;
-
-#[cfg(feature = "metal")]
-use crate::metal::Program as MTLProgram;
-
-#[enum_dispatch(ClProgram)]
-pub trait Program {
-    fn get_context(&self) -> cl_context;
-    fn get_safe_context_mut<'a, 'b>(&'a mut self) -> &'b mut ClContext;
-
-    // TODO allow options
-    fn compile_program(&mut self, devices: &[&ClDevice]) -> bool;
-    // TODO allow options and multiple programs
-    fn link_programs(&mut self, devices: &[&ClDevice]) -> bool;
-
-    fn create_kernel(&self, program: cl_program, kernel_name: &str) -> cl_kernel;
-}
-
-#[enum_dispatch]
-#[repr(C)]
-pub enum ClProgram {
-    #[cfg(feature = "vulkan")]
-    Vulkan(VkProgram),
-    #[cfg(feature = "metal")]
-    Metal(MTLProgram),
-}
-
 #[no_mangle]
 pub extern "C" fn clCreateProgramWithSource(
     context: cl_context,

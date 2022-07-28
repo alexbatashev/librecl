@@ -4,31 +4,6 @@ use crate::{common::cl_types::*, format_error, lcl_contract};
 use enum_dispatch::enum_dispatch;
 use tokio::runtime::Runtime;
 
-#[cfg(feature = "vulkan")]
-use crate::vulkan::Context as VkContext;
-
-#[cfg(feature = "metal")]
-use crate::metal::Context as MTLContext;
-
-#[enum_dispatch(ClContext)]
-pub trait Context {
-    fn notify_error(&self, message: String);
-    fn has_device(&self, device: cl_device_id) -> bool;
-    fn create_program_with_source(&self, context: cl_context, source: String) -> cl_program;
-    fn get_threading_runtime(&self) -> &Runtime;
-    fn get_associated_devices(&self) -> &[cl_device_id];
-    fn create_buffer(&mut self, context: cl_context, size: usize, flags: cl_mem_flags) -> cl_mem;
-}
-
-#[enum_dispatch]
-#[repr(C)]
-pub enum ClContext {
-    #[cfg(feature = "vulkan")]
-    Vulkan(VkContext),
-    #[cfg(feature = "metal")]
-    Metal(MTLContext),
-}
-
 #[no_mangle]
 pub extern "C" fn clCreateContext(
     _properties: *const cl_context_properties,

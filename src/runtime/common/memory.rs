@@ -9,23 +9,6 @@ use enum_dispatch::enum_dispatch;
 use once_cell::sync::Lazy;
 use std::rc::Rc;
 
-#[enum_dispatch(ClMem)]
-pub trait MemObject {}
-
-#[cfg(feature = "vulkan")]
-use crate::vulkan::SingleDeviceBuffer as VkSDBuffer;
-
-#[cfg(feature = "metal")]
-use crate::metal::SingleDeviceBuffer as MTLSDBuffer;
-
-#[enum_dispatch]
-#[repr(C)]
-pub enum ClMem {
-    #[cfg(feature = "vulkan")]
-    VulkanSDBuffer(VkSDBuffer),
-    #[cfg(feature = "metal")]
-    MetalSDBuffer(MTLSDBuffer),
-}
 
 #[no_mangle]
 pub extern "C" fn clCreateBuffer(

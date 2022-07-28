@@ -9,5 +9,6 @@ pub mod program;
 pub mod queue;
 mod utils;
 mod error_handling;
+mod cl_icd;
 
 pub use crate::common::error_handling::*;

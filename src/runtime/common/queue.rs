@@ -1,39 +1,6 @@
 use crate::common::context::Context as CommonContext;
 use crate::common::device::Device as CommonDevice;
 use crate::{common::cl_types::*, format_error, lcl_contract};
-use enum_dispatch::enum_dispatch;
-
-#[cfg(feature = "vulkan")]
-use crate::vulkan::InOrderQueue as VkInOrderQueue;
-
-#[cfg(feature = "metal")]
-use crate::metal::InOrderQueue as MTLInOrderQueue;
-
-use super::memory::ClMem;
-
-#[enum_dispatch(ClQueue)]
-pub trait Queue {
-    // TODO return event, todo async
-    fn enqueue_buffer_write(&self, src: *const libc::c_void, dst: cl_mem);
-    fn enqueue_buffer_read(&self, src: cl_mem, dst: *mut libc::c_void);
-    fn submit(
-        &self,
-        kernel: cl_kernel,
-        offset: [u32; 3],
-        global_size: [u32; 3],
-        local_size: [u32; 3],
-    );
-    fn finish(&self);
-}
-
-#[enum_dispatch]
-#[repr(C)]
-pub enum ClQueue {
-    #[cfg(feature = "vulkan")]
-    VulkanInOrder(VkInOrderQueue),
-    #[cfg(feature = "metal")]
-    MetalInOrder(MTLInOrderQueue),
-}
 
 #[no_mangle]
 pub extern "C" fn clCreateCommandQueueWithProperties(

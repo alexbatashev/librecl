@@ -1,3 +1,4 @@
+mod api;
 pub mod common;
 
 #[cfg(feature = "vulkan")]
@@ -9,7 +10,10 @@ pub mod metal;
 #[cfg(test)]
 mod mock;
 
+pub mod interface;
+
 pub use crate::common::platform::Platform;
+pub use crate::api::cl_types;
 
 pub mod c_cl {
     pub use crate::common::cl_types::*;
