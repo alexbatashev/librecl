@@ -24,20 +24,28 @@ jobs:
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 15
         sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-11 15
         sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-11 15
+        wget -P /tmp/ https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
+        tar -xvf sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz -C /tmp/
+        sudo install /tmp/sccache /usr/bin/sccache
     - name: Install dependencies (macOS)
       if: ${{ runner.os == 'macOS' }}
       run: |
-        brew install ninja tbb ncurses
+        brew install sccache ninja tbb ncurses
         curl -LsSf https://get.nexte.st/latest/mac | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
     - uses: actions/checkout@v3
       with:
         submodules: true
-    - name: Configure sccache
-      uses: visvirial/sccache-action@v1
+    - name: Cache build artifacts
+      uses: actions/cache@v3
       with:
-        cache-key: ${{ runner.os }}-build-${{ github.sha }}
-        release-name: latest
+        path: ${{ github.workspace }}/cache
+        key: ${{ runner.os }}-build-${{ github.sha }}
+        restore-keys: ${{ runner.os }}-build-
     - name: Build
+      with:
+        env:
+          RUSTC_WRAPPER: sccache
+          SCCACHE_DIR: ${{ github.workspace }}/cache
       run: cargo build --workspace -vv
     - name: Runtime smoke test
       run: cargo nextest run --all
