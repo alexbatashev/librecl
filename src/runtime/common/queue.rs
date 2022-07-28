@@ -7,7 +7,7 @@ use enum_dispatch::enum_dispatch;
 use crate::vulkan::InOrderQueue as VkInOrderQueue;
 
 #[cfg(feature = "metal")]
-use crate::metal::Queue as MTLQueue;
+use crate::metal::InOrderQueue as MTLInOrderQueue;
 
 use super::memory::ClMem;
 
@@ -32,7 +32,7 @@ pub enum ClQueue {
     #[cfg(feature = "vulkan")]
     VulkanInOrder(VkInOrderQueue),
     #[cfg(feature = "metal")]
-    Metal(MTLQueue),
+    MetalInOrder(MTLInOrderQueue),
 }
 
 #[no_mangle]

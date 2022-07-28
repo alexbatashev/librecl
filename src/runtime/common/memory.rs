@@ -16,7 +16,7 @@ pub trait MemObject {}
 use crate::vulkan::SingleDeviceBuffer as VkSDBuffer;
 
 #[cfg(feature = "metal")]
-use crate::metal::Buffer as MTLBuffer;
+use crate::metal::SingleDeviceBuffer as MTLSDBuffer;
 
 #[enum_dispatch]
 #[repr(C)]
@@ -24,7 +24,7 @@ pub enum ClMem {
     #[cfg(feature = "vulkan")]
     VulkanSDBuffer(VkSDBuffer),
     #[cfg(feature = "metal")]
-    MetalBuffer(MTLBuffer),
+    MetalSDBuffer(MTLSDBuffer),
 }
 
 #[no_mangle]

@@ -8,6 +8,7 @@
 
 #include "ClangFrontend.hpp"
 #include "VulkanBackend.hpp"
+#include "MetalBackend.hpp"
 #include "backend.hpp"
 #include "frontend.hpp"
 #include "include/visibility.hpp"
@@ -29,6 +30,12 @@ LCL_COMP_EXPORT lcl::VulkanBackend *create_vulkan_backend() {
   return new lcl::VulkanBackend();
 }
 LCL_COMP_EXPORT void release_vulkan_backend(lcl::VulkanBackend *be) {
+  delete be;
+}
+LCL_COMP_EXPORT lcl::MetalBackend *create_metal_backend() {
+  return new lcl::MetalBackend();
+}
+LCL_COMP_EXPORT void release_metal_backend(lcl::MetalBackend *be) {
   delete be;
 }
 

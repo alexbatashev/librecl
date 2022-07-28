@@ -4,6 +4,8 @@ use crate::common::cl_types::*;
 use crate::common::{self, platform::ClPlatform};
 use std::sync::{Arc, Weak};
 
+use super::InOrderQueue;
+
 pub struct Device {
     platform: Weak<ClPlatform>,
     device: MTLDevice,
@@ -16,6 +18,10 @@ impl Device {
             device,
         };
     }
+
+    pub fn get_native_device(&self) -> &MTLDevice {
+        return &self.device;
+    }
 }
 
 impl common::device::Device for Device {
@@ -23,17 +29,17 @@ impl common::device::Device for Device {
         return cl_device_type::GPU;
     }
     fn get_device_name(&self) -> String {
-        unimplemented!();
+        return self.device.name().to_owned();
     }
     fn is_available(&self) -> bool {
         // TODO some Intel-based Macs support hybrid graphics and eGPUs.
         return true;
     }
     fn get_platform(&self) -> cl_platform_id {
-        unimplemented!();
+        return self.platform.as_ptr() as *mut ClPlatform;
     }
     fn create_queue(&self, context: cl_context, device: cl_device_id) -> cl_command_queue {
-        unimplemented!();
+        return InOrderQueue::new(context, device);
     }
 }
 
