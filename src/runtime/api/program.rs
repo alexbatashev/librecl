@@ -1,13 +1,18 @@
-use crate::common::context::ClContext;
-use crate::common::context::Context;
-use crate::common::device::ClDevice;
-use crate::{common::cl_types::*, format_error, lcl_contract};
+use super::cl_types::*;
+use crate::interface::{DeviceKind, ProgramKind};
+use crate::sync::{SharedPtr, WeakPtr};
+use crate::{
+    format_error,
+    interface::{ContextImpl, ContextKind, ProgramImpl},
+    lcl_contract,
+};
+
 #[no_mangle]
-pub extern "C" fn clCreateProgramWithSource(
+pub unsafe extern "C" fn clCreateProgramWithSource(
     context: cl_context,
     count: cl_uint,
-    strings: *const *const libc::c_char,
-    lengths: *const libc::size_t,
+    strings: *mut *const libc::c_char,
+    lengths: *const cl_size_t,
     errcode_ret: *mut cl_int,
 ) -> cl_program {
     lcl_contract!(
@@ -17,7 +22,7 @@ pub extern "C" fn clCreateProgramWithSource(
         errcode_ret
     );
 
-    let ctx_safe = unsafe { context.as_ref() }.unwrap();
+    let ctx_safe = ContextKind::try_from_cl(context).unwrap();
 
     lcl_contract!(
         ctx_safe,
@@ -61,21 +66,23 @@ pub extern "C" fn clCreateProgramWithSource(
                 errcode_ret
             );
 
-            let cur_string = unsafe { String::from_raw_parts(*s as *const u8 as *mut u8, *l, *l) };
+            let cur_string = unsafe {
+                String::from_raw_parts(*s as *const u8 as *mut u8, *l as usize, *l as usize)
+            };
             std::mem::forget(&cur_string);
 
             program_source.push_str(&cur_string);
         }
     }
 
-    let program = ctx_safe.create_program_with_source(context, program_source);
+    let program = ctx_safe.create_program_with_source(program_source);
     unsafe { *errcode_ret = CL_SUCCESS };
 
-    return program;
+    return _cl_program::wrap(program);
 }
 
 #[no_mangle]
-pub extern "C" fn clBuildProgram(
+pub unsafe extern "C" fn clBuildProgram(
     program: cl_program,
     num_devices: cl_uint,
     device_list: *const cl_device_id,
@@ -88,48 +95,56 @@ pub extern "C" fn clBuildProgram(
         "program can't be NULL",
         CL_INVALID_PROGRAM
     );
-    let mut program_safe = unsafe { program.as_mut() }.unwrap();
+    let mut program_safe = ProgramKind::try_from_cl(program).unwrap();
 
-    let context = unsafe { program_safe.get_context().as_mut() }.unwrap();
+    let context = program_safe.get_context().upgrade().unwrap();
 
     lcl_contract!(context, (device_list.is_null() && num_devices == 0) || (!device_list.is_null() && num_devices > 0), "either num_devices is > 0 and device_list is not NULL, or num_devices == 0 and device_list is NULL", CL_INVALID_VALUE);
 
     // TODO support options
-    let build_function = |devices: &[&ClDevice], program: &mut ClProgram| {
-        if !program.compile_program(devices) {
+    let build_function = |devices: Vec<WeakPtr<DeviceKind>>,
+                          mut program: SharedPtr<ProgramKind>| {
+        if !program.compile_program(devices.as_slice()) {
             return CL_BUILD_PROGRAM_FAILURE;
         }
-        if !program.link_programs(devices) {
+        if !program.link_programs(devices.as_slice()) {
             return CL_BUILD_PROGRAM_FAILURE;
         }
 
         return CL_SUCCESS;
     };
 
-    let devices_array: Vec<&ClDevice> = if num_devices > 0 {
-        unsafe { std::slice::from_raw_parts(device_list, num_devices as usize) }
+    let devices_array = if num_devices > 0 {
+        (unsafe { std::slice::from_raw_parts(device_list, num_devices as usize) }
+            .iter()
+            .map(|&d| SharedPtr::downgrade(&DeviceKind::try_from_cl(d).unwrap())))
+        .collect::<Vec<WeakPtr<DeviceKind>>>()
     } else {
-        context.get_associated_devices()
-    }
-    .iter()
-    .map(|d| unsafe { d.as_ref() }.unwrap())
-    .collect();
+        context
+            .get_associated_devices()
+            .iter()
+            .map(|d| d.clone())
+            .collect::<Vec<WeakPtr<DeviceKind>>>()
+    };
 
     if callback.is_some() {
         let _guard = context.get_threading_runtime().enter();
         let safe_data = unsafe { user_data.as_ref() };
+        // TODO figure out how to make the whole thing thread-safe
+        /*
         tokio::spawn(async move {
-            build_function(devices_array.as_slice(), program_safe);
+            build_function(devices_array, program_safe);
             let user_data_unwrapped = if safe_data.is_some() {
                 safe_data.unwrap() as *const libc::c_void as *mut libc::c_void
             } else {
                 std::ptr::null_mut()
             };
-            callback.unwrap()(program_safe as *mut ClProgram, user_data_unwrapped);
+            callback.unwrap()(program, user_data_unwrapped);
         });
+        */
 
         return CL_SUCCESS;
     } else {
-        return build_function(devices_array.as_slice(), program_safe);
+        return build_function(devices_array, program_safe);
     }
 }

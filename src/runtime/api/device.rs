@@ -1,23 +1,21 @@
-use crate::{common::cl_types::*, format_error, lcl_contract, set_info_str, Platform};
-use enum_dispatch::enum_dispatch;
+use std::ops::Deref;
 
-#[cfg(feature = "metal")]
-use crate::metal::Device as MTLDevice;
-#[cfg(feature = "vulkan")]
-use crate::vulkan::Device as VkDevice;
+use crate::api::cl_types::*;
+use crate::interface::{DeviceImpl, DeviceKind, PlatformImpl, PlatformKind};
+use crate::{format_error, lcl_contract, set_info_str};
 
 #[no_mangle]
-pub extern "C" fn clGetDeviceIDs(
+pub unsafe extern "C" fn clGetDeviceIDs(
     platform: cl_platform_id,
     device_type: cl_device_type,
     num_entries: cl_uint,
     devices_raw: *mut cl_device_id,
     num_devices: *mut cl_uint,
 ) -> cl_int {
-    let platform_safe = unsafe { platform.as_ref() };
+    let maybe_platform = PlatformKind::try_from_cl(platform);
 
     lcl_contract!(
-        platform_safe.is_some(),
+        maybe_platform.is_ok(),
         "platform can not be NULL",
         CL_INVALID_PLATFORM
     );
@@ -28,10 +26,12 @@ pub extern "C" fn clGetDeviceIDs(
         CL_INVALID_VALUE
     );
 
+    let platform_safe = maybe_platform.unwrap();
+
     // TODO figure out why mut is required here and why I can't simply borrow
     // iterators by constant reference.
     let mut devices = platform_safe
-        .unwrap()
+        .deref()
         .get_devices()
         .into_iter()
         .filter(|&d| device_type.contains(d.get_device_type()))
@@ -46,10 +46,10 @@ pub extern "C" fn clGetDeviceIDs(
 
     if !devices_raw.is_null() {
         let devices_array = unsafe {
-            std::slice::from_raw_parts_mut(devices_raw as *mut *mut ClDevice, num_entries as usize)
+            std::slice::from_raw_parts_mut(devices_raw as *mut cl_device_id, num_entries as usize)
         };
         for (i, d) in devices.take(num_entries as usize).enumerate() {
-            let device_ptr = std::rc::Rc::as_ptr(&d) as *mut ClDevice;
+            let device_ptr = d.get_cl_handle();
             devices_array[i] = device_ptr;
         }
     }
@@ -58,17 +58,17 @@ pub extern "C" fn clGetDeviceIDs(
 }
 
 #[no_mangle]
-pub extern "C" fn clGetDeviceInfo(
+pub unsafe extern "C" fn clGetDeviceInfo(
     device: cl_device_id,
     param_name_num: cl_device_info,
-    param_value_size: libc::size_t,
+    param_value_size: cl_size_t,
     param_value: *mut libc::c_void,
-    param_value_size_ret: *mut libc::size_t,
+    param_value_size_ret: *mut cl_size_t,
 ) -> cl_int {
-    let device_safe = unsafe { device.as_ref() };
+    let device_safe = DeviceKind::try_from_cl(device);
 
     lcl_contract!(
-        device_safe.is_some(),
+        device_safe.is_ok(),
         "device can't be NULL",
         CL_INVALID_DEVICE
     );

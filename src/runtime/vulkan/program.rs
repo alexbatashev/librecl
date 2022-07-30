@@ -1,10 +1,11 @@
-use super::Kernel;
-use crate::common::cl_types::*;
-use crate::common::context::ClContext;
-use crate::common::device::ClDevice;
-use crate::common::program::Program as CommonProgram;
+use super::{Context, Kernel};
+use crate::api::cl_types::*;
+use crate::interface::{ContextKind, DeviceKind, KernelKind, ProgramImpl, ProgramKind};
+use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
 use librecl_compiler::{Backend, KernelInfo};
 use librecl_compiler::{BinaryProgram, FrontendResult};
+use ocl_type_wrapper::ClObjImpl;
+use std::ops::Deref;
 use std::sync::Arc;
 use vulkano::shader::ShaderModule;
 
@@ -12,17 +13,20 @@ pub enum ProgramContent {
     Source(String),
 }
 
+#[derive(ClObjImpl)]
 pub struct Program {
-    context: cl_context,
+    context: WeakPtr<ContextKind>,
     program_content: ProgramContent,
     frontend_result: Option<FrontendResult>,
     kernels: Vec<KernelInfo>,
     binary: Vec<u8>,
     module: Option<Arc<ShaderModule>>,
+    #[cl_handle]
+    handle: UnsafeHandle<cl_program>,
 }
 
 impl Program {
-    pub fn new(context: cl_context, program_content: ProgramContent) -> Program {
+    pub fn new(context: WeakPtr<ContextKind>, program_content: ProgramContent) -> Program {
         return Program {
             context,
             program_content,
@@ -30,6 +34,7 @@ impl Program {
             kernels: vec![],
             binary: vec![],
             module: Option::None,
+            handle: UnsafeHandle::null(),
         };
     }
 
@@ -41,17 +46,15 @@ impl Program {
 unsafe impl Sync for Program {}
 unsafe impl Send for Program {}
 
-impl CommonProgram for Program {
-    fn get_context(&self) -> cl_context {
-        return self.context;
+impl ProgramImpl for Program {
+    fn get_context(&self) -> WeakPtr<ContextKind> {
+        return self.context.clone();
     }
-    fn get_safe_context_mut<'a, 'b>(&'a mut self) -> &'b mut ClContext {
-        return unsafe { self.context.as_mut() }.unwrap();
-    }
-    fn compile_program(&mut self, _devices: &[&ClDevice]) -> bool {
+    fn compile_program(&mut self, _devices: &[WeakPtr<DeviceKind>]) -> bool {
         // TODO do we need devices here?
-        let context = match self.get_safe_context_mut() {
-            ClContext::Vulkan(vk_ctx) => vk_ctx,
+        let owned_context = self.context.upgrade().unwrap();
+        let context = match owned_context.deref() {
+            ContextKind::Vulkan(vk_ctx) => vk_ctx,
             _ => panic!("Unsupported enum value"),
         };
         let compile_result = match &mut self.program_content {
@@ -67,13 +70,14 @@ impl CommonProgram for Program {
 
         return self.frontend_result.is_some() && self.frontend_result.as_ref().unwrap().is_ok();
     }
-    fn link_programs(&mut self, devices: &[&ClDevice]) -> bool {
+    fn link_programs(&mut self, devices: &[WeakPtr<DeviceKind>]) -> bool {
         if !self.frontend_result.is_some() {
             return false;
         }
 
-        let context = match self.get_safe_context_mut() {
-            ClContext::Vulkan(vk_ctx) => vk_ctx,
+        let owned_context = self.context.upgrade().unwrap();
+        let context = match owned_context.deref() {
+            ContextKind::Vulkan(vk_ctx) => vk_ctx,
             _ => panic!("Unsupported enum value"),
         };
 
@@ -83,8 +87,9 @@ impl CommonProgram for Program {
         self.kernels = result.get_kernels();
         self.binary = result.get_binary();
         // TODO support multiple devices.
-        let device = match devices[0] {
-            ClDevice::Vulkan(device) => device.get_logical_device(),
+        let owned_device = devices[0].upgrade().unwrap();
+        let device = match owned_device.deref() {
+            DeviceKind::Vulkan(device) => device.get_logical_device(),
         };
         // TODO handle error
         self.module = Some(
@@ -102,18 +107,18 @@ impl CommonProgram for Program {
         return true;
     }
 
-    fn create_kernel(&self, program: cl_program, kernel_name: &str) -> cl_kernel {
+    fn create_kernel(&self, kernel_name: &str) -> KernelKind {
         let maybe_kernel: Option<&KernelInfo> =
             (&self.kernels).into_iter().find(|&k| k.name == kernel_name);
+        let owned_program: SharedPtr<ProgramKind> =
+            FromCl::try_from_cl(*self.handle.value()).unwrap();
         match maybe_kernel {
-            Some(kernel_info) => Box::leak(Box::new(
-                Kernel::new(
-                    program,
-                    kernel_info.name.clone(),
-                    kernel_info.arguments.clone(),
-                )
-                .into(),
-            )),
+            Some(kernel_info) => Kernel::new(
+                SharedPtr::downgrade(&owned_program),
+                kernel_info.name.clone(),
+                kernel_info.arguments.clone(),
+            )
+            .into(),
             _ => {
                 // TODO this should not have happened
                 // Consider more diagnostics

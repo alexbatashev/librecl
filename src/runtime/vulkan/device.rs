@@ -1,27 +1,34 @@
 use super::queue::InOrderQueue;
-use crate::common::cl_types::*;
-use crate::common::device::Device as CommonDevice;
-use crate::common::platform::ClPlatform;
-use std::sync::{Arc, Weak};
+use crate::api::cl_types::ClObjectImpl;
+use crate::api::cl_types::*;
+use crate::interface::ContextKind;
+use crate::interface::DeviceKind;
+use crate::interface::QueueKind;
+use crate::interface::{DeviceImpl, PlatformKind};
+use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
+use ocl_type_wrapper::ClObjImpl;
+use std::sync::Arc;
 use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType, QueueFamily};
 use vulkano::device::Queue;
 use vulkano::device::{Device as VkDevice, DeviceCreateInfo, Features, QueueCreateInfo};
-use vulkano::VulkanObject;
 
+#[derive(ClObjImpl, Clone)]
 pub struct Device {
     physical_device: PhysicalDevice<'static>,
     logical_device: Arc<VkDevice>,
     device_type: cl_device_type,
-    platform: Weak<ClPlatform>,
+    platform: WeakPtr<PlatformKind>,
     queue: Arc<Queue>,
+    #[cl_handle]
+    handle: UnsafeHandle<cl_device_id>,
 }
 
 impl Device {
     pub fn new(
-        platform: Weak<ClPlatform>,
+        platform: WeakPtr<PlatformKind>,
         physical_device: PhysicalDevice<'static>,
         queue_family: QueueFamily,
-    ) -> Device {
+    ) -> SharedPtr<DeviceKind> {
         // TODO figure out if we need queues at all
         let features = Features {
             shader_int64: true,
@@ -44,13 +51,18 @@ impl Device {
             PhysicalDeviceType::VirtualGpu => cl_device_type::GPU,
             PhysicalDeviceType::Other => cl_device_type::ACC,
         };
-        return Device {
+        let device = Device {
             physical_device,
             logical_device: device.clone(),
             device_type,
             platform,
             queue: queues.next().unwrap(),
-        };
+            handle: UnsafeHandle::null(),
+        }
+        .into();
+        // This is intentional
+        let raw_device = _cl_device_id::wrap(device);
+        return DeviceKind::try_from_cl(raw_device).unwrap();
     }
 
     pub fn get_logical_device(&self) -> Arc<VkDevice> {
@@ -66,7 +78,7 @@ impl Device {
     }
 }
 
-impl CommonDevice for Device {
+impl DeviceImpl for Device {
     fn get_device_type(&self) -> cl_device_type {
         return self.device_type;
     }
@@ -79,15 +91,23 @@ impl CommonDevice for Device {
         // TODO modern laptops allow external GPUs to be connected
         return true;
     }
-    fn get_platform(&self) -> cl_platform_id {
-        return Weak::as_ptr(&self.platform) as *mut ClPlatform;
+    fn get_platform(&self) -> WeakPtr<PlatformKind> {
+        return self.platform.clone();
     }
 
-    fn create_queue(&self, context: cl_context, device: cl_device_id) -> cl_command_queue {
+    fn create_queue(
+        &self,
+        context: SharedPtr<ContextKind>,
+        device: SharedPtr<DeviceKind>,
+    ) -> QueueKind {
         // TODO support OoO queues;
-        return InOrderQueue::new(context, device);
+        return InOrderQueue::new(
+            SharedPtr::downgrade(&context),
+            SharedPtr::downgrade(&device),
+        )
+        .into();
     }
 }
 
 // TODO actually implement thread safety
-unsafe impl Sync for Device {}
+// unsafe impl Sync for Device {}

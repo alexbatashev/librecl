@@ -1,25 +1,26 @@
-use crate::common::cl_types::*;
-use crate::common::context::{ClContext, Context as CommonContext};
-use crate::common::device::ClDevice;
-use crate::common::memory::MemObject;
+use crate::api::cl_types::*;
+use crate::interface::{ContextImpl, ContextKind, DeviceKind, MemImpl};
+use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
+use ocl_type_wrapper::ClObjImpl;
+use std::ops::Deref;
 use std::sync::Arc;
-use vulkano::VulkanObject;
 use vulkano::{
     buffer::{vma::VmaBuffer, BufferUsage, CpuAccessibleBuffer, ImmutableBuffer},
     command_buffer::{CommandBufferExecFuture, PrimaryAutoCommandBuffer},
-    device::DeviceOwned,
     sync::NowFuture,
 };
 
-#[derive(Clone)]
+#[derive(ClObjImpl)]
 pub struct SingleDeviceBuffer {
-    context: cl_context,
+    context: WeakPtr<ContextKind>,
     size: usize,
     buffer: Arc<VmaBuffer>,
+    #[cl_handle]
+    handle: UnsafeHandle<cl_mem>,
 }
 
 pub struct SingleDeviceImplicitBuffer {
-    _context: cl_context,
+    _context: WeakPtr<ContextKind>,
     _size: usize,
     buffer: Arc<ImmutableBuffer<[u8]>>,
     future: Arc<CommandBufferExecFuture<NowFuture, PrimaryAutoCommandBuffer>>,
@@ -28,27 +29,29 @@ pub struct SingleDeviceImplicitBuffer {
 impl SingleDeviceBuffer {
     pub fn new(
         allocator: Arc<vk_mem::Allocator>,
-        context: cl_context,
+        context: WeakPtr<ContextKind>,
         size: usize,
     ) -> SingleDeviceBuffer {
-        let ctx_safe = unsafe { context.as_ref() }.unwrap();
-        let device = match unsafe { ctx_safe.get_associated_devices()[0].as_ref() }.unwrap() {
-            ClDevice::Vulkan(device) => device.get_logical_device(),
+        let owned_context = context.upgrade().unwrap();
+        let owned_device = owned_context.get_associated_devices()[0].upgrade().unwrap();
+        let device = match owned_device.deref() {
+            DeviceKind::Vulkan(device) => device.get_logical_device(),
             _ => panic!("unexpected enum value"),
         };
         let buffer = SingleDeviceBuffer {
             context,
             size,
             buffer: VmaBuffer::allocate(device, allocator, BufferUsage::storage_buffer(), size),
+            handle: UnsafeHandle::null(),
         };
-        buffer.buffer.device().internal_object();
         return buffer;
     }
 
     // TODO support offset and size
     pub fn write(&self, data: *const libc::c_void) {
-        let context = match unsafe { self.context.as_ref() }.unwrap() {
-            ClContext::Vulkan(context) => context,
+        let owned_context = self.context.upgrade().unwrap();
+        let context = match owned_context.deref() {
+            ContextKind::Vulkan(context) => context,
             _ => panic!(),
         };
         // TODO errors
@@ -61,8 +64,9 @@ impl SingleDeviceBuffer {
     }
 
     pub fn read(&self, data: *mut libc::c_void) {
-        let context = match unsafe { self.context.as_ref() }.unwrap() {
-            ClContext::Vulkan(context) => context,
+        let owned_context = self.context.upgrade().unwrap();
+        let context = match owned_context.deref() {
+            ContextKind::Vulkan(context) => context,
             _ => panic!(),
         };
         // TODO errors
@@ -79,14 +83,15 @@ impl SingleDeviceBuffer {
     }
 }
 
-impl MemObject for SingleDeviceBuffer {}
+impl MemImpl for SingleDeviceBuffer {}
 
 impl SingleDeviceImplicitBuffer {
-    pub fn new(context: cl_context, data: Vec<u8>) -> SingleDeviceImplicitBuffer {
+    pub fn new(context: WeakPtr<ContextKind>, data: Vec<u8>) -> SingleDeviceImplicitBuffer {
         let size = data.len();
-        let ctx_safe = unsafe { context.as_ref() }.unwrap();
-        let queue = match unsafe { ctx_safe.get_associated_devices()[0].as_ref() }.unwrap() {
-            ClDevice::Vulkan(device) => device.get_queue(),
+        let owned_context = context.upgrade().unwrap();
+        let owned_device = owned_context.get_associated_devices()[0].upgrade().unwrap();
+        let queue = match owned_device.deref() {
+            DeviceKind::Vulkan(device) => device.get_queue(),
             _ => panic!("unexpected enum value"),
         };
         let (buffer, future) = ImmutableBuffer::from_iter(data, BufferUsage::all(), queue).unwrap();

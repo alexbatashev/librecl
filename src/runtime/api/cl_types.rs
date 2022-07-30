@@ -4,6 +4,7 @@
 
 use crate::interface::*;
 
+use crate::sync;
 use bitflags::bitflags;
 use core::fmt;
 use ocl_type_wrapper::cl_object;
@@ -11,165 +12,28 @@ use std::convert::TryFrom;
 
 use super::cl_icd::_cl_icd_dispatch;
 
-impl _cl_icd_dispatch {
-    pub fn new() -> *mut _cl_icd_dispatch {
-        Box::leak(Box::new(_cl_icd_dispatch {
-            clGetPlatformIDs: None,
-            clGetPlatformInfo: None,
-            clGetDeviceIDs: None,
-            clGetDeviceInfo: None,
-            clCreateContext: None,
-            clCreateContextFromType: None,
-            clRetainContext: None,
-            clReleaseContext: None,
-            clGetContextInfo: None,
-            clCreateCommandQueue: None,
-            clRetainCommandQueue: None,
-            clReleaseCommandQueue: None,
-            clGetCommandQueueInfo: None,
-            clSetCommandQueueProperty: None,
-            clCreateBuffer: None,
-            clCreateImage2D: None,
-            clCreateImage3D: None,
-            clRetainMemObject: None,
-            clReleaseMemObject: None,
-            clGetSupportedImageFormats: None,
-            clGetMemObjectInfo: None,
-            clGetImageInfo: None,
-            clCreateSampler: None,
-            clRetainSampler: None,
-            clReleaseSampler: None,
-            clGetSamplerInfo: None,
-            clCreateProgramWithSource: None,
-            clCreateProgramWithBinary: None,
-            clRetainProgram: None,
-            clReleaseProgram: None,
-            clBuildProgram: None,
-            clUnloadCompiler: None,
-            clGetProgramInfo: None,
-            clGetProgramBuildInfo: None,
-            clCreateKernel: None,
-            clCreateKernelsInProgram: None,
-            clRetainKernel: None,
-            clReleaseKernel: None,
-            clSetKernelArg: None,
-            clGetKernelInfo: None,
-            clGetKernelWorkGroupInfo: None,
-            clWaitForEvents: None,
-            clGetEventInfo: None,
-            clRetainEvent: None,
-            clReleaseEvent: None,
-            clGetEventProfilingInfo: None,
-            clFlush: None,
-            clFinish: None,
-            clEnqueueReadBuffer: None,
-            clEnqueueWriteBuffer: None,
-            clEnqueueCopyBuffer: None,
-            clEnqueueReadImage: None,
-            clEnqueueWriteImage: None,
-            clEnqueueCopyImage: None,
-            clEnqueueCopyImageToBuffer: None,
-            clEnqueueCopyBufferToImage: None,
-            clEnqueueMapBuffer: None,
-            clEnqueueMapImage: None,
-            clEnqueueUnmapMemObject: None,
-            clEnqueueNDRangeKernel: None,
-            clEnqueueTask: None,
-            clEnqueueNativeKernel: None,
-            clEnqueueMarker: None,
-            clEnqueueWaitForEvents: None,
-            clEnqueueBarrier: None,
-            clGetExtensionFunctionAddress: None,
-            clCreateFromGLBuffer: None,
-            clCreateFromGLTexture2D: None,
-            clCreateFromGLTexture3D: None,
-            clCreateFromGLRenderbuffer: None,
-            clGetGLObjectInfo: None,
-            clGetGLTextureInfo: None,
-            clEnqueueAcquireGLObjects: None,
-            clEnqueueReleaseGLObjects: None,
-            clGetGLContextInfoKHR: None,
-            clGetDeviceIDsFromD3D10KHR: std::ptr::null_mut(),
-            clCreateFromD3D10BufferKHR: std::ptr::null_mut(),
-            clCreateFromD3D10Texture2DKHR: std::ptr::null_mut(),
-            clCreateFromD3D10Texture3DKHR: std::ptr::null_mut(),
-            clEnqueueAcquireD3D10ObjectsKHR: std::ptr::null_mut(),
-            clEnqueueReleaseD3D10ObjectsKHR: std::ptr::null_mut(),
-            clSetEventCallback: None,
-            clCreateSubBuffer: None,
-            clSetMemObjectDestructorCallback: None,
-            clCreateUserEvent: None,
-            clSetUserEventStatus: None,
-            clEnqueueReadBufferRect: None,
-            clEnqueueWriteBufferRect: None,
-            clEnqueueCopyBufferRect: None,
-            clCreateSubDevicesEXT: None,
-            clRetainDeviceEXT: None,
-            clReleaseDeviceEXT: None,
-            clCreateEventFromGLsyncKHR: None,
-            clCreateSubDevices: None,
-            clRetainDevice: None,
-            clReleaseDevice: None,
-            clCreateImage: None,
-            clCreateProgramWithBuiltInKernels: None,
-            clCompileProgram: None,
-            clLinkProgram: None,
-            clUnloadPlatformCompiler: None,
-            clGetKernelArgInfo: None,
-            clEnqueueFillBuffer: None,
-            clEnqueueFillImage: None,
-            clEnqueueMigrateMemObjects: None,
-            clEnqueueMarkerWithWaitList: None,
-            clEnqueueBarrierWithWaitList: None,
-            clGetExtensionFunctionAddressForPlatform: None,
-            clCreateFromGLTexture: None,
-            clGetDeviceIDsFromD3D11KHR: std::ptr::null_mut(),
-            clCreateFromD3D11BufferKHR: std::ptr::null_mut(),
-            clCreateFromD3D11Texture2DKHR: std::ptr::null_mut(),
-            clCreateFromD3D11Texture3DKHR: std::ptr::null_mut(),
-            clCreateFromDX9MediaSurfaceKHR: std::ptr::null_mut(),
-            clEnqueueAcquireD3D11ObjectsKHR: std::ptr::null_mut(),
-            clEnqueueReleaseD3D11ObjectsKHR: std::ptr::null_mut(),
-            clGetDeviceIDsFromDX9MediaAdapterKHR: std::ptr::null_mut(),
-            clEnqueueAcquireDX9MediaSurfacesKHR: std::ptr::null_mut(),
-            clEnqueueReleaseDX9MediaSurfacesKHR: std::ptr::null_mut(),
-            clCreateFromEGLImageKHR: None,
-            clEnqueueAcquireEGLObjectsKHR: None,
-            clEnqueueReleaseEGLObjectsKHR: None,
-            clCreateEventFromEGLSyncKHR: None,
-            clCreateCommandQueueWithProperties: None,
-            clCreatePipe: None,
-            clGetPipeInfo: None,
-            clSVMAlloc: None,
-            clSVMFree: None,
-            clEnqueueSVMFree: None,
-            clEnqueueSVMMemcpy: None,
-            clEnqueueSVMMemFill: None,
-            clEnqueueSVMMap: None,
-            clEnqueueSVMUnmap: None,
-            clCreateSamplerWithProperties: None,
-            clSetKernelArgSVMPointer: None,
-            clSetKernelExecInfo: None,
-            clGetKernelSubGroupInfoKHR: None,
-            clCloneKernel: None,
-            clCreateProgramWithIL: None,
-            clEnqueueSVMMigrateMem: None,
-            clGetDeviceAndHostTimer: None,
-            clGetHostTimer: None,
-            clGetKernelSubGroupInfo: None,
-            clSetDefaultDeviceCommandQueue: None,
-            clSetProgramReleaseCallback: None,
-            clSetProgramSpecializationConstant: None,
-            clCreateBufferWithProperties: None,
-            clCreateImageWithProperties: None,
-            clSetContextDestructorCallback: None,
-        }))
-    }
-}
-
+pub type cl_size_t = u64;
 pub type cl_int = libc::c_int;
 pub type cl_uint = libc::c_uint;
 pub type cl_bool = libc::c_uint;
+pub type cl_ulong = libc::c_ulong;
+
+pub use super::cl_icd::cl_event;
+
+pub trait IntoCl<T> {
+    type Error;
+
+    fn try_into_safe(&self) -> Result<T, Self::Error>;
+}
+
+pub trait FromCl<T>
+where
+    Self: Send + Sync,
+{
+    type Error;
+
+    fn try_from_cl(value: T) -> Result<crate::sync::SharedPtr<Self>, Self::Error>;
+}
 
 #[cl_object(PlatformKind)]
 pub struct _cl_platform_id;
@@ -198,6 +62,11 @@ pub type cl_kernel = *mut _cl_kernel;
 #[cl_object(MemKind)]
 pub struct _cl_mem;
 pub type cl_mem = *mut _cl_mem;
+
+pub trait ClObjectImpl<T> {
+    fn get_cl_handle(&self) -> T;
+    fn set_cl_handle(&mut self, handle: T);
+}
 
 pub type cl_device_info = libc::c_uint;
 
@@ -306,16 +175,16 @@ pub enum cl_context_properties {
 pub type cl_queue_properties = libc::c_uint;
 
 pub type cl_context_callback = Option<
-    extern "C" fn(
+    unsafe extern "C" fn(
         errinfo: *const libc::c_char,
         private_info: *const libc::c_void,
-        cb: libc::size_t,
+        cb: cl_size_t,
         user_data: *mut libc::c_void,
     ),
 >;
 
 pub type cl_build_callback =
-    Option<extern "C" fn(program: cl_program, user_data: *mut libc::c_void)>;
+    Option<unsafe extern "C" fn(program: cl_program, user_data: *mut libc::c_void)>;
 
 bitflags! {
     #[repr(C)]
