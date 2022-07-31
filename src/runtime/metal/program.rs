@@ -1,10 +1,12 @@
-use crate::common::cl_types::*;
-use crate::common::context::ClContext;
-use crate::common::device::ClDevice;
-use crate::common::program::Program as CommonProgram;
+use std::ops::Deref;
+
+use crate::api::cl_types::*;
+use crate::interface::{ContextKind, DeviceKind, KernelKind, ProgramImpl, ProgramKind};
+use crate::sync::{self, *};
 use librecl_compiler::{Backend, KernelInfo};
 use librecl_compiler::{BinaryProgram, FrontendResult};
 use metal_api::{CompileOptions, Library};
+use ocl_type_wrapper::ClObjImpl;
 
 use super::Kernel;
 
@@ -12,28 +14,29 @@ pub enum ProgramContent {
     Source(String),
 }
 
+#[derive(ClObjImpl)]
 pub struct Program {
-    context: cl_context,
+    context: WeakPtr<ContextKind>,
     program_content: ProgramContent,
     frontend_result: Option<FrontendResult>,
     kernels: Vec<KernelInfo>,
     binary: Vec<u8>,
     library: Option<Library>,
+    handle: UnsafeHandle<cl_program>,
 }
 
 impl Program {
-    pub fn new(context: cl_context, program_content: ProgramContent) -> cl_program {
-        return Box::into_raw(Box::new(
-            Program {
-                context,
-                program_content,
-                frontend_result: Option::None,
-                kernels: vec![],
-                binary: vec![],
-                library: Option::None,
-            }
-            .into(),
-        ));
+    pub fn new(context: WeakPtr<ContextKind>, program_content: ProgramContent) -> ProgramKind {
+        Program {
+            context,
+            program_content,
+            frontend_result: Option::None,
+            kernels: vec![],
+            binary: vec![],
+            library: Option::None,
+            handle: UnsafeHandle::null(),
+        }
+        .into()
     }
     pub fn get_library(&self) -> &Library {
         return self.library.as_ref().unwrap();
@@ -43,17 +46,15 @@ impl Program {
 unsafe impl Sync for Program {}
 unsafe impl Send for Program {}
 
-impl CommonProgram for Program {
-    fn get_context(&self) -> cl_context {
-        return self.context;
+impl ProgramImpl for Program {
+    fn get_context(&self) -> WeakPtr<ContextKind> {
+        return self.context.clone();
     }
-    fn get_safe_context_mut<'a, 'b>(&'a mut self) -> &'b mut ClContext {
-        return unsafe { self.context.as_mut() }.unwrap();
-    }
-    fn compile_program(&mut self, _devices: &[&ClDevice]) -> bool {
+    fn compile_program(&mut self, _devices: &[WeakPtr<DeviceKind>]) -> bool {
         // TODO do we need devices here?
-        let context = match self.get_safe_context_mut() {
-            ClContext::Metal(ctx) => ctx,
+        let owned_context = self.context.upgrade().unwrap();
+        let context = match owned_context.deref() {
+            ContextKind::Metal(ctx) => ctx,
             _ => panic!("Unsupported enum value"),
         };
         let compile_result = match &mut self.program_content {
@@ -69,13 +70,14 @@ impl CommonProgram for Program {
 
         return self.frontend_result.is_some() && self.frontend_result.as_ref().unwrap().is_ok();
     }
-    fn link_programs(&mut self, devices: &[&ClDevice]) -> bool {
+    fn link_programs(&mut self, devices: &[WeakPtr<DeviceKind>]) -> bool {
         if !self.frontend_result.is_some() {
             return false;
         }
 
-        let context = match self.get_safe_context_mut() {
-            ClContext::Metal(ctx) => ctx,
+        let owned_context = self.context.upgrade().unwrap();
+        let context = match owned_context.deref() {
+            ContextKind::Metal(ctx) => ctx,
             _ => panic!("Unsupported enum value"),
         };
 
@@ -85,13 +87,16 @@ impl CommonProgram for Program {
         self.kernels = result.get_kernels();
         let msl = result.get_binary();
         // TODO support multiple devices.
-        let device = match devices[0] {
-            ClDevice::Metal(device) => device.get_native_device(),
+        let owned_device = devices[0].upgrade().unwrap();
+        let device = match owned_device.deref() {
+            DeviceKind::Metal(device) => device.get_native_device(),
         };
         // TODO proper error handling
         let options = CompileOptions::new();
+        let locked_device = device.lock().unwrap();
         self.library = Some(
-            device
+            locked_device
+                .value()
                 .new_library_with_source(std::str::from_utf8(&msl).unwrap(), &options)
                 .unwrap(),
         );
@@ -101,12 +106,13 @@ impl CommonProgram for Program {
         return true;
     }
 
-    fn create_kernel(&self, program: cl_program, kernel_name: &str) -> cl_kernel {
+    fn create_kernel(&self, kernel_name: &str) -> KernelKind {
         let maybe_kernel: Option<&KernelInfo> =
             (&self.kernels).into_iter().find(|&k| k.name == kernel_name);
+        let owned_program = ProgramKind::try_from_cl(*self.handle.value()).unwrap();
         match maybe_kernel {
             Some(kernel_info) => Kernel::new(
-                program,
+                SharedPtr::downgrade(&owned_program),
                 kernel_info.name.clone(),
                 kernel_info.arguments.clone(),
             ),

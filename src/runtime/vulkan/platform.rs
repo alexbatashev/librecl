@@ -1,14 +1,15 @@
-use crate::common::cl_types::cl_context;
-use crate::common::cl_types::cl_context_callback;
-use crate::common::cl_types::cl_device_id;
-use crate::common::device::ClDevice;
-use crate::common::platform::ClPlatform;
-use crate::common::platform::Platform as CommonPlatform;
+use crate::api::cl_types::*;
+use crate::interface::ContextKind;
+use crate::interface::DeviceKind;
+use crate::interface::PlatformImpl;
+use crate::interface::PlatformKind;
+use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
 use crate::vulkan::context::Context;
 use crate::vulkan::device::Device;
+use ocl_type_wrapper::ClObjImpl;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::ops::DerefMut;
 use std::sync::Arc;
 use vulkano::instance::debug::DebugUtilsMessageSeverity;
 use vulkano::instance::debug::DebugUtilsMessageType;
@@ -34,7 +35,6 @@ static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
         ext_debug_utils: true,
         ..InstanceExtensions::none()
     };
-    println!("LAYERS COUNT: {}", layers.len());
     let instance_create_info = InstanceCreateInfo {
         enabled_layers: [String::from("VK_LAYER_KHRONOS_validation")].to_vec(),
         enabled_extensions: extensions,
@@ -50,22 +50,24 @@ static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
     .unwrap();
 });
 
+#[derive(ClObjImpl)]
 pub struct Platform {
-    devices: Vec<Rc<ClDevice>>,
-    instance: Arc<Instance>,
+    devices: Vec<SharedPtr<DeviceKind>>,
     platform_name: String,
+    #[cl_handle]
+    handle: UnsafeHandle<cl_platform_id>,
 }
 
 impl Platform {
-    pub fn new(vendor_name: &str, instance: Arc<Instance>) -> Platform {
+    pub fn new(vendor_name: &str) -> Platform {
         let platform_name = std::format!("LibreCL {} Vulkan Platform", vendor_name);
         return Platform {
             devices: vec![],
-            instance,
             platform_name,
+            handle: UnsafeHandle::null(),
         };
     }
-    pub fn create_platforms(platforms: &mut Vec<Arc<ClPlatform>>) {
+    pub fn create_platforms(platforms: &mut Vec<SharedPtr<PlatformKind>>) {
         // TODO this should be safer
         let extensions = DeviceExtensions {
             khr_storage_buffer_storage_class: true,
@@ -105,19 +107,16 @@ impl Platform {
                 20803 => "Qualcomm",
                 _ => "Unknown Vendor",
             };
-            let cl_platform: Arc<ClPlatform> =
-                Arc::new(Platform::new(vendor_name, unsafe { VK_INSTANCE.clone() }).into());
+
+            let platform = Platform::new(vendor_name).into();
+            let raw_platform = _cl_platform_id::wrap(platform);
+            let mut cl_platform = PlatformKind::try_from_cl(raw_platform).unwrap();
 
             for device_parts in devices {
                 let (device, queue_index) = device_parts;
                 let cl_device =
-                    Rc::new(Device::new(Arc::downgrade(&cl_platform), device, queue_index).into());
-                unsafe {
-                    (Arc::as_ptr(&cl_platform) as *mut ClPlatform)
-                        .as_mut()
-                        .unwrap()
-                        .add_device(cl_device);
-                }
+                    Device::new(SharedPtr::downgrade(&cl_platform), device, queue_index).into();
+                cl_platform.deref_mut().add_device(cl_device);
             }
 
             platforms.push(cl_platform);
@@ -125,25 +124,25 @@ impl Platform {
     }
 }
 
-impl CommonPlatform for Platform {
+impl PlatformImpl for Platform {
     fn get_platform_name(&self) -> &str {
         return self.platform_name.as_str();
     }
 
-    fn get_devices(&self) -> &Vec<Rc<ClDevice>> {
-        return &self.devices;
+    fn get_devices(&self) -> &[SharedPtr<DeviceKind>] {
+        return &self.devices.as_slice();
     }
 
-    fn add_device(&mut self, device: Rc<ClDevice>) {
+    fn add_device(&mut self, device: SharedPtr<DeviceKind>) {
         self.devices.push(device);
     }
 
     fn create_context(
         &self,
-        devices: &[cl_device_id],
+        devices: &[WeakPtr<DeviceKind>],
         callback: cl_context_callback,
         user_data: *mut libc::c_void,
-    ) -> cl_context {
+    ) -> ContextKind {
         return Context::new(devices, callback, user_data);
     }
 }

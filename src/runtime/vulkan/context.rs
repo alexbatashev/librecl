@@ -1,10 +1,14 @@
-use crate::common::cl_types::*;
-use crate::common::context::ClContext;
-use crate::common::context::Context as CommonContext;
-use crate::common::device::ClDevice;
-use crate::common::memory::ClMem;
+use crate::api::cl_types::*;
+use crate::interface::ContextImpl;
+use crate::interface::ContextKind;
+use crate::interface::DeviceKind;
+use crate::interface::MemKind;
+use crate::interface::ProgramKind;
+use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
 use librecl_compiler::ClangFrontend;
 use librecl_compiler::VulkanBackend;
+use ocl_type_wrapper::ClObjImpl;
+use std::ops::Deref;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use vulkano::VulkanObject;
@@ -13,33 +17,36 @@ use super::Program;
 use super::ProgramContent;
 use super::SingleDeviceBuffer;
 
+#[derive(ClObjImpl)]
 pub struct Context {
-    devices: Vec<cl_device_id>,
+    devices: Vec<WeakPtr<DeviceKind>>,
     error_callback: cl_context_callback,
     callback_user_data: *mut libc::c_void,
     threading_runtime: Runtime,
     clang_fe: ClangFrontend,
     vulkan_be: VulkanBackend,
-    memory_objects: Vec<Box<ClMem>>,
     // TODO make per-device
     allocator: Arc<vk_mem::Allocator>,
+    #[cl_handle]
+    handle: UnsafeHandle<cl_context>,
 }
 
 impl Context {
     pub fn new(
-        devices: &[cl_device_id],
+        devices: &[WeakPtr<DeviceKind>],
         error_callback: cl_context_callback,
         callback_user_data: *mut libc::c_void,
-    ) -> cl_context {
+    ) -> ContextKind {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(3)
             .build()
             .unwrap();
         let mut owned_devices = vec![];
-        owned_devices.extend_from_slice(devices);
+        owned_devices.extend_from_slice(&devices);
 
-        let device = match unsafe { owned_devices[0].as_ref() }.unwrap() {
-            ClDevice::Vulkan(ref device) => device,
+        let owned_device = owned_devices[0].upgrade().unwrap();
+        let device = match owned_device.deref() {
+            DeviceKind::Vulkan(device) => device,
             _ => panic!(),
         };
 
@@ -64,20 +71,17 @@ impl Context {
 
         let allocator = Arc::new(vk_mem::Allocator::new(alloc_create_info).unwrap());
 
-        let ctx = Box::into_raw(Box::<ClContext>::new(
-            Context {
-                devices: owned_devices,
-                error_callback,
-                callback_user_data,
-                threading_runtime: runtime,
-                clang_fe: ClangFrontend::new(),
-                vulkan_be: VulkanBackend::new(),
-                memory_objects: vec![],
-                allocator,
-            }
-            .into(),
-        ));
-        return ctx;
+        Context {
+            devices: owned_devices,
+            error_callback,
+            callback_user_data,
+            threading_runtime: runtime,
+            clang_fe: ClangFrontend::new(),
+            vulkan_be: VulkanBackend::new(),
+            allocator,
+            handle: UnsafeHandle::null(),
+        }
+        .into()
     }
 
     // TODO return with locks?
@@ -95,31 +99,40 @@ impl Context {
     }
 }
 
-impl CommonContext for Context {
+impl ContextImpl for Context {
     fn notify_error(&self, message: String) {
         unimplemented!();
     }
-    fn has_device(&self, device: cl_device_id) -> bool {
-        return self.devices.contains(&device);
+    fn has_device(&self, device: WeakPtr<DeviceKind>) -> bool {
+        // FIXME find out how to check for device existance.
+        return true;
+        // return self.devices.contains(&device);
     }
-    fn create_program_with_source(&self, context: cl_context, source: String) -> cl_program {
-        return Box::leak(Box::new(
-            Program::new(context, ProgramContent::Source(source)).into(),
-        ));
+    fn create_program_with_source(&self, source: String) -> ProgramKind {
+        let context: SharedPtr<ContextKind> = FromCl::try_from_cl(*self.handle.value()).unwrap();
+        Program::new(
+            SharedPtr::downgrade(&context),
+            ProgramContent::Source(source),
+        )
+        .into()
     }
-    fn get_associated_devices(&self) -> &[cl_device_id] {
+    fn get_associated_devices(&self) -> &[WeakPtr<DeviceKind>] {
         return &self.devices.as_slice();
     }
 
     fn get_threading_runtime(&self) -> &Runtime {
         return &self.threading_runtime;
     }
-    fn create_buffer(&mut self, context: cl_context, size: usize, _flags: cl_mem_flags) -> cl_mem {
+    fn create_buffer(&mut self, size: usize, _flags: cl_mem_flags) -> MemKind {
+        let owned_context = FromCl::try_from_cl(self.get_cl_handle()).unwrap();
         if self.devices.len() == 1 {
-            let buffer: ClMem =
-                SingleDeviceBuffer::new(self.allocator.clone(), context, size).into();
-
-            return Box::into_raw(Box::new(buffer));
+            let buffer = SingleDeviceBuffer::new(
+                self.allocator.clone(),
+                SharedPtr::downgrade(&owned_context),
+                size,
+            )
+            .into();
+            return buffer;
         } else {
             unimplemented!();
         }

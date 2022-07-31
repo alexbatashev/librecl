@@ -2,20 +2,71 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-use crate::common::context::ClContext;
-use crate::common::device::ClDevice;
-use crate::common::kernel::ClKernel;
-use crate::common::memory::ClMem;
-use crate::common::platform::ClPlatform;
-use crate::common::program::ClProgram;
-use crate::common::queue::ClQueue;
+use crate::interface::*;
+
+use crate::sync;
 use bitflags::bitflags;
 use core::fmt;
+use ocl_type_wrapper::cl_object;
 use std::convert::TryFrom;
 
+use super::cl_icd::_cl_icd_dispatch;
+
+pub type cl_size_t = u64;
 pub type cl_int = libc::c_int;
 pub type cl_uint = libc::c_uint;
 pub type cl_bool = libc::c_uint;
+pub type cl_ulong = libc::c_ulong;
+
+pub use super::cl_icd::cl_event;
+
+pub trait IntoCl<T> {
+    type Error;
+
+    fn try_into_safe(&self) -> Result<T, Self::Error>;
+}
+
+pub trait FromCl<T>
+where
+    Self: Send + Sync,
+{
+    type Error;
+
+    fn try_from_cl(value: T) -> Result<crate::sync::SharedPtr<Self>, Self::Error>;
+}
+
+#[cl_object(PlatformKind)]
+pub struct _cl_platform_id;
+pub type cl_platform_id = *mut _cl_platform_id;
+
+#[cl_object(DeviceKind)]
+pub struct _cl_device_id;
+pub type cl_device_id = *mut _cl_device_id;
+
+#[cl_object(ContextKind)]
+pub struct _cl_context;
+pub type cl_context = *mut _cl_context;
+
+#[cl_object(QueueKind)]
+pub struct _cl_command_queue;
+pub type cl_command_queue = *mut _cl_command_queue;
+
+#[cl_object(ProgramKind)]
+pub struct _cl_program;
+pub type cl_program = *mut _cl_program;
+
+#[cl_object(KernelKind)]
+pub struct _cl_kernel;
+pub type cl_kernel = *mut _cl_kernel;
+
+#[cl_object(MemKind)]
+pub struct _cl_mem;
+pub type cl_mem = *mut _cl_mem;
+
+pub trait ClObjectImpl<T> {
+    fn get_cl_handle(&self) -> T;
+    fn set_cl_handle(&mut self, handle: T);
+}
 
 pub type cl_device_info = libc::c_uint;
 
@@ -123,25 +174,17 @@ pub enum cl_context_properties {
 }
 pub type cl_queue_properties = libc::c_uint;
 
-pub type cl_platform_id = *mut ClPlatform;
-pub type cl_device_id = *mut ClDevice;
-pub type cl_context = *mut ClContext;
-pub type cl_command_queue = *mut ClQueue;
-pub type cl_program = *mut ClProgram;
-pub type cl_kernel = *mut ClKernel;
-pub type cl_mem = *mut ClMem;
-
 pub type cl_context_callback = Option<
-    extern "C" fn(
+    unsafe extern "C" fn(
         errinfo: *const libc::c_char,
         private_info: *const libc::c_void,
-        cb: libc::size_t,
+        cb: cl_size_t,
         user_data: *mut libc::c_void,
     ),
 >;
 
 pub type cl_build_callback =
-    Option<extern "C" fn(program: cl_program, user_data: *mut libc::c_void)>;
+    Option<unsafe extern "C" fn(program: cl_program, user_data: *mut libc::c_void)>;
 
 bitflags! {
     #[repr(C)]

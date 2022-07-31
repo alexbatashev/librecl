@@ -1,41 +1,49 @@
-use crate::common::cl_types::*;
-use crate::common::device::ClDevice;
-use crate::common::kernel::ClKernel;
-use crate::common::memory::ClMem;
-use crate::common::queue::Queue as CommonQueue;
+use crate::api::cl_types::*;
+use crate::interface::{ContextKind, DeviceKind, KernelKind, MemKind, QueueImpl, QueueKind};
+use crate::sync::{self, *};
 use metal_api::CommandQueue;
 use metal_api::MTLSize;
-use std::sync::Arc;
+use ocl_type_wrapper::ClObjImpl;
+use std::ops::Deref;
+use std::sync::{Arc, Mutex};
 
+#[derive(ClObjImpl)]
 pub struct InOrderQueue {
-    context: cl_context,
-    device: cl_device_id,
-    queue: Arc<CommandQueue>,
+    context: WeakPtr<ContextKind>,
+    device: WeakPtr<DeviceKind>,
+    queue: Arc<Mutex<UnsafeHandle<CommandQueue>>>,
+    handle: UnsafeHandle<cl_command_queue>,
 }
 
 impl InOrderQueue {
-    pub fn new(context: cl_context, device: cl_device_id) -> cl_command_queue {
-        let device_safe = match unsafe { device.as_ref() }.unwrap() {
-            ClDevice::Metal(device) => device,
+    pub fn new(context: WeakPtr<ContextKind>, device: WeakPtr<DeviceKind>) -> QueueKind {
+        let owned_device = device.upgrade().unwrap();
+        let device_safe = match owned_device.deref() {
+            DeviceKind::Metal(device) => device,
             _ => panic!(),
         };
-        let queue = Arc::new(device_safe.get_native_device().new_command_queue());
 
-        return Box::leak(Box::new(
-            InOrderQueue {
-                context,
-                device,
-                queue,
-            }
-            .into(),
-        ));
+        let device_lock = device_safe.get_native_device().lock().unwrap();
+
+        let queue = Arc::new(Mutex::new(UnsafeHandle::new(
+            device_lock.value().new_command_queue(),
+        )));
+
+        InOrderQueue {
+            context,
+            device,
+            queue,
+            handle: UnsafeHandle::null(),
+        }
+        .into()
     }
 }
 
-impl CommonQueue for InOrderQueue {
-    fn enqueue_buffer_write(&self, src: *const libc::c_void, dst: cl_mem) {
-        let transfer_fn = match unsafe { dst.as_ref() }.unwrap() {
-            ClMem::MetalSDBuffer(ref buffer) => || {
+impl QueueImpl for InOrderQueue {
+    fn enqueue_buffer_write(&self, src: *const libc::c_void, dst: WeakPtr<MemKind>) {
+        let owned_buffer = dst.upgrade().unwrap();
+        let transfer_fn = match owned_buffer.deref() {
+            MemKind::MetalSDBuffer(ref buffer) => || {
                 buffer.write(src);
             },
             _ => panic!("Unexpected"),
@@ -44,9 +52,10 @@ impl CommonQueue for InOrderQueue {
         // TODO events and concurrency
         transfer_fn();
     }
-    fn enqueue_buffer_read(&self, src: cl_mem, dst: *mut libc::c_void) {
-        let transfer_fn = match unsafe { src.as_ref() }.unwrap() {
-            ClMem::MetalSDBuffer(ref buffer) => || {
+    fn enqueue_buffer_read(&self, src: WeakPtr<MemKind>, dst: *mut libc::c_void) {
+        let owned_buffer = src.upgrade().unwrap();
+        let transfer_fn = match owned_buffer.deref() {
+            MemKind::MetalSDBuffer(ref buffer) => || {
                 buffer.read(dst);
             },
             _ => panic!("Unexpected"),
@@ -57,20 +66,23 @@ impl CommonQueue for InOrderQueue {
     }
     fn submit(
         &self,
-        kernel: cl_kernel,
+        kernel: WeakPtr<KernelKind>,
         offset: [u32; 3],
         global_size: [u32; 3],
         local_size: [u32; 3],
     ) {
-        let kernel_safe = match unsafe { kernel.as_ref() }.unwrap() {
-            ClKernel::Metal(kernel) => kernel,
+        let owned_kernel = kernel.upgrade().unwrap();
+        let kernel_safe = match owned_kernel.deref() {
+            KernelKind::Metal(kernel) => kernel,
             _ => panic!(),
         };
 
-        let command_buffer = self.queue.new_command_buffer();
+        let locked_queue = self.queue.lock().unwrap();
+
+        let command_buffer = locked_queue.value().new_command_buffer();
         let compute_encoder = command_buffer.new_compute_command_encoder();
 
-        let pso = kernel_safe.prepare_pso(self.device);
+        let pso = kernel_safe.prepare_pso(self.device.clone());
 
         compute_encoder.set_compute_pipeline_state(&pso);
 

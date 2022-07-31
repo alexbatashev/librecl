@@ -1,13 +1,14 @@
-use crate::common::device::ClDevice;
-use crate::common::kernel::Kernel as CommonKernel;
-use crate::common::memory::ClMem;
-use crate::common::{cl_types::*, program::ClProgram};
+use crate::api::cl_types::*;
+use crate::interface::{DeviceKind, KernelImpl, KernelKind, MemKind, ProgramKind};
+use crate::sync::{self, *};
 use librecl_compiler::{KernelArgInfo, KernelArgType};
 use metal_api::{
     ComputeCommandEncoder, ComputeCommandEncoderRef, ComputePipelineState, Function,
     FunctionDescriptor,
 };
-use std::sync::Arc;
+use ocl_type_wrapper::ClObjImpl;
+use std::ops::Deref;
+use std::sync::{Arc, Mutex};
 
 use super::SingleDeviceBuffer;
 
@@ -16,51 +17,61 @@ enum ArgBuffer {
     SDB(SingleDeviceBuffer),
 }
 
+#[derive(ClObjImpl)]
 pub struct Kernel {
-    program: cl_program,
+    program: WeakPtr<ProgramKind>,
     name: String,
     args: Vec<KernelArgInfo>,
     arg_buffers: Vec<Arc<ArgBuffer>>,
     // TODO make per device
-    function: Arc<Function>,
+    function: Arc<Mutex<UnsafeHandle<Function>>>,
+    handle: UnsafeHandle<cl_kernel>,
 }
 
 impl Kernel {
-    pub fn new(program: cl_program, name: String, args: Vec<KernelArgInfo>) -> cl_kernel {
+    pub fn new(
+        program: WeakPtr<ProgramKind>,
+        name: String,
+        args: Vec<KernelArgInfo>,
+    ) -> KernelKind {
         let mut arg_buffers: Vec<Arc<ArgBuffer>> = vec![];
         arg_buffers.resize(args.len(), Arc::new(ArgBuffer::None));
 
         let descriptor = FunctionDescriptor::new();
         descriptor.set_name(name.as_str());
-        let function = Arc::new(match unsafe { program.as_ref() }.unwrap() {
-            ClProgram::Metal(prog) => prog
+        let owned_program = program.upgrade().unwrap();
+        let function = Arc::new(Mutex::new(UnsafeHandle::new(match owned_program.deref() {
+            ProgramKind::Metal(prog) => prog
                 .get_library()
                 .new_function_with_descriptor(&descriptor)
                 .unwrap(),
             _ => panic!(),
-        });
+        })));
 
-        return Box::into_raw(Box::new(
-            Kernel {
-                program,
-                name,
-                args,
-                arg_buffers,
-                function,
-            }
-            .into(),
-        ));
+        Kernel {
+            program,
+            name,
+            args,
+            arg_buffers,
+            function,
+            handle: UnsafeHandle::null(),
+        }
+        .into()
     }
 
-    pub fn prepare_pso(&self, device: cl_device_id) -> ComputePipelineState {
-        let device_safe = match unsafe { device.as_ref() }.unwrap() {
-            ClDevice::Metal(device) => device,
+    pub fn prepare_pso(&self, device: WeakPtr<DeviceKind>) -> ComputePipelineState {
+        let owned_device = device.upgrade().unwrap();
+        let device_safe = match owned_device.deref() {
+            DeviceKind::Metal(device) => device,
             _ => panic!(),
         };
 
-        return device_safe
-            .get_native_device()
-            .new_compute_pipeline_state_with_function(&self.function)
+        let locked_function = self.function.lock().unwrap();
+        let locked_device = device_safe.get_native_device().lock().unwrap();
+
+        return locked_device
+            .value()
+            .new_compute_pipeline_state_with_function(locked_function.value())
             .unwrap();
     }
 
@@ -74,13 +85,14 @@ impl Kernel {
     }
 }
 
-impl CommonKernel for Kernel {
+impl KernelImpl for Kernel {
     fn set_data_arg(&mut self, index: usize, bytes: &[u8]) {
         unimplemented!();
     }
-    fn set_buffer_arg(&mut self, index: usize, buffer: cl_mem) {
-        match unsafe { buffer.as_ref() }.unwrap() {
-            ClMem::MetalSDBuffer(ref buffer) => {
+    fn set_buffer_arg(&mut self, index: usize, buffer: WeakPtr<MemKind>) {
+        let owned_buffer = buffer.upgrade().unwrap();
+        match owned_buffer.deref() {
+            MemKind::MetalSDBuffer(ref buffer) => {
                 self.arg_buffers[index] = Arc::new(ArgBuffer::SDB(buffer.clone()));
             }
         }

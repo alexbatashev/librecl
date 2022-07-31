@@ -1,41 +1,46 @@
-use crate::common::cl_types::*;
-use crate::common::device::ClDevice;
-use crate::common::kernel::ClKernel;
-use crate::common::memory::ClMem;
-use crate::common::queue::Queue as CommonQueue;
+use crate::sync::{self, UnsafeHandle, WeakPtr};
+use ocl_type_wrapper::ClObjImpl;
+use std::ops::Deref;
 use std::sync::Arc;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 use vulkano::device::Queue as VkQueue;
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
-use vulkano::sync::{self, GpuFuture};
+use vulkano::sync::{self as sync_vk, GpuFuture};
 
+use crate::api::cl_types::*;
+use crate::interface::{ContextKind, DeviceKind, KernelKind, MemKind, QueueImpl, QueueKind};
+
+#[derive(ClObjImpl)]
 pub struct InOrderQueue {
-    context: cl_context,
-    device: cl_device_id,
+    context: WeakPtr<ContextKind>,
+    device: WeakPtr<DeviceKind>,
     queue: Arc<VkQueue>,
+    #[cl_handle]
+    handle: UnsafeHandle<cl_command_queue>,
 }
 
 impl InOrderQueue {
-    pub fn new(context: cl_context, device: cl_device_id) -> cl_command_queue {
-        let queue = match unsafe { device.as_ref() }.unwrap() {
-            ClDevice::Vulkan(device) => device.get_queue(),
+    pub fn new(context: WeakPtr<ContextKind>, device: WeakPtr<DeviceKind>) -> QueueKind {
+        let owned_device = device.upgrade().unwrap();
+        let queue = match owned_device.deref() {
+            DeviceKind::Vulkan(device) => device.get_queue(),
             _ => panic!(),
         };
-        return Box::leak(Box::new(
-            InOrderQueue {
-                context,
-                device,
-                queue,
-            }
-            .into(),
-        ));
+        InOrderQueue {
+            context,
+            device,
+            queue,
+            handle: UnsafeHandle::null(),
+        }
+        .into()
     }
 }
 
-impl CommonQueue for InOrderQueue {
-    fn enqueue_buffer_write(&self, src: *const libc::c_void, dst: cl_mem) {
-        let transfer_fn = match unsafe { dst.as_ref() }.unwrap() {
-            ClMem::VulkanSDBuffer(ref buffer) => || {
+impl QueueImpl for InOrderQueue {
+    fn enqueue_buffer_write(&self, src: *const libc::c_void, dst: WeakPtr<MemKind>) {
+        let owned_buffer = dst.upgrade().unwrap();
+        let transfer_fn = match owned_buffer.deref() {
+            MemKind::VulkanSDBuffer(ref buffer) => || {
                 buffer.write(src);
             },
             _ => panic!("Unexpected"),
@@ -44,9 +49,10 @@ impl CommonQueue for InOrderQueue {
         // TODO events and concurrency
         transfer_fn();
     }
-    fn enqueue_buffer_read(&self, src: cl_mem, dst: *mut libc::c_void) {
-        let transfer_fn = match unsafe { src.as_ref() }.unwrap() {
-            ClMem::VulkanSDBuffer(ref buffer) => || {
+    fn enqueue_buffer_read(&self, src: WeakPtr<MemKind>, dst: *mut libc::c_void) {
+        let owned_buffer = src.upgrade().unwrap();
+        let transfer_fn = match owned_buffer.deref() {
+            MemKind::VulkanSDBuffer(ref buffer) => || {
                 buffer.read(dst);
             },
             _ => panic!("Unexpected"),
@@ -58,18 +64,20 @@ impl CommonQueue for InOrderQueue {
 
     fn submit(
         &self,
-        kernel: cl_kernel,
+        kernel: WeakPtr<KernelKind>,
         offset: [u32; 3],
         global_size: [u32; 3],
         local_size: [u32; 3],
     ) {
-        let kernel_safe = match unsafe { kernel.as_ref() }.unwrap() {
-            ClKernel::Vulkan(kernel) => kernel,
+        let owned_kernel = kernel.upgrade().unwrap();
+        let kernel_safe = match owned_kernel.deref() {
+            KernelKind::Vulkan(kernel) => kernel,
             _ => panic!(),
         };
 
-        let device = match unsafe { self.device.as_ref() }.unwrap() {
-            ClDevice::Vulkan(device) => device,
+        let owned_device = self.device.upgrade().unwrap();
+        let device = match owned_device.deref() {
+            DeviceKind::Vulkan(device) => device,
             _ => panic!(),
         };
 
@@ -99,7 +107,7 @@ impl CommonQueue for InOrderQueue {
 
         let command_buffer = builder.build().unwrap();
 
-        sync::now(device.get_logical_device().clone())
+        sync_vk::now(device.get_logical_device().clone())
             .then_execute(self.queue.clone(), command_buffer)
             .unwrap()
             .then_signal_fence_and_flush()

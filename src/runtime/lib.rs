@@ -1,4 +1,4 @@
-pub mod common;
+pub mod api;
 
 #[cfg(feature = "vulkan")]
 pub mod vulkan;
@@ -9,12 +9,10 @@ pub mod metal;
 #[cfg(test)]
 mod mock;
 
-pub use crate::common::platform::Platform;
+pub mod interface;
 
-pub mod c_cl {
-    pub use crate::common::cl_types::*;
-    pub use crate::common::context::clCreateContext;
-    pub use crate::common::device::clGetDeviceIDs;
-    pub use crate::common::platform::clGetPlatformIDs;
-    pub use crate::common::platform::clGetPlatformInfo;
+pub mod sync {
+    pub use crate::api::utils::SharedPtr;
+    pub use crate::api::utils::UnsafeHandle;
+    pub use crate::api::utils::WeakPtr;
 }

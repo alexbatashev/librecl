@@ -1,9 +1,9 @@
 use cmake::Config;
 use std::env;
+use std::fs;
 use std::path::Path;
 use std::process::Command;
 use which::which;
-use std::fs;
 
 // Borrowed from Rust repo
 // https://github.com/rust-lang/rust/blob/master/compiler/rustc_llvm/build.rs
@@ -49,8 +49,12 @@ fn main() {
 
     let mut llvm_cfg = Box::new(Config::new("../../third_party/llvm-project/llvm/"));
 
-    llvm_cfg.define("LLVM_EXTERNAL_PROJECTS", "llvm-spirv")
-        .define("LLVM_EXTERNAL_LLVM_SPIRV_SOURCE_DIR", std::format!("{}/../../third_party/SPIRV-LLVM-Translator", dir))
+    llvm_cfg
+        .define("LLVM_EXTERNAL_PROJECTS", "llvm-spirv")
+        .define(
+            "LLVM_EXTERNAL_LLVM_SPIRV_SOURCE_DIR",
+            std::format!("{}/../../third_party/SPIRV-LLVM-Translator", dir),
+        )
         .define("LLVM_ENABLE_PROJECTS", "mlir;clang;lld")
         .define("LLVM_TARGETS_TO_BUILD", "host;AMDGPU;NVPTX")
         .define("CMAKE_EXPORT_COMPILE_COMMANDS", "ON")
@@ -58,7 +62,8 @@ fn main() {
         .out_dir(llvm_out.as_str());
 
     if wrapper.contains("sccache") {
-        llvm_cfg.define("CMAKE_CXX_COMPILER_LAUNCHER", wrapper.as_str())
+        llvm_cfg
+            .define("CMAKE_CXX_COMPILER_LAUNCHER", wrapper.as_str())
             .define("CMAKE_C_COMPILER_LAUNCHER", wrapper.as_str());
     }
 
@@ -84,24 +89,15 @@ fn main() {
     }
     cfg.define(
         "MLIR_DIR",
-        std::format!(
-            "{}/lib/cmake/mlir",
-            llvm_out.as_str()
-        ),
+        std::format!("{}/lib/cmake/mlir", llvm_out.as_str()),
     )
     .define(
         "LLVM_DIR",
-        std::format!(
-            "{}/lib/cmake/llvm",
-            llvm_out.as_str()
-        ),
+        std::format!("{}/lib/cmake/llvm", llvm_out.as_str()),
     )
     .define(
         "Clang_DIR",
-        std::format!(
-            "{}/lib/cmake/clang",
-            llvm_out.as_str()
-        ),
+        std::format!("{}/lib/cmake/clang", llvm_out.as_str()),
     )
     .define("LLVM_ENABLE_ASSERTIONS", "OFF")
     .out_dir(compiler_out.as_str());
