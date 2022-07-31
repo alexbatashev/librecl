@@ -164,6 +164,13 @@ int main() {
                       nullptr, nullptr);
 
   // TODO release resources
+  check(clReleaseMemObject(bufA));
+  check(clReleaseMemObject(bufB));
+  check(clReleaseMemObject(bufC));
+  check(clReleaseKernel(kernel));
+  check(clReleaseProgram(program));
+  check(clReleaseCommandQueue(queue));
+  check(clReleaseContext(context));
 
   for (size_t i = 0; i < 10; i++) {
     if (res[i] != a[i] + b[i]) {

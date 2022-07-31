@@ -197,3 +197,36 @@ pub unsafe extern "C" fn clFinish(command_queue: cl_command_queue) -> cl_int {
 
     return CL_SUCCESS;
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn clRetainCommandQueue(queue: cl_command_queue) -> cl_int {
+    lcl_contract!(
+        !queue.is_null(),
+        "queue can't be NULL",
+        CL_INVALID_COMMAND_QUEUE
+    );
+
+    let queue_ref = &mut *queue;
+
+    queue_ref.retain();
+
+    return CL_SUCCESS;
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn clReleaseCommandQueue(queue: cl_command_queue) -> cl_int {
+    lcl_contract!(
+        !queue.is_null(),
+        "queue can't be NULL",
+        CL_INVALID_COMMAND_QUEUE
+    );
+
+    let queue_ref = &mut *queue;
+
+    if queue_ref.release() == 1 {
+        // Intentionally ignore value to destroy pointer and its content
+        Box::from_raw(queue);
+    }
+
+    return CL_SUCCESS;
+}

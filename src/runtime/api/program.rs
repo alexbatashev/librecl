@@ -148,3 +148,36 @@ pub unsafe extern "C" fn clBuildProgram(
         return build_function(devices_array, program_safe);
     }
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn clRetainProgram(program: cl_program) -> cl_int {
+    lcl_contract!(
+        !program.is_null(),
+        "program can't be NULL",
+        CL_INVALID_PROGRAM
+    );
+
+    let program_ref = &mut *program;
+
+    program_ref.retain();
+
+    return CL_SUCCESS;
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn clReleaseProgram(program: cl_program) -> cl_int {
+    lcl_contract!(
+        !program.is_null(),
+        "program can't be NULL",
+        CL_INVALID_PROGRAM
+    );
+
+    let program_ref = &mut *program;
+
+    if program_ref.release() == 1 {
+        // Intentionally ignore value to destroy pointer and its content
+        Box::from_raw(program);
+    }
+
+    return CL_SUCCESS;
+}

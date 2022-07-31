@@ -89,3 +89,36 @@ pub unsafe extern "C" fn clGetContextInfo(
 ) -> cl_int {
     unimplemented!();
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn clRetainContext(context: cl_context) -> cl_int {
+    lcl_contract!(
+        !context.is_null(),
+        "context can't be NULL",
+        CL_INVALID_CONTEXT
+    );
+
+    let context_ref = &mut *context;
+
+    context_ref.retain();
+
+    return CL_SUCCESS;
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn clReleaseContext(context: cl_context) -> cl_int {
+    lcl_contract!(
+        !context.is_null(),
+        "context can't be NULL",
+        CL_INVALID_CONTEXT
+    );
+
+    let context_ref = &mut *context;
+
+    if context_ref.release() == 1 {
+        // Intentionally ignore value to destroy pointer and its content
+        Box::from_raw(context);
+    }
+
+    return CL_SUCCESS;
+}
