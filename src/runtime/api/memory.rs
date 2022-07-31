@@ -38,3 +38,36 @@ pub unsafe extern "C" fn clCreateBuffer(
 
     return _cl_mem::wrap(mem);
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn clRetainMemObject(mem_obj: cl_mem) -> cl_int {
+    lcl_contract!(
+        !mem_obj.is_null(),
+        "mem_obj can't be NULL",
+        CL_INVALID_MEM_OBJECT
+    );
+
+    let mem_obj_ref = &mut *mem_obj;
+
+    mem_obj_ref.retain();
+
+    return CL_SUCCESS;
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn clReleaseMemObject(mem_obj: cl_mem) -> cl_int {
+    lcl_contract!(
+        !mem_obj.is_null(),
+        "mem_obj can't be NULL",
+        CL_INVALID_MEM_OBJECT
+    );
+
+    let mem_obj_ref = &mut *mem_obj;
+
+    if mem_obj_ref.release() == 1 {
+        // Intentionally ignore value to destroy pointer and its content
+        Box::from_raw(mem_obj);
+    }
+
+    return CL_SUCCESS;
+}

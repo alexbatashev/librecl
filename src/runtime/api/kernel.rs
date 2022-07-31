@@ -87,3 +87,28 @@ pub unsafe extern "C" fn clSetKernelArg(
 
     return CL_SUCCESS;
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn clRetainKernel(kernel: cl_kernel) -> cl_int {
+    lcl_contract!(!kernel.is_null(), "kernel can't be NULL", CL_INVALID_KERNEL);
+
+    let kernel_ref = &mut *kernel;
+
+    kernel_ref.retain();
+
+    return CL_SUCCESS;
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn clReleaseKernel(kernel: cl_kernel) -> cl_int {
+    lcl_contract!(!kernel.is_null(), "kernel can't be NULL", CL_INVALID_KERNEL);
+
+    let kernel_ref = &mut *kernel;
+
+    if kernel_ref.release() == 1 {
+        // Intentionally ignore value to destroy pointer and its content
+        Box::from_raw(kernel);
+    }
+
+    return CL_SUCCESS;
+}

@@ -20,6 +20,7 @@ pub fn cl_object(args: TokenStream, item: TokenStream) -> TokenStream {
         #[repr(C)]
         pub struct #name {
             dispatch_table: *mut _cl_icd_dispatch,
+            ref_count: std::sync::atomic::AtomicUsize,
             handle: sync::SharedPtr<#dependent>,
         }
 
@@ -27,11 +28,20 @@ pub fn cl_object(args: TokenStream, item: TokenStream) -> TokenStream {
             pub fn wrap(object: #dependent) -> *mut #name {
                 let ptr = Box::into_raw(Box::new(#name {
                     dispatch_table: _cl_icd_dispatch::new(),
+                    ref_count: std::sync::atomic::AtomicUsize::new(1),
                     handle: sync::SharedPtr::new(object),
                 }));
                 unsafe { ptr.as_mut().unwrap().handle.set_cl_handle(ptr) };
 
                 return ptr;
+            }
+
+            pub fn retain(&mut self) {
+                self.ref_count.fetch_add(1 as usize, std::sync::atomic::Ordering::SeqCst);
+            }
+
+            pub fn release(&mut self) -> usize {
+                return self.ref_count.fetch_sub(1 as usize, std::sync::atomic::Ordering::SeqCst);
             }
         }
 
