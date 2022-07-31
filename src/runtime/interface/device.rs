@@ -4,7 +4,6 @@ use crate::{
     sync::{SharedPtr, WeakPtr},
 };
 use enum_dispatch::enum_dispatch;
-use std::rc::Rc;
 
 #[cfg(feature = "metal")]
 use crate::metal::Device as MTLDevice;
@@ -13,7 +12,6 @@ use crate::vulkan::Device as VkDevice;
 
 #[enum_dispatch]
 #[repr(C)]
-#[derive(Clone)]
 pub enum DeviceKind {
     #[cfg(feature = "vulkan")]
     Vulkan(VkDevice),
@@ -55,7 +53,7 @@ impl ClObjectImpl<cl_device_id> for DeviceKind {
             #[cfg(feature = "vulkan")]
             DeviceKind::Vulkan(device) => ClObjectImpl::<cl_device_id>::get_cl_handle(device),
             #[cfg(feature = "metal")]
-            DeviceKind::Metal(context) => ClObjectImpl::<cl_device_id>::get_cl_handle(device),
+            DeviceKind::Metal(device) => ClObjectImpl::<cl_device_id>::get_cl_handle(device),
         }
     }
     fn set_cl_handle(&mut self, handle: cl_device_id) {
@@ -66,7 +64,7 @@ impl ClObjectImpl<cl_device_id> for DeviceKind {
             }
             #[cfg(feature = "metal")]
             DeviceKind::Metal(device) => {
-                ClObjectImpl::<cl_device_kind>::set_cl_handle(device, handle)
+                ClObjectImpl::<cl_device_id>::set_cl_handle(device, handle)
             }
         }
     }

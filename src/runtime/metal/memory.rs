@@ -1,52 +1,61 @@
-use crate::common::cl_types::*;
-use crate::common::context::{ClContext, Context};
-use crate::common::device::ClDevice;
-use crate::common::memory::MemObject;
+use crate::api::cl_types::*;
+use crate::interface::{ContextImpl, ContextKind, DeviceKind, MemImpl, MemKind};
+use crate::sync::{self, *};
 use metal_api::MTLResourceOptions;
 use metal_api::{Buffer, ComputeCommandEncoderRef};
-use std::sync::Arc;
+use ocl_type_wrapper::ClObjImpl;
+use std::ops::Deref;
+use std::sync::{Arc, Mutex};
 
-#[derive(Clone)]
+#[derive(Clone, ClObjImpl)]
 pub struct SingleDeviceBuffer {
-    _context: cl_context,
+    _context: WeakPtr<ContextKind>,
     size: usize,
-    buffer: Arc<Buffer>,
+    buffer: Arc<Mutex<UnsafeHandle<Buffer>>>,
+    handle: UnsafeHandle<cl_mem>,
 }
 
 impl SingleDeviceBuffer {
-    pub fn new(context: cl_context, size: usize) -> cl_mem {
-        let ctx_safe = match unsafe { context.as_ref() }.unwrap() {
-            ClContext::Metal(ctx) => ctx,
+    pub fn new(context: WeakPtr<ContextKind>, size: usize) -> MemKind {
+        let owned_context = context.upgrade().unwrap();
+        let ctx_safe = match owned_context.deref() {
+            ContextKind::Metal(ctx) => ctx,
             _ => panic!(),
         };
 
-        let device = match unsafe { ctx_safe.get_associated_devices()[0].as_ref() }.unwrap() {
-            ClDevice::Metal(dev) => dev,
+        let owned_device = ctx_safe.get_associated_devices()[0].upgrade().unwrap();
+        let device = match owned_device.deref() {
+            DeviceKind::Metal(dev) => dev,
             _ => panic!(),
         };
 
         let options = MTLResourceOptions::empty();
-        let buffer = Arc::new(device.get_native_device().new_buffer(size as u64, options));
+        let locked_device = device.get_native_device().lock().unwrap();
+        let buffer = Arc::new(Mutex::new(UnsafeHandle::new(
+            locked_device.value().new_buffer(size as u64, options),
+        )));
 
-        return Box::into_raw(Box::new(
-            SingleDeviceBuffer {
-                _context: context,
-                size,
-                buffer,
-            }
-            .into(),
-        ));
+        SingleDeviceBuffer {
+            _context: context,
+            size,
+            buffer,
+            handle: UnsafeHandle::null(),
+        }
+        .into()
     }
 
     pub fn encode_argument(&self, command_encoder: &ComputeCommandEncoderRef, idx: usize) {
-        command_encoder.set_buffer(idx as u64, Some(self.buffer.as_ref()), 0);
+        let locked_buffer = self.buffer.lock().unwrap();
+        command_encoder.set_buffer(idx as u64, Some(locked_buffer.value().as_ref()), 0);
     }
 
     // TODO support offset and size
     pub fn write(&self, data: *const libc::c_void) {
         // TODO errors
 
-        let dst = self.buffer.contents();
+        let buffer_lock = self.buffer.lock().unwrap();
+
+        let dst = buffer_lock.value().contents();
 
         unsafe {
             libc::memcpy(dst, data, self.size);
@@ -56,7 +65,8 @@ impl SingleDeviceBuffer {
     pub fn read(&self, data: *mut libc::c_void) {
         // TODO errors
 
-        let src = self.buffer.contents();
+        let buffer_lock = self.buffer.lock().unwrap();
+        let src = buffer_lock.value().contents();
 
         unsafe {
             libc::memcpy(data, src as *const libc::c_void, self.size);
@@ -64,4 +74,4 @@ impl SingleDeviceBuffer {
     }
 }
 
-impl MemObject for SingleDeviceBuffer {}
+impl MemImpl for SingleDeviceBuffer {}

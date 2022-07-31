@@ -34,7 +34,7 @@ impl ClObjectImpl<cl_mem> for MemKind {
             #[cfg(feature = "vulkan")]
             MemKind::VulkanSDBuffer(mem) => ClObjectImpl::<cl_mem>::set_cl_handle(mem, handle),
             #[cfg(feature = "metal")]
-            MemKind::MetalSDBuffer(kernel) => ClObjectImpl::<cl_mem>::set_cl_handle(mem, handle),
+            MemKind::MetalSDBuffer(mem) => ClObjectImpl::<cl_mem>::set_cl_handle(mem, handle),
         }
     }
 }

@@ -64,7 +64,7 @@ impl ClObjectImpl<cl_platform_id> for PlatformKind {
                 ClObjectImpl::<cl_platform_id>::get_cl_handle(platform)
             }
             #[cfg(feature = "metal")]
-            PlatformKind::Metal(platfrom) => {
+            PlatformKind::Metal(platform) => {
                 ClObjectImpl::<cl_platform_id>::get_cl_handle(platform)
             }
             #[cfg(test)]
@@ -78,7 +78,7 @@ impl ClObjectImpl<cl_platform_id> for PlatformKind {
                 ClObjectImpl::<cl_platform_id>::set_cl_handle(platform, handle)
             }
             #[cfg(feature = "metal")]
-            PlatformKind::Metal(platfrom) => {
+            PlatformKind::Metal(platform) => {
                 ClObjectImpl::<cl_platform_id>::set_cl_handle(platform, handle)
             }
             #[cfg(test)]
