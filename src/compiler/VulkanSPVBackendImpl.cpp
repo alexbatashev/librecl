@@ -33,6 +33,7 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 
 #include "RawMemory/RawMemoryDialect.h"
+#include "Struct/StructDialect.h"
 
 #include <cstring>
 #include <memory>
@@ -45,9 +46,13 @@ VulkanSPVBackendImpl::VulkanSPVBackendImpl(bool initializeSPV)
   mlir::registerAllDialects(mContext);
   mlir::DialectRegistry registry;
   registry.insert<mlir::rawmem::RawMemoryDialect>();
+  registry.insert<mlir::structure::StructDialect>();
   mContext.appendDialectRegistry(registry);
   mContext.loadAllAvailableDialects();
+  mContext.disableMultithreading();
   mlir::registerAllPasses();
+
+  mPM.enableIRPrinting();
 
   mPM.addPass(mlir::createCanonicalizerPass());
   mPM.addPass(createSPIRToGPUPass());

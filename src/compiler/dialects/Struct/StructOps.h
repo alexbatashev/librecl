@@ -9,6 +9,7 @@
 #ifndef STRUCT_STRUCTOPS_H
 #define STRUCT_STRUCTOPS_H
 
+#include "RawMemory/RawMemoryOps.h"
 #include "StructTypes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Dialect.h"

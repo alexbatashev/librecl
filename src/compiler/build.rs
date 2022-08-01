@@ -100,6 +100,7 @@ fn main() {
         std::format!("{}/lib/cmake/clang", llvm_out.as_str()),
     )
     .define("LLVM_ENABLE_ASSERTIONS", "OFF")
+    .profile("Debug")
     .out_dir(compiler_out.as_str());
 
     if use_mold {

@@ -11,6 +11,7 @@
 #include "RawMemory/RawMemoryDialect.h"
 #include "RawMemory/RawMemoryOps.h"
 #include "RawMemory/RawMemoryTypes.h"
+#include "Struct/StructOps.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -27,11 +28,11 @@ namespace {
 static Type getCommonType(Type type, mlir::Value::user_range users) {
   Type commonType = type;
 
-  bool isReinterpret = llvm::all_of(users, [](auto user) {
+  bool isSupportedUser = llvm::all_of(users, [](auto user) {
     return llvm::isa<rawmem::ReinterpretCastOp>(user);
   });
 
-  if (!isReinterpret)
+  if (!isSupportedUser)
     return commonType;
 
   SmallVector<Type, 8> allTypes;
@@ -40,6 +41,10 @@ static Type getCommonType(Type type, mlir::Value::user_range users) {
     auto reinterpret = llvm::cast<rawmem::ReinterpretCastOp>(user);
     allTypes.push_back(reinterpret.getResult().getType());
   }
+
+  // No active users, just skip
+  if (allTypes.size() == 0)
+    return type;
 
   bool sameType =
       llvm::all_of(allTypes, [&](Type t) { return t == allTypes.front(); });
@@ -109,7 +114,10 @@ struct FunctionPattern : public OpConversionPattern<FuncT> {
 
       auto arg = oldRegion->getArgument(inp.index());
 
-      Type argType = getCommonType(inp.value(), arg.getUsers());
+      Type argType = arg.getUsers().empty()
+                         ? rawmem::PointerType::get(rewriter.getI8Type(),
+                                                    ptrType.getAddressSpace())
+                         : getCommonType(inp.value(), arg.getUsers());
 
       if (argType != inp.value())
         replacedArgs.insert(inp.index());
