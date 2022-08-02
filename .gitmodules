@@ -4,21 +4,6 @@
 [submodule "third_party/SPIRV-LLVM-Translator"]
 	path = third_party/SPIRV-LLVM-Translator
 	url = https://github.com/KhronosGroup/SPIRV-LLVM-Translator.git
-[submodule "third_party/SPIRV-Cross"]
-	path = third_party/SPIRV-Cross
-	url = https://github.com/alexbatashev/SPIRV-Cross.git
-[submodule "third_party/oneTBB"]
-	path = third_party/oneTBB
-	url = https://github.com/oneapi-src/oneTBB.git
 [submodule "third_party/llvm-project"]
 	path = third_party/llvm-project
 	url = https://github.com/llvm/llvm-project.git
-[submodule "third_party/range-v3"]
-	path = third_party/range-v3
-	url = https://github.com/ericniebler/range-v3.git
-[submodule "third_party/backward-cpp"]
-	path = third_party/backward-cpp
-	url = https://github.com/bombela/backward-cpp.git
-[submodule "third_party/fmt"]
-	path = third_party/fmt
-	url = https://github.com/fmtlib/fmt.git

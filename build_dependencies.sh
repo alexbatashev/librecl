@@ -7,6 +7,7 @@ cd $BASE/third_party/llvm-project/
 if [[ ! -d `git status --porcelain` ]]; then
 
   git apply ../llvm_patches/0001-mlir-spirv-Handle-nested-global-variable-references-.patch
+  git apply ../llvm_patches/0001-Allow-signed-integers-in-casts.patch
 
 fi
 
