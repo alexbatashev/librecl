@@ -116,7 +116,6 @@ endif()
 
 target_link_libraries(lcl_compiler PRIVATE
   ${linker_flags}
-  spirv-cross-msl
   ${dialect_libs}
   ${conversion_libs}
   ${llvm_libs}
