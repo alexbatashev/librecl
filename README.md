@@ -5,6 +5,12 @@ standards: Khronos Vulkan, Apple Metal, NVidia CUDA.
 
 ## Build from source
 
+- Make sure you've cloned the repo with `--recursive` flag. Otherwise, manually
+  download dependencies:
+  ```bash
+  git submodule init
+  git submodule update
+  ```
 - Get the latest version of Rust toolchain from here: https://rustup.rs/ and
   a C++ toolchain with at least C++20 support for your target (GCC 12 on Linux
   would do).

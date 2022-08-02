@@ -1,0 +1,33 @@
+From a5fdb80cf4afa0dd3eca06fb10ebe40ef86c6e85 Mon Sep 17 00:00:00 2001
+From: Alexander Batashev <alexbatashev@outlook.com>
+Date: Tue, 2 Aug 2022 17:55:30 +0300
+Subject: [PATCH] Allow signed integers in casts
+
+---
+ mlir/include/mlir/Dialect/Arithmetic/IR/ArithmeticOps.td | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mlir/include/mlir/Dialect/Arithmetic/IR/ArithmeticOps.td b/mlir/include/mlir/Dialect/Arithmetic/IR/ArithmeticOps.td
+index b6ec45ced351..98a342c84f03 100644
+--- a/mlir/include/mlir/Dialect/Arithmetic/IR/ArithmeticOps.td
++++ b/mlir/include/mlir/Dialect/Arithmetic/IR/ArithmeticOps.td
+@@ -86,7 +86,7 @@ def SignlessFixedWidthIntegerLike : TypeConstraint<Or<[
+ 
+ // Cast from an integer type to another integer type.
+ class Arith_IToICastOp<string mnemonic, list<Trait> traits = []> :
+-    Arith_CastOp<mnemonic, SignlessFixedWidthIntegerLike,
++    Arith_CastOp<mnemonic, TypeConstraint<Or<[SignlessFixedWidthIntegerLike.predicate, AnyUnsignedInteger.predicate]>>,
+                            SignlessFixedWidthIntegerLike, traits>;
+ // Cast from an integer type to a floating point type.
+ class Arith_IToFCastOp<string mnemonic, list<Trait> traits = []> :
+@@ -966,6 +966,7 @@ def Arith_FPToSIOp : Arith_FToICastOp<"fptosi"> {
+ // Index cast can convert between memrefs of signless integers and indices too.
+ def IndexCastTypeConstraint : TypeConstraint<Or<[
+         SignlessIntegerLike.predicate,
++        AnyUnsignedInteger.predicate,
+         MemRefOf<[AnySignlessInteger, Index]>.predicate]>,
+     "signless-integer-like or memref of signless-integer">;
+ 
+-- 
+2.32.1 (Apple Git-133)
+

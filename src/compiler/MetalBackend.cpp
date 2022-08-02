@@ -33,7 +33,6 @@
 #include <iostream>
 #include <llvm/Support/raw_ostream.h>
 #include <memory>
-#include <spirv_msl.hpp>
 #include <vector>
 
 namespace lcl {
@@ -98,17 +97,6 @@ public:
 
       mslStream.flush();
     }
-
-    /*
-        spirv_cross::CompilerMSL mslComp(reinterpret_cast<uint32_t
-       *>(spv.data()), spv.size() / sizeof(uint32_t));
-        spirv_cross::CompilerMSL::Options mslOpts;
-        mslOpts.set_msl_version(2, 2);
-        mslOpts.vertex_index_type =
-       spirv_cross::CompilerMSL::Options::IndexType::UInt32;
-        mslComp.set_msl_options(mslOpts);
-        std::string source = mslComp.compile();
-    */
 
     mMSLPrinter(source);
 
