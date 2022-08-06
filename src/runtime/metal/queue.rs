@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 #[derive(ClObjImpl)]
 pub struct InOrderQueue {
-    context: WeakPtr<ContextKind>,
+    _context: WeakPtr<ContextKind>,
     device: WeakPtr<DeviceKind>,
     queue: Arc<Mutex<UnsafeHandle<CommandQueue>>>,
     handle: UnsafeHandle<cl_command_queue>,
@@ -20,6 +20,7 @@ impl InOrderQueue {
         let owned_device = device.upgrade().unwrap();
         let device_safe = match owned_device.deref() {
             DeviceKind::Metal(device) => device,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
 
@@ -30,7 +31,7 @@ impl InOrderQueue {
         )));
 
         InOrderQueue {
-            context,
+            _context: context,
             device,
             queue,
             handle: UnsafeHandle::null(),
@@ -46,6 +47,7 @@ impl QueueImpl for InOrderQueue {
             MemKind::MetalSDBuffer(ref buffer) => || {
                 buffer.write(src);
             },
+            #[allow(unreachable_patterns)]
             _ => panic!("Unexpected"),
         };
 
@@ -58,6 +60,7 @@ impl QueueImpl for InOrderQueue {
             MemKind::MetalSDBuffer(ref buffer) => || {
                 buffer.read(dst);
             },
+            #[allow(unreachable_patterns)]
             _ => panic!("Unexpected"),
         };
 
@@ -67,13 +70,14 @@ impl QueueImpl for InOrderQueue {
     fn submit(
         &self,
         kernel: WeakPtr<KernelKind>,
-        offset: [u32; 3],
+        _offset: [u32; 3],
         global_size: [u32; 3],
         local_size: [u32; 3],
     ) {
         let owned_kernel = kernel.upgrade().unwrap();
         let kernel_safe = match owned_kernel.deref() {
             KernelKind::Metal(kernel) => kernel,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
 

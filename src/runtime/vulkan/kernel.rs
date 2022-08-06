@@ -1,16 +1,15 @@
-use super::{SingleDeviceBuffer, SingleDeviceImplicitBuffer};
+use super::SingleDeviceImplicitBuffer;
 use crate::api::cl_types::*;
 use crate::interface::{KernelImpl, MemKind, ProgramKind};
 use crate::interface::{KernelKind, ProgramImpl};
-use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
+use crate::sync::{self, UnsafeHandle, WeakPtr};
 use librecl_compiler::KernelArgInfo;
 use ocl_type_wrapper::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
-use vulkano::device::{Device as VkDevice, DeviceOwned};
+use vulkano::device::Device as VkDevice;
 use vulkano::pipeline::{ComputePipeline, Pipeline};
-use vulkano::VulkanObject;
 
 enum ArgBuffer {
     None,
@@ -67,6 +66,7 @@ impl Kernel {
         let owned_program = self.program.upgrade().unwrap();
         let program = match owned_program.deref() {
             ProgramKind::Vulkan(prog) => prog,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
         let pipeline = ComputePipeline::new(
@@ -91,6 +91,7 @@ impl Kernel {
                     let owned_buffer = buffer.upgrade().unwrap();
                     let vk_buf = match owned_buffer.deref() {
                         MemKind::VulkanSDBuffer(buf) => buf,
+                        #[allow(unreachable_patterns)]
                         _ => panic!("Unexpected buffer kind"),
                     };
 
@@ -99,6 +100,7 @@ impl Kernel {
                 ArgBuffer::ImplicitBuffer(buffer) => {
                     WriteDescriptorSet::buffer(idx as u32, buffer.get_buffer().clone())
                 }
+                #[allow(unreachable_patterns)]
                 _ => panic!(),
             };
             wdss.push(wds);
@@ -115,18 +117,14 @@ impl KernelImpl for Kernel {
         let owned_program = self.program.upgrade().unwrap();
         let program = match owned_program.deref() {
             ProgramKind::Vulkan(prog) => prog,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
         let buffer = SingleDeviceImplicitBuffer::new(program.get_context(), Vec::from(bytes));
         self.arg_buffers[index] = Arc::new(ArgBuffer::ImplicitBuffer(buffer));
     }
     fn set_buffer_arg(&mut self, index: usize, buffer: WeakPtr<MemKind>) {
-        let owned_buffer = buffer.upgrade().unwrap();
-        match owned_buffer.deref() {
-            MemKind::VulkanSDBuffer(ref vk_buffer) => {
-                self.arg_buffers[index] = Arc::new(ArgBuffer::SDB(buffer.clone()));
-            }
-        }
+        self.arg_buffers[index] = Arc::new(ArgBuffer::SDB(buffer.clone()));
     }
     fn get_arg_info(&self) -> &[KernelArgInfo] {
         return &self.args;

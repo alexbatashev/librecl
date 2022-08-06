@@ -66,7 +66,7 @@ pub(crate) unsafe extern "C" fn clGetPlatformIDs(
 pub(crate) unsafe extern "C" fn clGetPlatformInfo(
     platform: cl_platform_id,
     param_name_num: u32,
-    param_value_size: cl_size_t,
+    _param_value_size: cl_size_t,
     param_value: *mut libc::c_void,
     param_size_ret: *mut cl_size_t,
 ) -> libc::c_int {
@@ -78,7 +78,7 @@ pub(crate) unsafe extern "C" fn clGetPlatformInfo(
 
     let platform_safe = PlatformKind::try_from_cl(platform).unwrap();
 
-    let param_name = PlatformInfoNames::try_from(param_name_num).map_err(|err| {
+    let param_name = PlatformInfoNames::try_from(param_name_num).map_err(|_err| {
         ClError::new(
             ClErrorCode::InvalidValue,
             format!("Unknown param_name value {}", param_name_num),
@@ -141,7 +141,25 @@ pub(crate) unsafe extern "C" fn clGetPlatformInfo(
         // Error has been handled before
         Err(err) => Err(err),
     };
-    return CL_SUCCESS;
+
+    // TODO log error message
+    return if result.is_ok() {
+        CL_SUCCESS
+    } else {
+        match result {
+            Err(err) => err.error_code.value,
+            _ => panic!("unexpected"),
+        }
+    };
+}
+
+#[no_mangle]
+pub(crate) unsafe extern "C" fn clIcdGetPlatformIDsKHR(
+    num_entries: cl_uint,
+    platforms_raw: *mut cl_platform_id,
+    num_platforms_raw: *mut cl_uint,
+) -> cl_int {
+    return clGetPlatformIDs(num_entries, platforms_raw, num_platforms_raw);
 }
 
 #[cfg(test)]
@@ -210,13 +228,4 @@ mod tests {
         };
         assert_eq!(err, CL_INVALID_VALUE);
     }
-}
-
-#[no_mangle]
-pub(crate) unsafe extern "C" fn clIcdGetPlatformIDsKHR(
-    num_entries: cl_uint,
-    platforms_raw: *mut cl_platform_id,
-    num_platforms_raw: *mut cl_uint,
-) -> cl_int {
-    return clGetPlatformIDs(num_entries, platforms_raw, num_platforms_raw);
 }

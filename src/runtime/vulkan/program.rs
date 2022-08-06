@@ -1,9 +1,9 @@
-use super::{Context, Kernel};
+use super::Kernel;
 use crate::api::cl_types::*;
 use crate::interface::{ContextKind, DeviceKind, KernelKind, ProgramImpl, ProgramKind};
 use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
+use librecl_compiler::FrontendResult;
 use librecl_compiler::{Backend, KernelInfo};
-use librecl_compiler::{BinaryProgram, FrontendResult};
 use ocl_type_wrapper::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -55,6 +55,7 @@ impl ProgramImpl for Program {
         let owned_context = self.context.upgrade().unwrap();
         let context = match owned_context.deref() {
             ContextKind::Vulkan(vk_ctx) => vk_ctx,
+            #[allow(unreachable_patterns)]
             _ => panic!("Unsupported enum value"),
         };
         let compile_result = match &mut self.program_content {
@@ -63,7 +64,6 @@ impl ProgramImpl for Program {
                 let result = cfe.process_source(source.as_str());
                 Some(result)
             }
-            _ => None,
         };
 
         self.frontend_result = compile_result;
@@ -78,6 +78,7 @@ impl ProgramImpl for Program {
         let owned_context = self.context.upgrade().unwrap();
         let context = match owned_context.deref() {
             ContextKind::Vulkan(vk_ctx) => vk_ctx,
+            #[allow(unreachable_patterns)]
             _ => panic!("Unsupported enum value"),
         };
 

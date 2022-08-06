@@ -237,11 +237,9 @@ macro_rules! lcl_contract {
                 std::format!("Assertion {} failed: {}", stringify!($cond), $message);
             let full_message = format_error!(name, assertion_message, $exit_code);
             println!("{}", full_message);
-            let ret_err_safe = unsafe { $ret_err.as_ref() };
+            let ret_err_safe = $ret_err.as_ref();
             if ret_err_safe.is_some() {
-                unsafe {
-                    *$ret_err = $exit_code;
-                }
+                *$ret_err = $exit_code;
             }
             return std::ptr::null_mut();
         }
@@ -263,11 +261,9 @@ macro_rules! lcl_contract {
                 std::format!("Assertion {} failed: {}", stringify!($cond), $message);
             let full_message = format_error!(name, assertion_message, $exit_code);
             $ctx.notify_error(full_message);
-            let ret_err_safe = unsafe { $ret_err.as_ref() };
+            let ret_err_safe = $ret_err.as_ref();
             if ret_err_safe.is_some() {
-                unsafe {
-                    *$ret_err = $exit_code;
-                }
+                *$ret_err = $exit_code;
             }
             return std::ptr::null_mut();
         }

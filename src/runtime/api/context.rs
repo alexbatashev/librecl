@@ -33,11 +33,10 @@ pub unsafe extern "C" fn clCreateContext(
         errcode_ret
     );
 
-    let devices_array: Vec<_> =
-        unsafe { std::slice::from_raw_parts(devices, num_devices as usize) }
-            .iter()
-            .map(|&d| DeviceKind::try_from_cl(d))
-            .collect();
+    let devices_array: Vec<_> = std::slice::from_raw_parts(devices, num_devices as usize)
+        .iter()
+        .map(|&d| DeviceKind::try_from_cl(d))
+        .collect();
 
     lcl_contract!(
         devices_array.iter().all(|d| d.is_ok()),
@@ -74,18 +73,18 @@ pub unsafe extern "C" fn clCreateContext(
             .deref()
             .create_context(ok_devices.as_slice(), callback, user_data);
 
-    unsafe { *errcode_ret = CL_SUCCESS };
+    *errcode_ret = CL_SUCCESS;
 
     return _cl_context::wrap(context);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn clGetContextInfo(
-    context: cl_context,
-    param_name: cl_context_info,
-    param_value_size: cl_size_t,
-    param_value: *mut libc::c_void,
-    param_value_size_ret: *mut cl_size_t,
+    _context: cl_context,
+    _param_name: cl_context_info,
+    _param_value_size: cl_size_t,
+    _param_value: *mut libc::c_void,
+    _param_value_size_ret: *mut cl_size_t,
 ) -> cl_int {
     unimplemented!();
 }

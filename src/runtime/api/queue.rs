@@ -1,5 +1,4 @@
 use std::ops::Deref;
-use std::rc::Rc;
 
 use super::cl_types::*;
 use crate::{
@@ -51,7 +50,7 @@ pub unsafe extern "C" fn clCreateCommandQueueWithProperties(
 
     let queue = device_safe.create_queue(context_safe, device_safe.clone());
 
-    unsafe { *errcode_ret = CL_SUCCESS };
+    *errcode_ret = CL_SUCCESS;
 
     return _cl_command_queue::wrap(queue);
 }
@@ -60,14 +59,14 @@ pub unsafe extern "C" fn clCreateCommandQueueWithProperties(
 pub unsafe extern "C" fn clEnqueueWriteBuffer(
     command_queue: cl_command_queue,
     buffer: cl_mem,
-    blocking_write: cl_bool,
-    offset: cl_size_t,
-    cb: cl_size_t,
+    _blocking_write: cl_bool,
+    _offset: cl_size_t,
+    _cb: cl_size_t,
     ptr: *const libc::c_void,
-    num_events_in_wait_list: cl_uint,
+    _num_events_in_wait_list: cl_uint,
     // TODO support events
-    event_wait_list: *const cl_event,
-    event: *mut cl_event,
+    _event_wait_list: *const cl_event,
+    _event: *mut cl_event,
 ) -> cl_int {
     lcl_contract!(
         !command_queue.is_null(),
@@ -97,14 +96,14 @@ pub unsafe extern "C" fn clEnqueueWriteBuffer(
 pub unsafe extern "C" fn clEnqueueReadBuffer(
     command_queue: cl_command_queue,
     buffer: cl_mem,
-    blocking_read: cl_bool,
-    offset: cl_size_t,
-    cb: cl_size_t,
+    _blocking_read: cl_bool,
+    _offset: cl_size_t,
+    _cb: cl_size_t,
     ptr: *mut libc::c_void,
-    num_events_in_wait_list: cl_uint,
+    _num_events_in_wait_list: cl_uint,
     // TODO support events
-    event_wait_list: *const cl_event,
-    event: *mut cl_event,
+    _event_wait_list: *const cl_event,
+    _event: *mut cl_event,
 ) -> cl_int {
     lcl_contract!(
         !command_queue.is_null(),
@@ -134,12 +133,12 @@ pub unsafe extern "C" fn clEnqueueNDRangeKernel(
     command_queue: cl_command_queue,
     kernel: cl_kernel,
     work_dim: cl_uint,
-    global_work_offset: *const cl_size_t,
+    _global_work_offset: *const cl_size_t,
     global_work_size: *const cl_size_t,
-    local_work_size: *const cl_size_t,
-    num_events_in_wait_list: cl_uint,
-    event_wait_list: *const cl_event,
-    event: *mut cl_event,
+    _local_work_size: *const cl_size_t,
+    _num_events_in_wait_list: cl_uint,
+    _event_wait_list: *const cl_event,
+    _event: *mut cl_event,
 ) -> cl_int {
     lcl_contract!(
         !command_queue.is_null(),
@@ -158,8 +157,7 @@ pub unsafe extern "C" fn clEnqueueNDRangeKernel(
 
     let offset = [0u32, 0, 0];
 
-    let global_size_slice =
-        unsafe { std::slice::from_raw_parts(global_work_size, work_dim as usize) };
+    let global_size_slice = std::slice::from_raw_parts(global_work_size, work_dim as usize);
 
     let global_size = match work_dim {
         1 => [global_size_slice[0] as u32, 1, 1],

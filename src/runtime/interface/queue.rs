@@ -1,6 +1,5 @@
 use crate::sync::*;
 use enum_dispatch::enum_dispatch;
-use std::rc::Weak;
 
 use crate::api::cl_types::{cl_command_queue, ClObjectImpl};
 #[cfg(feature = "vulkan")]

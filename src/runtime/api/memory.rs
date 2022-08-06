@@ -32,9 +32,7 @@ pub unsafe extern "C" fn clCreateBuffer(
 
     // TODO check flags
     let mem = context_safe.create_buffer(size as usize, flags);
-    unsafe {
-        *errcode_ret = CL_SUCCESS;
-    }
+    *errcode_ret = CL_SUCCESS;
 
     return _cl_mem::wrap(mem);
 }

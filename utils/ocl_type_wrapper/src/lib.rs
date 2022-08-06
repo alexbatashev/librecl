@@ -65,12 +65,14 @@ pub fn cl_object(args: TokenStream, item: TokenStream) -> TokenStream {
 struct HandleField {
     ident: Option<syn::Ident>,
     ty: syn::Type,
+    #[allow(dead_code)]
     attrs: Vec<syn::Attribute>,
 }
 
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(cl_handle), supports(struct_named))]
 struct ClObjImpl {
+    #[allow(dead_code)]
     ident: syn::Ident,
     data: darling::ast::Data<darling::util::Ignored, HandleField>,
 }

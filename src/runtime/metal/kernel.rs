@@ -1,11 +1,8 @@
 use crate::api::cl_types::*;
 use crate::interface::{DeviceKind, KernelImpl, KernelKind, MemKind, ProgramKind};
 use crate::sync::{self, *};
-use librecl_compiler::{KernelArgInfo, KernelArgType};
-use metal_api::{
-    ComputeCommandEncoder, ComputeCommandEncoderRef, ComputePipelineState, Function,
-    FunctionDescriptor,
-};
+use librecl_compiler::KernelArgInfo;
+use metal_api::{ComputeCommandEncoderRef, ComputePipelineState, Function, FunctionDescriptor};
 use ocl_type_wrapper::ClObjImpl;
 use std::ops::Deref;
 use std::sync::{Arc, Mutex};
@@ -19,8 +16,8 @@ enum ArgBuffer {
 
 #[derive(ClObjImpl)]
 pub struct Kernel {
-    program: WeakPtr<ProgramKind>,
-    name: String,
+    _program: WeakPtr<ProgramKind>,
+    _name: String,
     args: Vec<KernelArgInfo>,
     arg_buffers: Vec<Arc<ArgBuffer>>,
     // TODO make per device
@@ -45,12 +42,13 @@ impl Kernel {
                 .get_library()
                 .new_function_with_descriptor(&descriptor)
                 .unwrap(),
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         })));
 
         Kernel {
-            program,
-            name,
+            _program: program,
+            _name: name,
             args,
             arg_buffers,
             function,
@@ -63,6 +61,7 @@ impl Kernel {
         let owned_device = device.upgrade().unwrap();
         let device_safe = match owned_device.deref() {
             DeviceKind::Metal(device) => device,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
 
@@ -79,6 +78,7 @@ impl Kernel {
         for (idx, arg) in self.arg_buffers.iter().enumerate() {
             match arg.as_ref() {
                 ArgBuffer::SDB(ref buffer) => buffer.encode_argument(compute_encoder, idx),
+                #[allow(unreachable_patterns)]
                 _ => panic!(),
             };
         }
@@ -86,7 +86,7 @@ impl Kernel {
 }
 
 impl KernelImpl for Kernel {
-    fn set_data_arg(&mut self, index: usize, bytes: &[u8]) {
+    fn set_data_arg(&mut self, _index: usize, _bytes: &[u8]) {
         unimplemented!();
     }
     fn set_buffer_arg(&mut self, index: usize, buffer: WeakPtr<MemKind>) {

@@ -43,8 +43,13 @@ jobs:
         restore-keys: ${{ runner.os }}-build-
     - name: Build
       env:
+        RUSTFLAGS: '-D warnings'
         RUSTC_WRAPPER: sccache
         SCCACHE_DIR: ${{ github.workspace }}/cache
       run: cargo build --workspace -vv
     - name: Runtime smoke test
+      env:
+        RUSTFLAGS: '-D warnings'
+        RUSTC_WRAPPER: sccache
+        SCCACHE_DIR: ${{ github.workspace }}/cache
       run: cargo nextest run --all

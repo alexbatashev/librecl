@@ -13,8 +13,8 @@ use super::SingleDeviceBuffer;
 #[derive(ClObjImpl)]
 pub struct Context {
     devices: Vec<WeakPtr<DeviceKind>>,
-    error_callback: cl_context_callback,
-    callback_user_data: *mut libc::c_void,
+    _error_callback: cl_context_callback,
+    _callback_user_data: *mut libc::c_void,
     threading_runtime: Runtime,
     clang_fe: ClangFrontend,
     metal_be: MetalBackend,
@@ -39,8 +39,8 @@ impl Context {
 
         Context {
             devices: owned_devices,
-            error_callback,
-            callback_user_data,
+            _error_callback: error_callback,
+            _callback_user_data: callback_user_data,
             threading_runtime: runtime,
             clang_fe: ClangFrontend::new(),
             metal_be: MetalBackend::new(),
@@ -58,10 +58,10 @@ impl Context {
 }
 
 impl ContextImpl for Context {
-    fn notify_error(&self, message: String) {
+    fn notify_error(&self, _message: String) {
         unimplemented!();
     }
-    fn has_device(&self, device: WeakPtr<DeviceKind>) -> bool {
+    fn has_device(&self, _device: WeakPtr<DeviceKind>) -> bool {
         return true;
         // TODO actual comparison
         // return self.devices.contains(&device);

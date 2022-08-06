@@ -20,12 +20,14 @@ impl SingleDeviceBuffer {
         let owned_context = context.upgrade().unwrap();
         let ctx_safe = match owned_context.deref() {
             ContextKind::Metal(ctx) => ctx,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
 
         let owned_device = ctx_safe.get_associated_devices()[0].upgrade().unwrap();
         let device = match owned_device.deref() {
             DeviceKind::Metal(dev) => dev,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
 

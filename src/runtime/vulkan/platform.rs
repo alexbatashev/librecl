@@ -19,7 +19,7 @@ use vulkano::{
         physical::{PhysicalDevice, QueueFamily},
         DeviceExtensions,
     },
-    instance::{self, debug::Message, Instance, InstanceCreateInfo, InstanceExtensions},
+    instance::{debug::Message, Instance, InstanceCreateInfo, InstanceExtensions},
 };
 
 fn debug_message_handler(msg: &Message) {
@@ -27,10 +27,13 @@ fn debug_message_handler(msg: &Message) {
 }
 
 static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
+    // TODO enable layers correctly
+    /*
     let layers: Vec<_> = instance::layers_list()
         .unwrap()
         .filter(|l| l.description().contains("VK_LAYER_KHRONOS_validation"))
         .collect();
+    */
     let extensions = InstanceExtensions {
         ext_debug_utils: true,
         ..InstanceExtensions::none()
