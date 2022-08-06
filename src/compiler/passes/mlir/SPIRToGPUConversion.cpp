@@ -393,27 +393,31 @@ struct StructGEPPattern : public OpConversionPattern<LLVM::GEPOp> {
         op.getLoc(), elemType, structBase, ValueRange{}, false);
 
     // TODO use member names instead.
-    llvm::SmallVector<Value, 1> structIndices;
     llvm::SmallVector<int32_t, 1> intIndices;
     for (auto idx : op.getStructIndices()) {
       intIndices.push_back(idx.getSExtValue());
-      structIndices.push_back(rewriter.create<arith::ConstantOp>(
-          op.getLoc(), rewriter.getIndexAttr(intIndices.back()),
-          rewriter.getIndexType()));
     }
 
     // TODO support more than one index
-    if (structIndices.size() > 2)
+    if (intIndices.size() > 2)
       return failure();
 
-    if (structIndices.size() == 0)
-      structIndices.push_back(rewriter.create<arith::ConstantOp>(
-          op.getLoc(), rewriter.getIndexAttr(0), rewriter.getIndexType()));
+    if (intIndices.size() == 0)
+      intIndices.push_back(0);
 
-    auto elemPtr = rawmem::PointerType::get(addrType.getContext(),
-                                            addrType.getAddressSpace());
-    rewriter.replaceOpWithNewOp<structure::AddressOfOp>(
-        op, structValue, structIndices.back(), elemPtr);
+    auto structElemType =
+        elemType.cast<structure::StructType>().getBody()[intIndices.back()];
+    auto elemPtr =
+        rawmem::PointerType::get(structElemType, addrType.getAddressSpace());
+    Value address = rewriter.create<structure::AddressOfOp>(
+        op.getLoc(), elemPtr, structValue, intIndices.back());
+
+    // TODO this is a super sketchy hack to overcome LLVM's opaque pointers
+    // issue
+    auto opaquePtr = rawmem::PointerType::get(addrType.getContext(),
+                                              addrType.getAddressSpace());
+    rewriter.replaceOpWithNewOp<rawmem::ReinterpretCastOp>(op, opaquePtr,
+                                                           address);
 
     return success();
   }
@@ -493,7 +497,7 @@ void populateSPIRToGPUTypeConversions(TypeConverter &converter) {
             for (auto t : type.getBody())
               body.push_back(converter.convertType(t));
             return structure::StructType::getNewIdentified(
-                type.getContext(), type.getName(), body);
+                type.getContext(), type.getName().drop_front(7), body);
           } else {
             return structure::StructType::getIdentified(type.getContext(),
                                                         type.getName());

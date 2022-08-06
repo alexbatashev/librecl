@@ -8,6 +8,8 @@
 
 #include "RawMemoryOps.h"
 #include "RawMemoryDialect.h"
+// #include "Struct/StructDialect.h"
+#include "Struct/StructOps.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/PatternMatch.h"
 
@@ -151,6 +153,13 @@ LogicalResult LoadOp::canonicalize(LoadOp op, PatternRewriter &rewriter) {
                                         ValueRange{offsetOp.offset()});
     return success();
   }
+  if (op.addr().getDefiningOp() &&
+      llvm::isa<structure::AddressOfOp>(op.addr().getDefiningOp())) {
+    auto addrOp = op.addr().getDefiningOp<structure::AddressOfOp>();
+    rewriter.replaceOpWithNewOp<structure::LoadOp>(
+        op, op.getResult().getType(), addrOp.addr(), addrOp.index());
+    return success();
+  }
   return failure();
 }
 
@@ -161,6 +170,13 @@ LogicalResult StoreOp::canonicalize(StoreOp op, PatternRewriter &rewriter) {
     rewriter.replaceOpWithNewOp<StoreOp>(op, op.value(), offsetOp.addr(),
                                          ValueRange{offsetOp.offset()},
                                          op.volatility());
+    return success();
+  }
+  if (op.addr().getDefiningOp() &&
+      llvm::isa<structure::AddressOfOp>(op.addr().getDefiningOp())) {
+    auto addrOp = op.addr().getDefiningOp<structure::AddressOfOp>();
+    rewriter.replaceOpWithNewOp<structure::StoreOp>(
+        op, op.value(), addrOp.addr(), addrOp.index());
     return success();
   }
   return failure();

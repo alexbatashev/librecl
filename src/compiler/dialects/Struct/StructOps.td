@@ -22,42 +22,20 @@ include "../RawMemory/RawMemoryDialect.td"
 
 def Struct_AddressOfOp: Struct_Op<"address_of"> {
   let arguments = (ins Arg<Struct_AnyStruct, "", [MemRead]>:$addr,
-                   Index:$index, UnitAttr:$volatility);
+                   SI32Attr:$index);
   let results = (outs RawMem_AnyPointer:$res);
 
-  let builders = [
-    OpBuilder<(ins "Value":$addr, "Value":$index, "Type":$resultType,
-        CArg<"bool","false">:$isVolatile), [{
-      $_state.addOperands(addr);
-      $_state.addOperands(index);
-
-      $_state.addTypes(resultType);
-    }]>,
-  ];
-
-  // TODO volatile
-  let assemblyFormat = "(`volatile` $volatility^)? $addr `[` $index `]` attr-dict `:` type($addr) `,` type($res)";
+  let assemblyFormat = "$addr `[` $index `]` attr-dict `:` type($addr) `,` type($res)";
   // let hasVerifier = 1;
   // let hasCanonicalizeMethod = 1;
 }
 
 def Struct_LoadOp : Struct_Op<"load"> {
   let arguments = (ins Arg<Struct_AnyStruct, "", [MemRead]>:$addr,
-                   Index:$index, UnitAttr:$volatility);
+                   SI32Attr:$index);
   let results = (outs AnyType:$res);
 
-  let builders = [
-    OpBuilder<(ins "Value":$addr, "Value":$index, "Type":$resultType,
-        CArg<"bool","false">:$isVolatile), [{
-      $_state.addOperands(addr);
-      $_state.addOperands(index);
-
-      $_state.addTypes(resultType);
-    }]>,
-  ];
-
-  // TODO volatile
-  let assemblyFormat = "(`volatile` $volatility^)? $addr `[` $index `]` attr-dict `:` type($addr) `,` type($res)";
+  let assemblyFormat = "$addr `[` $index `]` attr-dict `:` type($addr) `,` type($res)";
   // let hasVerifier = 1;
   // let hasCanonicalizeMethod = 1;
 }
@@ -65,19 +43,12 @@ def Struct_LoadOp : Struct_Op<"load"> {
 def Struct_StoreOp : Struct_Op<"store"> {
   let arguments = (ins AnyType:$value,
                    Arg<Struct_AnyStruct, "", [MemWrite]>:$addr,
-                   Index:$index, UnitAttr:$volatility);
+                   SI32Attr:$index);
 
-  let extraClassDeclaration = [{
-    static StringRef getVolatileAttrName() { return "volatility"; }
-  }];
-
-  let assemblyFormat = [{
-    (`volatile` $volatility^)? $value `,` $addr `[` $index `]` attr-dict
-      `:` type($value) `,` type($addr)
-  }];
+  let assemblyFormat = "$value `,` $addr `[` $index `]` attr-dict `:` type($value) `,` type($addr)";
   // let hasVerifier = 1;
   // let hasCanonicalizeMethod = 1;
 }
 
-#endif // RAWMEMORY_OPS
+#endif // STRUCT_OPS
 

@@ -68,7 +68,7 @@ VulkanSPVBackendImpl::VulkanSPVBackendImpl(bool initializeSPV)
   if (initializeSPV) {
     mPM.addPass(lcl::createGPUToSPIRVPass());
     mPM.addNestedPass<mlir::spirv::ModuleOp>(
-        mlir::spirv::createLowerABIAttributesPass());
+        lcl::createLowerABIAttributesPass());
     mPM.addNestedPass<mlir::spirv::ModuleOp>(
         mlir::spirv::createUpdateVersionCapabilityExtensionPass());
   }
