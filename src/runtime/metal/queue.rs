@@ -20,6 +20,7 @@ impl InOrderQueue {
         let owned_device = device.upgrade().unwrap();
         let device_safe = match owned_device.deref() {
             DeviceKind::Metal(device) => device,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
 
@@ -46,6 +47,7 @@ impl QueueImpl for InOrderQueue {
             MemKind::MetalSDBuffer(ref buffer) => || {
                 buffer.write(src);
             },
+            #[allow(unreachable_patterns)]
             _ => panic!("Unexpected"),
         };
 
@@ -58,6 +60,7 @@ impl QueueImpl for InOrderQueue {
             MemKind::MetalSDBuffer(ref buffer) => || {
                 buffer.read(dst);
             },
+            #[allow(unreachable_patterns)]
             _ => panic!("Unexpected"),
         };
 
@@ -74,6 +77,7 @@ impl QueueImpl for InOrderQueue {
         let owned_kernel = kernel.upgrade().unwrap();
         let kernel_safe = match owned_kernel.deref() {
             KernelKind::Metal(kernel) => kernel,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
 

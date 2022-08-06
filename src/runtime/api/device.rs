@@ -39,15 +39,12 @@ pub unsafe extern "C" fn clGetDeviceIDs(
 
     if !num_devices.is_null() {
         // TODO find safe way to do this
-        unsafe {
-            *num_devices = devices.by_ref().count() as u32;
-        }
+        *num_devices = devices.by_ref().count() as u32;
     }
 
     if !devices_raw.is_null() {
-        let devices_array = unsafe {
-            std::slice::from_raw_parts_mut(devices_raw as *mut cl_device_id, num_entries as usize)
-        };
+        let devices_array =
+            std::slice::from_raw_parts_mut(devices_raw as *mut cl_device_id, num_entries as usize);
         for (i, d) in devices.take(num_entries as usize).enumerate() {
             let device_ptr = d.get_cl_handle();
             devices_array[i] = device_ptr;
@@ -61,7 +58,7 @@ pub unsafe extern "C" fn clGetDeviceIDs(
 pub unsafe extern "C" fn clGetDeviceInfo(
     device: cl_device_id,
     param_name_num: cl_device_info,
-    param_value_size: cl_size_t,
+    _param_value_size: cl_size_t,
     param_value: *mut libc::c_void,
     param_value_size_ret: *mut cl_size_t,
 ) -> cl_int {
@@ -81,12 +78,12 @@ pub unsafe extern "C" fn clGetDeviceInfo(
         CL_INVALID_VALUE
     );
 
-    match param_name.unwrap() {
+    let _result = match param_name.unwrap() {
         DeviceInfoNames::CL_DEVICE_NAME => {
             let device_name = device_safe.unwrap().get_device_name();
-            set_info_str!(device_name, param_value, param_value_size_ret);
+            set_info_str!(device_name, param_value, param_value_size_ret)
         }
-    }
+    };
 
     return CL_SUCCESS;
 }

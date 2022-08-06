@@ -55,6 +55,7 @@ impl ProgramImpl for Program {
         let owned_context = self.context.upgrade().unwrap();
         let context = match owned_context.deref() {
             ContextKind::Metal(ctx) => ctx,
+            #[allow(unreachable_patterns)]
             _ => panic!("Unsupported enum value"),
         };
         let compile_result = match &mut self.program_content {
@@ -78,6 +79,7 @@ impl ProgramImpl for Program {
         let owned_context = self.context.upgrade().unwrap();
         let context = match owned_context.deref() {
             ContextKind::Metal(ctx) => ctx,
+            #[allow(unreachable_patterns)]
             _ => panic!("Unsupported enum value"),
         };
 

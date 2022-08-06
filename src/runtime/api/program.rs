@@ -41,7 +41,7 @@ pub unsafe extern "C" fn clCreateProgramWithSource(
 
     let mut program_source: String = String::new();
 
-    let strings_array = unsafe { std::slice::from_raw_parts(strings, count as usize) };
+    let strings_array = std::slice::from_raw_parts(strings, count as usize);
 
     if lengths.is_null() {
         for s in strings_array {
@@ -52,11 +52,11 @@ pub unsafe extern "C" fn clCreateProgramWithSource(
                 CL_INVALID_VALUE,
                 errcode_ret
             );
-            let c_str = unsafe { std::ffi::CStr::from_ptr(*s) };
+            let c_str = std::ffi::CStr::from_ptr(*s);
             program_source.push_str(c_str.to_str().unwrap());
         }
     } else {
-        let lengths_array = unsafe { std::slice::from_raw_parts(lengths, count as usize) };
+        let lengths_array = std::slice::from_raw_parts(lengths, count as usize);
         for (s, l) in strings_array.into_iter().zip(lengths_array) {
             lcl_contract!(
                 ctx_safe,
@@ -66,9 +66,8 @@ pub unsafe extern "C" fn clCreateProgramWithSource(
                 errcode_ret
             );
 
-            let cur_string = unsafe {
-                String::from_raw_parts(*s as *const u8 as *mut u8, *l as usize, *l as usize)
-            };
+            let cur_string =
+                String::from_raw_parts(*s as *const u8 as *mut u8, *l as usize, *l as usize);
             std::mem::forget(&cur_string);
 
             program_source.push_str(&cur_string);
@@ -76,7 +75,7 @@ pub unsafe extern "C" fn clCreateProgramWithSource(
     }
 
     let program = ctx_safe.create_program_with_source(program_source);
-    unsafe { *errcode_ret = CL_SUCCESS };
+    *errcode_ret = CL_SUCCESS;
 
     return _cl_program::wrap(program);
 }
@@ -86,7 +85,7 @@ pub unsafe extern "C" fn clBuildProgram(
     program: cl_program,
     num_devices: cl_uint,
     device_list: *const cl_device_id,
-    options: *const libc::c_char,
+    _options: *const libc::c_char,
     callback: cl_build_callback,
     user_data: *mut libc::c_void,
 ) -> cl_int {
@@ -95,7 +94,7 @@ pub unsafe extern "C" fn clBuildProgram(
         "program can't be NULL",
         CL_INVALID_PROGRAM
     );
-    let mut program_safe = ProgramKind::try_from_cl(program).unwrap();
+    let program_safe = ProgramKind::try_from_cl(program).unwrap();
 
     let context = program_safe.get_context().upgrade().unwrap();
 
@@ -115,7 +114,7 @@ pub unsafe extern "C" fn clBuildProgram(
     };
 
     let devices_array = if num_devices > 0 {
-        (unsafe { std::slice::from_raw_parts(device_list, num_devices as usize) }
+        (std::slice::from_raw_parts(device_list, num_devices as usize)
             .iter()
             .map(|&d| SharedPtr::downgrade(&DeviceKind::try_from_cl(d).unwrap())))
         .collect::<Vec<WeakPtr<DeviceKind>>>()
@@ -129,7 +128,7 @@ pub unsafe extern "C" fn clBuildProgram(
 
     if callback.is_some() {
         let _guard = context.get_threading_runtime().enter();
-        let safe_data = unsafe { user_data.as_ref() };
+        let _safe_data = user_data.as_ref();
         // TODO figure out how to make the whole thing thread-safe
         /*
         tokio::spawn(async move {

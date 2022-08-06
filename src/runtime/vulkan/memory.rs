@@ -1,11 +1,11 @@
 use crate::api::cl_types::*;
 use crate::interface::{ContextImpl, ContextKind, DeviceKind, MemImpl};
-use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
+use crate::sync::{self, UnsafeHandle, WeakPtr};
 use ocl_type_wrapper::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
 use vulkano::{
-    buffer::{vma::VmaBuffer, BufferUsage, CpuAccessibleBuffer, ImmutableBuffer},
+    buffer::{vma::VmaBuffer, BufferUsage, ImmutableBuffer},
     command_buffer::{CommandBufferExecFuture, PrimaryAutoCommandBuffer},
     sync::NowFuture,
 };
@@ -36,6 +36,7 @@ impl SingleDeviceBuffer {
         let owned_device = owned_context.get_associated_devices()[0].upgrade().unwrap();
         let device = match owned_device.deref() {
             DeviceKind::Vulkan(device) => device.get_logical_device(),
+            #[allow(unreachable_patterns)]
             _ => panic!("unexpected enum value"),
         };
         let buffer = SingleDeviceBuffer {
@@ -52,6 +53,7 @@ impl SingleDeviceBuffer {
         let owned_context = self.context.upgrade().unwrap();
         let context = match owned_context.deref() {
             ContextKind::Vulkan(context) => context,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
         // TODO errors
@@ -67,6 +69,7 @@ impl SingleDeviceBuffer {
         let owned_context = self.context.upgrade().unwrap();
         let context = match owned_context.deref() {
             ContextKind::Vulkan(context) => context,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
         // TODO errors
@@ -92,6 +95,7 @@ impl SingleDeviceImplicitBuffer {
         let owned_device = owned_context.get_associated_devices()[0].upgrade().unwrap();
         let queue = match owned_device.deref() {
             DeviceKind::Vulkan(device) => device.get_queue(),
+            #[allow(unreachable_patterns)]
             _ => panic!("unexpected enum value"),
         };
         let (buffer, future) = ImmutableBuffer::from_iter(data, BufferUsage::all(), queue).unwrap();

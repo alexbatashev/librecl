@@ -12,7 +12,7 @@ use crate::interface::{ContextKind, DeviceKind, KernelKind, MemKind, QueueImpl, 
 
 #[derive(ClObjImpl)]
 pub struct InOrderQueue {
-    context: WeakPtr<ContextKind>,
+    _context: WeakPtr<ContextKind>,
     device: WeakPtr<DeviceKind>,
     queue: Arc<VkQueue>,
     #[cl_handle]
@@ -24,10 +24,11 @@ impl InOrderQueue {
         let owned_device = device.upgrade().unwrap();
         let queue = match owned_device.deref() {
             DeviceKind::Vulkan(device) => device.get_queue(),
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
         InOrderQueue {
-            context,
+            _context: context,
             device,
             queue,
             handle: UnsafeHandle::null(),
@@ -43,6 +44,7 @@ impl QueueImpl for InOrderQueue {
             MemKind::VulkanSDBuffer(ref buffer) => || {
                 buffer.write(src);
             },
+            #[allow(unreachable_patterns)]
             _ => panic!("Unexpected"),
         };
 
@@ -55,6 +57,7 @@ impl QueueImpl for InOrderQueue {
             MemKind::VulkanSDBuffer(ref buffer) => || {
                 buffer.read(dst);
             },
+            #[allow(unreachable_patterns)]
             _ => panic!("Unexpected"),
         };
 
@@ -65,19 +68,21 @@ impl QueueImpl for InOrderQueue {
     fn submit(
         &self,
         kernel: WeakPtr<KernelKind>,
-        offset: [u32; 3],
+        _offset: [u32; 3],
         global_size: [u32; 3],
         local_size: [u32; 3],
     ) {
         let owned_kernel = kernel.upgrade().unwrap();
         let kernel_safe = match owned_kernel.deref() {
             KernelKind::Vulkan(kernel) => kernel,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
 
         let owned_device = self.device.upgrade().unwrap();
         let device = match owned_device.deref() {
             DeviceKind::Vulkan(device) => device,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
 
@@ -99,19 +104,25 @@ impl QueueImpl for InOrderQueue {
                 sets,
             );
 
-        builder.dispatch([
-            global_size[0] / local_size[0],
-            global_size[1] / local_size[1],
-            global_size[2] / local_size[2],
-        ]);
+        // TODO process errors correctly
+        builder
+            .dispatch([
+                global_size[0] / local_size[0],
+                global_size[1] / local_size[1],
+                global_size[2] / local_size[2],
+            ])
+            .expect("Failed to submit work");
 
         let command_buffer = builder.build().unwrap();
 
-        sync_vk::now(device.get_logical_device().clone())
+        let future = sync_vk::now(device.get_logical_device().clone())
             .then_execute(self.queue.clone(), command_buffer)
             .unwrap()
             .then_signal_fence_and_flush()
             .unwrap();
+        future
+            .wait(Option::None)
+            .expect("Failed to wait for result");
 
         // TODO return events.
     }

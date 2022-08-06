@@ -45,7 +45,7 @@ fn main() {
     let use_ninja = which("ninja").is_ok();
 
     let llvm_out = format!("{}/../../../llvm_build", out_dir);
-    fs::create_dir_all(llvm_out.as_str());
+    fs::create_dir_all(llvm_out.as_str()).expect("failed to create target dir");
 
     let mut llvm_cfg = Box::new(Config::new("../../third_party/llvm-project/llvm/"));
 
@@ -80,7 +80,7 @@ fn main() {
     llvm_cfg.build();
 
     let compiler_out = format!("{}/../../../lcl_compiler", out_dir);
-    fs::create_dir_all(compiler_out.as_str());
+    fs::create_dir_all(compiler_out.as_str()).expect("failed to create target dir");
 
     let mut cfg = Box::new(Config::new("../../"));
     if wrapper.contains("sccache") {

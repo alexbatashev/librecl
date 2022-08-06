@@ -34,7 +34,7 @@ pub unsafe extern "C" fn clCreateKernel(
         errcode_ret
     );
 
-    let kernel_name_safe = unsafe { std::ffi::CStr::from_ptr(kernel_name) }
+    let kernel_name_safe = std::ffi::CStr::from_ptr(kernel_name)
         .to_str()
         .unwrap_or_default();
     lcl_contract!(
@@ -46,7 +46,7 @@ pub unsafe extern "C" fn clCreateKernel(
     );
 
     let kernel = program_safe.create_kernel(kernel_name_safe);
-    unsafe { *errcode_ret = CL_SUCCESS };
+    *errcode_ret = CL_SUCCESS;
 
     return _cl_kernel::wrap(kernel);
 }
@@ -72,16 +72,15 @@ pub unsafe extern "C" fn clSetKernelArg(
 
     match arg_info.arg_type {
         KernelArgType::GlobalBuffer => {
-            let mem = MemKind::try_from_cl(unsafe { *(arg_value as *const cl_mem) }).unwrap();
+            let mem = MemKind::try_from_cl(*(arg_value as *const cl_mem)).unwrap();
             kernel_safe
                 .deref_mut()
                 .set_buffer_arg(arg_index as usize, SharedPtr::downgrade(&mem));
         }
-        KernelArgType::POD => kernel_safe
-            .deref_mut()
-            .set_data_arg(arg_index as usize, unsafe {
-                std::slice::from_raw_parts(arg_value as *const u8, arg_size as usize)
-            }),
+        KernelArgType::POD => kernel_safe.deref_mut().set_data_arg(
+            arg_index as usize,
+            std::slice::from_raw_parts(arg_value as *const u8, arg_size as usize),
+        ),
         _ => panic!("Unsupported!"),
     }
 

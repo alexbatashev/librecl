@@ -45,6 +45,7 @@ impl Kernel {
                 .get_library()
                 .new_function_with_descriptor(&descriptor)
                 .unwrap(),
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         })));
 
@@ -63,6 +64,7 @@ impl Kernel {
         let owned_device = device.upgrade().unwrap();
         let device_safe = match owned_device.deref() {
             DeviceKind::Metal(device) => device,
+            #[allow(unreachable_patterns)]
             _ => panic!(),
         };
 
@@ -79,6 +81,7 @@ impl Kernel {
         for (idx, arg) in self.arg_buffers.iter().enumerate() {
             match arg.as_ref() {
                 ArgBuffer::SDB(ref buffer) => buffer.encode_argument(compute_encoder, idx),
+                #[allow(unreachable_patterns)]
                 _ => panic!(),
             };
         }
