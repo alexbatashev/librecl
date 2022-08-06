@@ -17,6 +17,17 @@ pub type cl_int = libc::c_int;
 pub type cl_uint = libc::c_uint;
 pub type cl_bool = libc::c_uint;
 pub type cl_ulong = libc::c_ulong;
+pub type cl_version = cl_uint;
+
+pub const CL_NAME_VERSION_MAX_NAME_SIZE: usize = 64;
+
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct _cl_name_version {
+    pub version: cl_version,
+    pub name: [libc::c_uchar; CL_NAME_VERSION_MAX_NAME_SIZE],
+}
+pub type cl_name_version = _cl_name_version;
 
 pub use super::cl_icd::cl_event;
 
@@ -246,3 +257,17 @@ impl<'a> ClErrorCode<'a> {
 
 pub const CL_SUCCESS: cl_int = ClErrorCode::Success.value;
 pub const CL_INVALID_VALUE: cl_int = ClErrorCode::InvalidValue.value;
+
+const CL_VERSION_MAJOR_BITS: u32 = 10;
+const CL_VERSION_MINOR_BITS: u32 = 10;
+const CL_VERSION_PATCH_BITS: u32 = 12;
+
+pub fn make_version(major: u32, minor: u32, patch: u32) -> u32 {
+    let major_mask = (1 << CL_VERSION_MAJOR_BITS) - 1 as u32;
+    let minor_mask = (1 << CL_VERSION_MINOR_BITS) - 1 as u32;
+    let patch_mask = (1 << CL_VERSION_PATCH_BITS) - 1 as u32;
+
+    return ((major & major_mask) << (CL_VERSION_MINOR_BITS + CL_VERSION_PATCH_BITS))
+        | ((minor & minor_mask) << CL_VERSION_PATCH_BITS)
+        | (patch & patch_mask);
+}
