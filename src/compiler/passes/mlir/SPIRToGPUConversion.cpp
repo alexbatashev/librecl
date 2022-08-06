@@ -11,18 +11,25 @@
 #include "../../dialects/RawMemory/RawMemoryDialect.h"
 #include "../../dialects/RawMemory/RawMemoryOps.h"
 #include "../../dialects/RawMemory/RawMemoryTypes.h"
+#include "../../dialects/Struct/StructDialect.h"
+#include "../../dialects/Struct/StructOps.h"
+#include "../../dialects/Struct/StructTypes.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/GPU/GPUDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SPIRV/IR/TargetAndABI.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/OperationSupport.h"
 #include "mlir/Pass/Pass.h"
+#include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/ADT/SmallVector.h"
 
 using namespace mlir;
 
@@ -36,6 +43,7 @@ struct GPUTarget : public ConversionTarget {
     addLegalDialect<memref::MemRefDialect>();
     addLegalDialect<func::FuncDialect>();
     addLegalDialect<rawmem::RawMemoryDialect>();
+    addLegalDialect<structure::StructDialect>();
 
     addIllegalDialect<LLVM::LLVMDialect>();
   }
@@ -349,6 +357,72 @@ struct ReturnPattern : public OpConversionPattern<LLVM::ReturnOp> {
   }
 };
 
+struct StructGEPPattern : public OpConversionPattern<LLVM::GEPOp> {
+  using Base = OpConversionPattern<LLVM::GEPOp>;
+  using Base::OpConversionPattern;
+  LogicalResult
+  matchAndRewrite(LLVM::GEPOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (!op.getElemType().hasValue())
+      return failure();
+
+    if (adaptor.getIndices().size() != 1)
+      return failure();
+
+    // Skip GEPs to regular pointers.
+    if (!op.getElemType()->isa<LLVM::LLVMStructType>()) {
+      return failure();
+    }
+
+    Type elemType = getTypeConverter()->convertType(*op.getElemType());
+    auto addrType = adaptor.getBase().getType().cast<rawmem::PointerType>();
+    Type ptrType =
+        rawmem::PointerType::get(elemType, addrType.getAddressSpace());
+
+    auto castedAddr = rewriter.create<rawmem::ReinterpretCastOp>(
+        op.getLoc(), ptrType, adaptor.getBase());
+
+    auto origIndex = adaptor.getIndices()[0];
+    auto index = rewriter.create<arith::IndexCastOp>(
+        op.getLoc(), rewriter.getIndexType(), origIndex);
+
+    auto structBase = rewriter.create<rawmem::OffsetOp>(op.getLoc(), ptrType,
+                                                        castedAddr, index);
+
+    auto structValue = rewriter.create<rawmem::LoadOp>(
+        op.getLoc(), elemType, structBase, ValueRange{}, false);
+
+    // TODO use member names instead.
+    llvm::SmallVector<int32_t, 1> intIndices;
+    for (auto idx : op.getStructIndices()) {
+      intIndices.push_back(idx.getSExtValue());
+    }
+
+    // TODO support more than one index
+    if (intIndices.size() > 2)
+      return failure();
+
+    if (intIndices.size() == 0)
+      intIndices.push_back(0);
+
+    auto structElemType =
+        elemType.cast<structure::StructType>().getBody()[intIndices.back()];
+    auto elemPtr =
+        rawmem::PointerType::get(structElemType, addrType.getAddressSpace());
+    Value address = rewriter.create<structure::AddressOfOp>(
+        op.getLoc(), elemPtr, structValue, intIndices.back());
+
+    // TODO this is a super sketchy hack to overcome LLVM's opaque pointers
+    // issue
+    auto opaquePtr = rawmem::PointerType::get(addrType.getContext(),
+                                              addrType.getAddressSpace());
+    rewriter.replaceOpWithNewOp<rawmem::ReinterpretCastOp>(op, opaquePtr,
+                                                           address);
+
+    return success();
+  }
+};
+
 struct GEPPattern : public OpConversionPattern<LLVM::GEPOp> {
   using Base = OpConversionPattern<LLVM::GEPOp>;
   using Base::OpConversionPattern;
@@ -361,6 +435,11 @@ struct GEPPattern : public OpConversionPattern<LLVM::GEPOp> {
 
     if (adaptor.getIndices().size() != 1)
       return failure();
+
+    // Skip GEPs to structures.
+    if (op.getElemType()->isa<LLVM::LLVMStructType>()) {
+      return failure();
+    }
 
     Type elemType = getTypeConverter()->convertType(*op.getElemType());
     auto addrType = adaptor.getBase().getType().cast<rawmem::PointerType>();
@@ -406,14 +485,37 @@ struct AllocaPattern : public OpConversionPattern<LLVM::AllocaOp> {
 
 namespace lcl {
 void populateSPIRToGPUTypeConversions(TypeConverter &converter) {
-  converter.addConversion([](LLVM::LLVMPointerType type) {
+  converter.addConversion(
+      [&converter](LLVM::LLVMStructType type) -> mlir::Type {
+        if (type.isOpaque()) {
+          return mlir::Type();
+        }
+
+        if (type.isIdentified()) {
+          if (type.isInitialized()) {
+            llvm::SmallVector<Type, 4> body;
+            for (auto t : type.getBody())
+              body.push_back(converter.convertType(t));
+            return structure::StructType::getNewIdentified(
+                type.getContext(), type.getName().drop_front(7), body);
+          } else {
+            return structure::StructType::getIdentified(type.getContext(),
+                                                        type.getName());
+          }
+        }
+
+        // TODO unidentified types
+
+        return mlir::Type();
+      });
+  converter.addConversion([&converter](LLVM::LLVMPointerType type) {
     if (type.isOpaque()) {
       return rawmem::PointerType::get(type.getContext(),
                                       type.getAddressSpace());
     }
 
-    return rawmem::PointerType::get(type.getElementType(),
-                                    type.getAddressSpace());
+    return rawmem::PointerType::get(
+        converter.convertType(type.getElementType()), type.getAddressSpace());
   });
   converter.addConversion([](IntegerType t) { return t; });
   converter.addConversion([](FloatType t) { return t; });
@@ -439,6 +541,7 @@ void populateSPIRToGPUConversionPatterns(TypeConverter &converter,
     CondBrPattern,
     BrPattern,
     ReturnPattern,
+    StructGEPPattern,
     GEPPattern
       // clang-format on
       >(converter, patterns.getContext());

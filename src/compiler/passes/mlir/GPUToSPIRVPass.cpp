@@ -13,6 +13,9 @@
 #include "../../dialects/RawMemory/RawMemoryDialect.h"
 #include "../../dialects/RawMemory/RawMemoryOps.h"
 #include "../../dialects/RawMemory/RawMemoryTypes.h"
+#include "../../dialects/Struct/StructDialect.h"
+#include "../../dialects/Struct/StructOps.h"
+#include "../../dialects/Struct/StructTypes.h"
 #include "mlir/Conversion/ArithmeticToSPIRV/ArithmeticToSPIRV.h"
 #include "mlir/Conversion/ControlFlowToSPIRV/ControlFlowToSPIRV.h"
 #include "mlir/Conversion/FuncToSPIRV/FuncToSPIRV.h"
@@ -56,6 +59,7 @@ struct GPUToSPIRVPass
     std::unique_ptr<ConversionTarget> target =
         SPIRVConversionTarget::get(targetAttr);
     target->addIllegalDialect<rawmem::RawMemoryDialect>();
+    target->addIllegalDialect<structure::StructDialect>();
     target->addLegalOp<UnrealizedConversionCastOp>();
 
     SPIRVTypeConverter typeConverter(targetAttr);
@@ -117,6 +121,21 @@ static Value generateAccessChain(Value base, ValueRange indices,
                                                realIndices);
 }
 
+struct StructLoadPattern : public OpConversionPattern<structure::LoadOp> {
+  using Base = OpConversionPattern<structure::LoadOp>;
+  using Base::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(structure::LoadOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+
+    rewriter.replaceOpWithNewOp<spirv::CompositeExtractOp>(op, adaptor.addr(),
+                                                           adaptor.index());
+
+    return success();
+  }
+};
+
 struct LoadPattern : public OpConversionPattern<rawmem::LoadOp> {
   using Base = OpConversionPattern<rawmem::LoadOp>;
   using Base::OpConversionPattern;
@@ -134,6 +153,21 @@ struct LoadPattern : public OpConversionPattern<rawmem::LoadOp> {
   }
 };
 
+struct StructStorePattern : public OpConversionPattern<structure::StoreOp> {
+  using Base = OpConversionPattern<structure::StoreOp>;
+  using Base::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(structure::StoreOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+
+    rewriter.create<spirv::CompositeInsertOp>(op.getLoc(), adaptor.value(),
+                                              adaptor.addr(), adaptor.index());
+    rewriter.eraseOp(op);
+
+    return success();
+  }
+};
 struct StorePattern : public OpConversionPattern<rawmem::StoreOp> {
   using Base = OpConversionPattern<rawmem::StoreOp>;
   using Base::OpConversionPattern;
@@ -280,13 +314,32 @@ void lcl::populateRawMemoryToSPIRVTypeConversions(
         spirv::StructType::get({spirv::RuntimeArrayType::get(type, 4)}, {0}, {});
 
     return spirv::PointerType::get(ptrElement, sc);
-    // return spirv::PointerType::get(type, sc);
+  });
+
+  converter.addConversion([=, &converter](structure::StructType stype) {
+    if (stype.isIdentified()) {
+      auto newType =
+          spirv::StructType::getIdentified(stype.getContext(), stype.getName());
+      if (stype.getBody().size() > 0) {
+        llvm::SmallVector<Type, 5> body;
+        for (auto t : stype.getBody()) {
+          body.push_back(converter.convertType(t));
+        }
+        // TODO put the correct offsets and decorations.
+        newType.trySetBody(body);
+      }
+
+      return newType;
+    }
+
+    llvm_unreachable("Unsupported structure");
   });
 }
 void lcl::populateRawMemoryToSPIRVConversionPatterns(
     mlir::TypeConverter &converter, mlir::RewritePatternSet &patterns) {
   patterns.add<LoadPattern, StorePattern, OffsetPattern, ReinterpretCastPattern,
-               FuncPattern>(converter, patterns.getContext());
+               FuncPattern, StructStorePattern>(converter,
+                                                patterns.getContext());
 }
 
 std::unique_ptr<mlir::Pass> lcl::createGPUToSPIRVPass() {

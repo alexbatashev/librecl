@@ -6,11 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Struct/StructTypes.h"
 #include "passes.hpp"
 
 #include "RawMemory/RawMemoryDialect.h"
 #include "RawMemory/RawMemoryOps.h"
 #include "RawMemory/RawMemoryTypes.h"
+#include "Struct/StructOps.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -27,11 +29,11 @@ namespace {
 static Type getCommonType(Type type, mlir::Value::user_range users) {
   Type commonType = type;
 
-  bool isReinterpret = llvm::all_of(users, [](auto user) {
+  bool isSupportedUser = llvm::all_of(users, [](auto user) {
     return llvm::isa<rawmem::ReinterpretCastOp>(user);
   });
 
-  if (!isReinterpret)
+  if (!isSupportedUser)
     return commonType;
 
   SmallVector<Type, 8> allTypes;
@@ -40,6 +42,10 @@ static Type getCommonType(Type type, mlir::Value::user_range users) {
     auto reinterpret = llvm::cast<rawmem::ReinterpretCastOp>(user);
     allTypes.push_back(reinterpret.getResult().getType());
   }
+
+  // No active users, just skip
+  if (allTypes.size() == 0)
+    return type;
 
   bool sameType =
       llvm::all_of(allTypes, [&](Type t) { return t == allTypes.front(); });
@@ -64,6 +70,25 @@ struct UnrealizedPattern
     return success();
   }
 };
+
+/*
+struct AddrOfPattern
+    : public OpConversionPattern<structure::AddressOfOp> {
+  using Base = OpConversionPattern<structure::AddressOfOp>;
+  using Base::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(structure::AddressOfOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto oldPtrType = op.getResult().cast<rawmem::PointerType>();
+    auto structType = op.addr().getType().cast<structure::StructType>();
+    rewriter.replaceOpWithNewOp<>(Operation *op, Args &&args...)
+    rewriter.replaceOp(op, adaptor.getOperands()[0]);
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+*/
 
 template <typename FuncT>
 struct FunctionPattern : public OpConversionPattern<FuncT> {
@@ -109,7 +134,9 @@ struct FunctionPattern : public OpConversionPattern<FuncT> {
 
       auto arg = oldRegion->getArgument(inp.index());
 
-      Type argType = getCommonType(inp.value(), arg.getUsers());
+      Type argType = arg.getUsers().empty()
+                         ? rawmem::PointerType::get(rewriter.getI8Type(), 1)
+                         : getCommonType(inp.value(), arg.getUsers());
 
       if (argType != inp.value())
         replacedArgs.insert(inp.index());
@@ -204,6 +231,12 @@ static bool isArgLegal(Type type, mlir::Value::user_range users) {
   return true;
 }
 
+Optional<bool> isAddrOfLegal(structure::AddressOfOp addrOf) {
+  auto ptrType = addrOf.getResult().getType().cast<rawmem::PointerType>();
+
+  return !ptrType.isOpaque();
+}
+
 template <typename FuncT> Optional<bool> isFunctionLegal(FuncT func) {
   auto funcType = func.getFunctionType();
 
@@ -245,6 +278,7 @@ struct InferPointerTypesPass
     target.addLegalDialect<arith::ArithmeticDialect>();
     target.addLegalDialect<func::FuncDialect>();
     target.addLegalDialect<rawmem::RawMemoryDialect>();
+    // target.addDynamicallyLegalOp<structure::AddressOfOp>(isAddrOfLegal);
     target.addDynamicallyLegalOp<func::FuncOp>(isFunctionLegal<func::FuncOp>);
     target.addDynamicallyLegalOp<gpu::GPUFuncOp>(
         isFunctionLegal<gpu::GPUFuncOp>);

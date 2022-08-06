@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RawMemoryDialect.h"
+#include "../Struct/StructTypes.h"
 #include "RawMemoryOps.h"
 #include "RawMemoryTypes.h"
 
@@ -44,7 +45,7 @@ static StringRef getTypeKeyword(Type type) {
   return TypeSwitch<Type, StringRef>(type)
       .Case<rawmem::PointerType>([&](Type) { return "ptr"; })
       .Default([](Type) -> StringRef {
-        llvm_unreachable("unexpected 'llvm' type kind");
+        llvm_unreachable("unexpected 'rawmem' type kind");
       });
 }
 
@@ -89,7 +90,7 @@ Type RawMemoryDialect::parseType(DialectAsmParser &parser) const {
 }
 
 void dispatchPrint(AsmPrinter &printer, Type type) {
-  if (!type.isa<IntegerType, FloatType, VectorType>())
+  if (!type.isa<IntegerType, FloatType, VectorType, structure::StructType>())
     return mlir::rawmem::detail::printType(type, printer);
   printer.printType(type);
 }

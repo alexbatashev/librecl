@@ -8,6 +8,7 @@ endif ()
 include_directories(include/)
 
 add_subdirectory(dialects/RawMemory)
+add_subdirectory(dialects/Struct)
 add_subdirectory(passes/mlir)
 
 add_library(lcl_compiler SHARED

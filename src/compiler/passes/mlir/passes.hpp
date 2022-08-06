@@ -37,4 +37,5 @@ std::unique_ptr<mlir::Pass> createInferPointerTypesPass();
 std::unique_ptr<mlir::Pass> createExpandGPUBuiltinsPass();
 std::unique_ptr<mlir::Pass> createGPUToCppPass();
 std::unique_ptr<mlir::Pass> createStructureCFGPass();
+std::unique_ptr<mlir::Pass> createLowerABIAttributesPass();
 }
