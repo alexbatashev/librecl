@@ -3,8 +3,8 @@ use std::ops::Deref;
 use crate::api::cl_types::*;
 use crate::interface::{ContextKind, DeviceKind, KernelKind, ProgramImpl, ProgramKind};
 use crate::sync::{self, *};
+use librecl_compiler::FrontendResult;
 use librecl_compiler::{Backend, KernelInfo};
-use librecl_compiler::{BinaryProgram, FrontendResult};
 use metal_api::{CompileOptions, Library};
 use ocl_type_wrapper::ClObjImpl;
 
@@ -20,7 +20,7 @@ pub struct Program {
     program_content: ProgramContent,
     frontend_result: Option<FrontendResult>,
     kernels: Vec<KernelInfo>,
-    binary: Vec<u8>,
+    _binary: Vec<u8>,
     library: Option<Library>,
     handle: UnsafeHandle<cl_program>,
 }
@@ -32,7 +32,7 @@ impl Program {
             program_content,
             frontend_result: Option::None,
             kernels: vec![],
-            binary: vec![],
+            _binary: vec![],
             library: Option::None,
             handle: UnsafeHandle::null(),
         }
@@ -64,6 +64,7 @@ impl ProgramImpl for Program {
                 let result = cfe.process_source(source.as_str());
                 Some(result)
             }
+            #[allow(unreachable_patterns)]
             _ => None,
         };
 

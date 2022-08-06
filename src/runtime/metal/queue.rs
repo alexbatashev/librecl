@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 #[derive(ClObjImpl)]
 pub struct InOrderQueue {
-    context: WeakPtr<ContextKind>,
+    _context: WeakPtr<ContextKind>,
     device: WeakPtr<DeviceKind>,
     queue: Arc<Mutex<UnsafeHandle<CommandQueue>>>,
     handle: UnsafeHandle<cl_command_queue>,
@@ -31,7 +31,7 @@ impl InOrderQueue {
         )));
 
         InOrderQueue {
-            context,
+            _context: context,
             device,
             queue,
             handle: UnsafeHandle::null(),
@@ -70,7 +70,7 @@ impl QueueImpl for InOrderQueue {
     fn submit(
         &self,
         kernel: WeakPtr<KernelKind>,
-        offset: [u32; 3],
+        _offset: [u32; 3],
         global_size: [u32; 3],
         local_size: [u32; 3],
     ) {
