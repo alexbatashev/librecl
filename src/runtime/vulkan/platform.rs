@@ -54,6 +54,8 @@ static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
 pub struct Platform {
     devices: Vec<SharedPtr<DeviceKind>>,
     platform_name: String,
+    extension_names: Vec<&'static str>,
+    extension_versions: Vec<cl_version>,
     #[cl_handle]
     handle: UnsafeHandle<cl_platform_id>,
 }
@@ -61,9 +63,15 @@ pub struct Platform {
 impl Platform {
     pub fn new(vendor_name: &str) -> Platform {
         let platform_name = std::format!("LibreCL {} Vulkan Platform", vendor_name);
+
+        let extension_names = vec!["cl_khr_icd"];
+        let extension_versions = vec![make_version(1, 0, 0)];
+
         return Platform {
             devices: vec![],
             platform_name,
+            extension_names,
+            extension_versions,
             handle: UnsafeHandle::null(),
         };
     }
@@ -125,10 +133,6 @@ impl Platform {
 }
 
 impl PlatformImpl for Platform {
-    fn get_platform_name(&self) -> &str {
-        return self.platform_name.as_str();
-    }
-
     fn get_devices(&self) -> &[SharedPtr<DeviceKind>] {
         return &self.devices.as_slice();
     }
@@ -144,5 +148,30 @@ impl PlatformImpl for Platform {
         user_data: *mut libc::c_void,
     ) -> ContextKind {
         return Context::new(devices, callback, user_data);
+    }
+
+    fn get_profile(&self) -> &str {
+        return "FULL_PROFILE";
+    }
+
+    fn get_platform_version_info(&self) -> &str {
+        // TODO think how to return platform version from here.
+        return "over Vulkan";
+    }
+
+    fn get_platform_name(&self) -> &str {
+        return self.platform_name.as_str();
+    }
+
+    fn get_extension_names(&self) -> &[&str] {
+        return &self.extension_names;
+    }
+
+    fn get_extension_versions(&self) -> &[cl_version] {
+        return &self.extension_versions;
+    }
+
+    fn get_host_timer_resolution(&self) -> cl_ulong {
+        return 0;
     }
 }

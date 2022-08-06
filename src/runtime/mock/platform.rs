@@ -29,20 +29,38 @@ impl Platform {
 
 impl PlatformImpl for Platform {
     fn get_platform_name(&self) -> &str {
-        unimplemented!();
+        unimplemented!()
     }
     fn get_devices(&self) -> &[SharedPtr<DeviceKind>] {
-        unimplemented!();
+        unimplemented!()
     }
-    fn add_device(&mut self, device: SharedPtr<DeviceKind>) {
-        unimplemented!();
+    fn add_device(&mut self, _device: SharedPtr<DeviceKind>) {
+        unimplemented!()
     }
     fn create_context(
         &self,
-        devices: &[WeakPtr<DeviceKind>],
-        callback: cl_context_callback,
-        user_data: *mut libc::c_void,
+        _devices: &[WeakPtr<DeviceKind>],
+        _callback: cl_context_callback,
+        _user_data: *mut libc::c_void,
     ) -> ContextKind {
-        unimplemented!();
+        unimplemented!()
+    }
+
+    fn get_profile(&self) -> &str {
+        unimplemented!()
+    }
+
+    fn get_platform_version_info(&self) -> &str {
+        unimplemented!()
+    }
+
+    fn get_extension_names(&self) -> &[&str] {
+        unimplemented!()
+    }
+    fn get_extension_versions(&self) -> &[cl_version] {
+        unimplemented!()
+    }
+    fn get_host_timer_resolution(&self) -> cl_ulong {
+        unimplemented!()
     }
 }

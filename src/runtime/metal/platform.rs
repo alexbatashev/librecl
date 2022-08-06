@@ -49,10 +49,6 @@ impl Platform {
 }
 
 impl PlatformImpl for Platform {
-    fn get_platform_name(&self) -> &str {
-        return self.name.as_str();
-    }
-
     fn get_devices(&self) -> &[SharedPtr<DeviceKind>] {
         return &self.devices.as_slice();
     }
@@ -68,5 +64,29 @@ impl PlatformImpl for Platform {
         user_data: *mut libc::c_void,
     ) -> ContextKind {
         return Context::new(devices, callback, user_data);
+    }
+
+    fn get_profile(&self) -> &str {
+        return "FULL_PROFILE";
+    }
+
+    fn get_platform_version_info(&self) -> &str {
+        unimplemented!();
+    }
+
+    fn get_platform_name(&self) -> &str {
+        return self.name.as_str();
+    }
+
+    fn get_extension_names(&self) -> &[&str] {
+        unimplemented!();
+    }
+
+    fn get_extension_versions(&self) -> &[cl_version] {
+        unimplemented!();
+    }
+
+    fn get_host_timer_resolution(&self) -> cl_ulong {
+        unimplemented!();
     }
 }

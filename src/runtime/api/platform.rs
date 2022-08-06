@@ -2,7 +2,7 @@ use super::error_handling::ClError;
 use crate::api::cl_types::*;
 use crate::interface::{PlatformImpl, PlatformKind};
 use crate::sync::SharedPtr;
-use crate::{format_error, lcl_contract, return_error, set_info_str};
+use crate::{format_error, lcl_contract, return_error, set_info_array, set_info_int, set_info_str};
 use once_cell::sync::Lazy;
 use std::ops::Deref;
 
@@ -93,15 +93,53 @@ pub(crate) unsafe extern "C" fn clGetPlatformInfo(
 
     return_error!(param_name);
 
-    match param_name {
-        Ok(PlatformInfoNames::CL_PLATFORM_NAME) => {
-            let platform_name = platform_safe.deref().get_platform_name();
+    let result: Result<(), ClError> = match param_name {
+        Ok(PlatformInfoNames::CL_PLATFORM_PROFILE) => {
+            let profile = platform_safe.get_profile();
             // TODO check param value size
-            set_info_str!(platform_name, param_value, param_size_ret);
+            set_info_str!(profile, param_value, param_size_ret)
+        }
+        Ok(PlatformInfoNames::CL_PLATFORM_VERSION) => {
+            let version = String::from("OpenCL 3.0 ") + platform_safe.get_platform_version_info();
+            set_info_str!(version, param_value, param_size_ret)
+        }
+        Ok(PlatformInfoNames::CL_PLATFORM_NUMERIC_VERSION) => {
+            let version = make_version(3, 0, 0);
+            set_info_int!(cl_version, version, param_value, param_size_ret)
+        }
+        Ok(PlatformInfoNames::CL_PLATFORM_NAME) => {
+            let platform_name = platform_safe.get_platform_name();
+            set_info_str!(platform_name, param_value, param_size_ret)
+        }
+        Ok(PlatformInfoNames::CL_PLATFORM_VENDOR) => {
+            let platform_vendor = "LibreCL";
+            set_info_str!(platform_vendor, param_value, param_size_ret)
+        }
+        Ok(PlatformInfoNames::CL_PLATFORM_EXTENSIONS) => {
+            let extensions_vec = platform_safe.get_extension_names().to_vec();
+            let extensions = extensions_vec.join(" ");
+            set_info_str!(extensions, param_value, param_size_ret)
+        }
+        Ok(PlatformInfoNames::CL_PLATFORM_EXTENSIONS_WITH_VERSION) => {
+            let names = platform_safe.get_extension_names();
+            let versions = platform_safe.get_extension_versions();
+
+            let extensions: Vec<_> = names
+                .iter()
+                .zip(versions.iter())
+                .map(|(&n, &v)| cl_name_version {
+                    version: v,
+                    name: n.as_bytes().try_into().expect("failed to convert to array"),
+                })
+                .collect();
+            set_info_array!(cl_name_version, extensions, param_value, param_size_ret)
+        }
+        Ok(PlatformInfoNames::CL_PLATFORM_HOST_TIMER_RESOLUTION) => {
+            let resolution = platform_safe.get_host_timer_resolution();
+            set_info_int!(cl_ulong, resolution, param_value, param_size_ret)
         }
         // Error has been handled before
-        Err(err) => {}
-        _ => {}
+        Err(err) => Err(err),
     };
     return CL_SUCCESS;
 }

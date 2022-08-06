@@ -276,25 +276,65 @@ macro_rules! lcl_contract {
 
 #[macro_export]
 macro_rules! set_info_str {
-    ($str:tt, $ptr:tt, $size_ptr:tt) => {
-        let ptr_safe = unsafe { $ptr.as_ref() };
-        let size_ptr_safe = unsafe { $size_ptr.as_ref() };
+    ($str:tt, $ptr:tt, $size_ptr:tt) => {{
+        let ptr_safe = $ptr.as_ref();
+        let size_ptr_safe = $size_ptr.as_ref();
 
         if !size_ptr_safe.is_none() {
-            unsafe {
-                *$size_ptr = $str.len() as cl_size_t + 1;
-            }
+            *$size_ptr = $str.len() as cl_size_t + 1;
         }
 
         if !ptr_safe.is_none() {
-            unsafe {
-                libc::strncpy(
-                    $ptr as *mut libc::c_char,
-                    $str.as_bytes().as_ptr() as *const libc::c_char,
-                    $str.len() as libc::size_t,
-                );
-                *($ptr as *mut u8).offset($str.len() as isize) = 0;
+            libc::strncpy(
+                $ptr as *mut libc::c_char,
+                $str.as_bytes().as_ptr() as *const libc::c_char,
+                $str.len() as libc::size_t,
+            );
+            *($ptr as *mut u8).offset($str.len() as isize) = 0;
+        }
+
+        Result::<(), crate::api::error_handling::ClError>::Ok(())
+    }};
+}
+#[macro_export]
+macro_rules! set_info_int {
+    ($ty:ty, $int:tt, $ptr:tt, $size_ptr:tt) => {{
+        let ptr_safe = $ptr.as_ref();
+        let size_ptr_safe = $size_ptr.as_ref();
+
+        if !size_ptr_safe.is_none() {
+            *$size_ptr = std::mem::size_of::<$ty>() as cl_size_t;
+        }
+
+        if !ptr_safe.is_none() {
+            libc::memcpy(
+                $ptr as *mut libc::c_void,
+                &$int as *const $ty as *const libc::c_void,
+                std::mem::size_of::<$ty>() as libc::size_t,
+            );
+        }
+
+        Result::<(), crate::api::error_handling::ClError>::Ok(())
+    }};
+}
+#[macro_export]
+macro_rules! set_info_array {
+    ($base_ty:ty, $array:tt, $ptr:tt, $size_ptr:tt) => {{
+        let ptr_safe = $ptr.as_ref();
+        let size_ptr_safe = $size_ptr.as_ref();
+
+        if !size_ptr_safe.is_none() {
+            *$size_ptr = (std::mem::size_of::<$base_ty>() * $array.len()) as cl_size_t;
+        }
+
+        let dst = std::slice::from_raw_parts_mut($ptr as *mut $base_ty, $array.len());
+
+        if !ptr_safe.is_none() {
+            for i in 0..$array.len() {
+                dst[i] = $array[i].clone();
             }
         }
-    };
+
+        Result::<(), crate::api::error_handling::ClError>::Ok(())
+    }};
 }
