@@ -11,16 +11,23 @@ static mut GLOBAL_PLATFORMS: Lazy<Vec<SharedPtr<PlatformKind>>> = Lazy::new(|| {
 
     cfg_if::cfg_if! {
         if #[cfg(not(test))] {
-        #[cfg(feature = "vulkan")]
-        crate::vulkan::Platform::create_platforms(platforms.as_mut());
+            let filter = std::env::var("LIBRECL_PLATFORM_FILTER").unwrap_or("all".to_owned());
+            #[cfg(feature = "vulkan")]
+            if filter.contains("vulkan") || filter.contains("all") {
+                crate::vulkan::Platform::create_platforms(platforms.as_mut());
+            }
 
-        #[cfg(feature = "metal")]
-        crate::metal::Platform::create_platforms(platforms.as_mut());
+            #[cfg(feature = "metal")]
+            if filter.contains("metal") || filter.contains("all") {
+                crate::metal::Platform::create_platforms(platforms.as_mut());
+            }
 
-        crate::cpu::Platform::create_platforms(platforms.as_mut());
+            if filter.contains("cpu") || filter.contains("all") {
+                crate::cpu::Platform::create_platforms(platforms.as_mut());
+            }
         } else {
-        #[cfg(test)]
-        crate::mock::Platform::create_platforms(platforms.as_mut());
+            #[cfg(test)]
+            crate::mock::Platform::create_platforms(platforms.as_mut());
         }
     }
 
