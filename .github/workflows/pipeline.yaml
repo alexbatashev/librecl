@@ -76,7 +76,7 @@ jobs:
     steps:
       - run: |
           wget raw.githubusercontent.com/alexbatashev/librecl/${{ github.sha }}/.github/integration_test_configs.json
-          wget raw.githubusercontent.com/alexbatashev/librecl/${{ github.sha }}/.github/scripts/generate_test_matrix.json
+          wget raw.githubusercontent.com/alexbatashev/librecl/${{ github.sha }}/.github/scripts/generate_test_matrix.js
       - id: work
         uses: actions/github-script@v6
         name: Generate matrix
