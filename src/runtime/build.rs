@@ -57,4 +57,9 @@ fn main() {
     } else if build_target::target_os().unwrap() == build_target::Os::MacOs {
         println!("cargo:rustc-cfg=feature=\"metal\"");
     }
+
+    let out_dir = env::var("OUT_DIR").unwrap_or("none".to_string());
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}/../../../lcl_compiler/lib", out_dir);
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}/../../../lcl_compiler/lib64", out_dir);
+    println!("cargo:rustc-link-lib=dylib=lcl_compiler");
 }
