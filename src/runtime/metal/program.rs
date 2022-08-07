@@ -93,6 +93,7 @@ impl ProgramImpl for Program {
         let owned_device = devices[0].upgrade().unwrap();
         let device = match owned_device.deref() {
             DeviceKind::Metal(device) => device.get_native_device(),
+            _ => panic!("Unexpected enum value"),
         };
         // TODO proper error handling
         let options = CompileOptions::new();

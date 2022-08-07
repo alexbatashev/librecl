@@ -12,6 +12,8 @@ use crate::metal::Platform as MTLPlatform;
 #[cfg(test)]
 use crate::mock::Platform as MockPlatform;
 
+use crate::cpu::Platform as CPUPlatform;
+
 /// Common interface for Platform objects for all backends.
 #[enum_dispatch(PlatformKind)]
 pub trait PlatformImpl: ClObjectImpl<cl_platform_id> {
@@ -74,6 +76,7 @@ pub enum PlatformKind {
     Vulkan(VkPlatform),
     #[cfg(feature = "metal")]
     Metal(MTLPlatform),
+    CPU(CPUPlatform),
     #[cfg(test)]
     Mock(MockPlatform),
 }
@@ -89,6 +92,7 @@ impl ClObjectImpl<cl_platform_id> for PlatformKind {
             PlatformKind::Metal(platform) => {
                 ClObjectImpl::<cl_platform_id>::get_cl_handle(platform)
             }
+            PlatformKind::CPU(platform) => ClObjectImpl::<cl_platform_id>::get_cl_handle(platform),
             #[cfg(test)]
             PlatformKind::Mock(platform) => ClObjectImpl::<cl_platform_id>::get_cl_handle(platform),
         }
@@ -101,6 +105,9 @@ impl ClObjectImpl<cl_platform_id> for PlatformKind {
             }
             #[cfg(feature = "metal")]
             PlatformKind::Metal(platform) => {
+                ClObjectImpl::<cl_platform_id>::set_cl_handle(platform, handle)
+            }
+            PlatformKind::CPU(platform) => {
                 ClObjectImpl::<cl_platform_id>::set_cl_handle(platform, handle)
             }
             #[cfg(test)]
