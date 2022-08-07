@@ -92,7 +92,8 @@ jobs:
     needs: [resolve_test_matrix]
     if: ${{ needs.resolve_test_matrix.outputs.matrix != '' }}
     strategy:
-      matrix: ${{ fromJSON(needs.resolve_test_matrix.outputs.matrix) }}
+      matrix: 
+        include: ${{ fromJSON(needs.resolve_test_matrix.outputs.matrix) }}
       fail-fast: false
     runs-on: ${{ matrix.runs-on }}
     name: ${{ matrix.name }}
