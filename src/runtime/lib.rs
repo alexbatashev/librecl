@@ -6,6 +6,8 @@ pub mod vulkan;
 #[cfg(feature = "metal")]
 pub mod metal;
 
+mod cpu;
+
 #[cfg(test)]
 mod mock;
 

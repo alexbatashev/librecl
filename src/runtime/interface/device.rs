@@ -10,6 +10,8 @@ use crate::metal::Device as MTLDevice;
 #[cfg(feature = "vulkan")]
 use crate::vulkan::Device as VkDevice;
 
+use crate::cpu::Device as CPUDevice;
+
 #[enum_dispatch]
 #[repr(C)]
 pub enum DeviceKind {
@@ -17,6 +19,7 @@ pub enum DeviceKind {
     Vulkan(VkDevice),
     #[cfg(feature = "metal")]
     Metal(MTLDevice),
+    CPU(CPUDevice),
 }
 
 // TODO do we still need this?!
@@ -54,6 +57,7 @@ impl ClObjectImpl<cl_device_id> for DeviceKind {
             DeviceKind::Vulkan(device) => ClObjectImpl::<cl_device_id>::get_cl_handle(device),
             #[cfg(feature = "metal")]
             DeviceKind::Metal(device) => ClObjectImpl::<cl_device_id>::get_cl_handle(device),
+            DeviceKind::CPU(device) => ClObjectImpl::<cl_device_id>::get_cl_handle(device),
         }
     }
     fn set_cl_handle(&mut self, handle: cl_device_id) {
@@ -66,6 +70,7 @@ impl ClObjectImpl<cl_device_id> for DeviceKind {
             DeviceKind::Metal(device) => {
                 ClObjectImpl::<cl_device_id>::set_cl_handle(device, handle)
             }
+            DeviceKind::CPU(device) => ClObjectImpl::<cl_device_id>::set_cl_handle(device, handle),
         }
     }
 }

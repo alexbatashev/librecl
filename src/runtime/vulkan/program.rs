@@ -91,6 +91,7 @@ impl ProgramImpl for Program {
         let owned_device = devices[0].upgrade().unwrap();
         let device = match owned_device.deref() {
             DeviceKind::Vulkan(device) => device.get_logical_device(),
+            _ => panic!("Unexpected enum value"),
         };
         // TODO handle error
         self.module = Some(
