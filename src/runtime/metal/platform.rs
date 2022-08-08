@@ -17,16 +17,22 @@ use super::Device;
 pub struct Platform {
     devices: Vec<SharedPtr<DeviceKind>>,
     name: String,
+    extension_names: Vec<&'static str>,
+    extension_versions: Vec<cl_version>,
     #[cl_handle]
     handle: UnsafeHandle<cl_platform_id>,
 }
 
 impl Platform {
     pub fn new() -> Platform {
+        let extension_names = vec!["cl_khr_id"];
+        let extension_versions = vec![make_version(1, 0, 0)];
         let platform_name = std::format!("LibreCL Apple Metal Platform");
         return Platform {
             devices: vec![],
             name: platform_name,
+            extension_names,
+            extension_versions,
             handle: UnsafeHandle::null(),
         };
     }
@@ -67,26 +73,27 @@ impl PlatformImpl for Platform {
     }
 
     fn get_profile(&self) -> &str {
-        return "FULL_PROFILE";
+        "FULL_PROFILE"
     }
 
     fn get_platform_version_info(&self) -> &str {
-        unimplemented!();
+        // TODO find way to identfy version
+        "over Apple Metal"
     }
 
     fn get_platform_name(&self) -> &str {
-        return self.name.as_str();
+        self.name.as_str()
     }
 
     fn get_extension_names(&self) -> &[&str] {
-        unimplemented!();
+        &self.extension_names
     }
 
     fn get_extension_versions(&self) -> &[cl_version] {
-        unimplemented!();
+        &self.extension_versions
     }
 
     fn get_host_timer_resolution(&self) -> cl_ulong {
-        unimplemented!();
+        0 // TODO return actual value
     }
 }
