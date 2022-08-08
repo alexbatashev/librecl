@@ -6,6 +6,7 @@ use crate::interface::DeviceKind;
 use crate::interface::QueueKind;
 use crate::interface::{DeviceImpl, PlatformKind};
 use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
+use librecl_compiler::Compiler;
 use ocl_type_wrapper::ClObjImpl;
 use std::sync::Arc;
 use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType, QueueFamily};
@@ -19,6 +20,7 @@ pub struct Device {
     device_type: cl_device_type,
     platform: WeakPtr<PlatformKind>,
     queue: Arc<Queue>,
+    compiler: Arc<Compiler>,
     #[cl_handle]
     handle: UnsafeHandle<cl_device_id>,
 }
@@ -57,6 +59,7 @@ impl Device {
             device_type,
             platform,
             queue: queues.next().unwrap(),
+            compiler: Compiler::new(),
             handle: UnsafeHandle::null(),
         }
         .into();
@@ -75,6 +78,10 @@ impl Device {
 
     pub fn get_queue(&self) -> Arc<Queue> {
         return self.queue.clone();
+    }
+
+    pub fn get_compiler(&self) -> Arc<Compiler> {
+        self.compiler.clone()
     }
 }
 

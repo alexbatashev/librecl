@@ -2,6 +2,7 @@ use cmake::Config;
 use std::env;
 use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
 use which::which;
 
@@ -25,6 +26,16 @@ fn rerun_if_changed_anything_in_dir(dir: &Path) {
 }
 
 fn main() {
+    let compiler_bindings = bindgen::Builder::default()
+        .header("opencl/rust_bindings.hpp")
+        .generate()
+        .expect("Failed to generate bindings");
+
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    compiler_bindings
+        .write_to_file(out_path.join("compiler.rs"))
+        .expect("Couldn't write bindings!");
+
     let wrapper = env::var("RUSTC_WRAPPER").unwrap_or("none".to_string());
     let out_dir = env::var("OUT_DIR").unwrap_or("none".to_string());
 

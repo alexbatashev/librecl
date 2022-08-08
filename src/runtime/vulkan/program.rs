@@ -2,8 +2,8 @@ use super::Kernel;
 use crate::api::cl_types::*;
 use crate::interface::{ContextKind, DeviceKind, KernelKind, ProgramImpl, ProgramKind};
 use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
-use librecl_compiler::FrontendResult;
-use librecl_compiler::{Backend, KernelInfo};
+use librecl_compiler::CompileResult;
+use librecl_compiler::KernelInfo;
 use ocl_type_wrapper::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -17,7 +17,7 @@ pub enum ProgramContent {
 pub struct Program {
     context: WeakPtr<ContextKind>,
     program_content: ProgramContent,
-    frontend_result: Option<FrontendResult>,
+    compile_result: Option<Arc<CompileResult>>,
     kernels: Vec<KernelInfo>,
     binary: Vec<u8>,
     module: Option<Arc<ShaderModule>>,
@@ -30,7 +30,7 @@ impl Program {
         return Program {
             context,
             program_content,
-            frontend_result: Option::None,
+            compile_result: Option::None,
             kernels: vec![],
             binary: vec![],
             module: Option::None,
@@ -50,40 +50,70 @@ impl ProgramImpl for Program {
     fn get_context(&self) -> WeakPtr<ContextKind> {
         return self.context.clone();
     }
-    fn compile_program(&mut self, _devices: &[WeakPtr<DeviceKind>]) -> bool {
-        // TODO do we need devices here?
+    fn compile_program(&mut self, devices: &[WeakPtr<DeviceKind>]) -> bool {
+        // TODO make for all devices
+        // TODO correctly report errors
+        let owned_device = devices.first().unwrap().upgrade().unwrap();
+        let device = match owned_device.deref() {
+            DeviceKind::Vulkan(device) => device,
+            _ => panic!("unsupported enum"),
+        };
+        // TODO use context to compile in parallel
+        /*
         let owned_context = self.context.upgrade().unwrap();
         let context = match owned_context.deref() {
             ContextKind::Vulkan(vk_ctx) => vk_ctx,
             #[allow(unreachable_patterns)]
             _ => panic!("Unsupported enum value"),
         };
+        */
         let compile_result = match &mut self.program_content {
             ProgramContent::Source(source) => {
-                let cfe = context.get_clang_fe();
-                let result = cfe.process_source(source.as_str());
+                let options: [String; 2] =
+                    [String::from("-c"), String::from("--target=vulkan-spv")];
+                let result = device
+                    .get_compiler()
+                    .compile_source(source.as_str(), &options);
                 Some(result)
             }
         };
 
-        self.frontend_result = compile_result;
+        self.compile_result = compile_result;
 
-        return self.frontend_result.is_some() && self.frontend_result.as_ref().unwrap().is_ok();
+        // TODO better error handling
+        if !self.compile_result.as_ref().unwrap().is_ok() {
+            panic!("{}", self.compile_result.as_ref().unwrap().get_error());
+        }
+
+        return self.compile_result.is_some() && self.compile_result.as_ref().unwrap().is_ok();
     }
     fn link_programs(&mut self, devices: &[WeakPtr<DeviceKind>]) -> bool {
-        if !self.frontend_result.is_some() {
+        if !self.compile_result.is_some() {
             return false;
         }
 
+<<<<<<< HEAD
         let owned_context = self.context.upgrade().unwrap();
         let context = match owned_context.deref() {
             ContextKind::Vulkan(vk_ctx) => vk_ctx,
             #[allow(unreachable_patterns)]
             _ => panic!("Unsupported enum value"),
+=======
+        let owned_device = devices.first().unwrap().upgrade().unwrap();
+        let device = match owned_device.deref() {
+            DeviceKind::Vulkan(device) => device,
+            _ => panic!("unsupported enum"),
+>>>>>>> 61f0492 (feat(compiler): add support for SPIR-V translator as a frontend)
         };
 
-        let be = context.get_vulkan_be();
-        let result = be.compile(&self.frontend_result.as_ref().unwrap());
+        let compiler = device.get_compiler();
+        let modules = vec![self.compile_result.as_ref().unwrap().clone()];
+        let options: [String; 1] = [String::from("--target=vulkan-spv")];
+        let result = compiler.link(&modules, &options);
+
+        if !result.is_ok() {
+            panic!("{}", result.get_error());
+        }
 
         self.kernels = result.get_kernels();
         self.binary = result.get_binary();
@@ -102,7 +132,7 @@ impl ProgramImpl for Program {
             }
             .unwrap(),
         );
-        self.frontend_result = Option::None;
+        self.compile_result = Option::None;
 
         // TODO how to handle compiler errors?
         return true;
