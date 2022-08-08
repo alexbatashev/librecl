@@ -26,7 +26,7 @@ fn debug_message_handler(msg: &Message) {
     println!("[VULKAN]: {}", msg.description);
 }
 
-static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
+static mut VK_INSTANCE: Lazy<Option<Arc<Instance>>> = Lazy::new(|| {
     // TODO enable layers correctly
     /*
     let layers: Vec<_> = instance::layers_list()
@@ -47,10 +47,13 @@ static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
         DebugUtilsMessengerCreateInfo::user_callback(Arc::new(debug_message_handler));
     debug_utils_messengers.message_severity = DebugUtilsMessageSeverity::errors_and_warnings();
     debug_utils_messengers.message_type = DebugUtilsMessageType::all();
-    return unsafe {
+    let instance = unsafe {
         Instance::with_debug_utils_messengers(instance_create_info, [debug_utils_messengers])
+    };
+    match instance {
+        Ok(instance) => Some(instance),
+        Err(_) => None,
     }
-    .unwrap();
 });
 
 #[derive(ClObjImpl)]
@@ -79,13 +82,19 @@ impl Platform {
         };
     }
     pub fn create_platforms(platforms: &mut Vec<SharedPtr<PlatformKind>>) {
+        if unsafe { VK_INSTANCE.is_none() } {
+            return;
+        }
+
+        let instance = unsafe { VK_INSTANCE.unwrap().clone() };
+
         // TODO this should be safer
         let extensions = DeviceExtensions {
             khr_storage_buffer_storage_class: true,
             ..DeviceExtensions::none()
         };
 
-        let devices = PhysicalDevice::enumerate(unsafe { &VK_INSTANCE })
+        let devices = PhysicalDevice::enumerate(&instance)
             .filter(|&p| p.supported_extensions().is_superset_of(&extensions))
             .filter_map(|p| {
                 p.queue_families()
