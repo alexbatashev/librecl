@@ -39,7 +39,7 @@ static mut VK_INSTANCE: Lazy<Arc<Instance>> = Lazy::new(|| {
         ..InstanceExtensions::none()
     };
     let instance_create_info = InstanceCreateInfo {
-        enabled_layers: [String::from("VK_LAYER_KHRONOS_validation")].to_vec(),
+        // enabled_layers: [String::from("VK_LAYER_KHRONOS_validation")].to_vec(),
         enabled_extensions: extensions,
         ..Default::default()
     };

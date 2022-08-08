@@ -3,19 +3,19 @@
     {
       "name": "CPU",
       "runs-on": ["ubuntu-22.04"],
-      "exclude-list": "${{ github.workspace }}/integration-tests/config/cpu-exclude.txt"
+      "exclude-list": "$GITHUB_WORKSPACE/integration-tests/config/cpu-exclude.txt"
     }
   ],
   "macos": [
     {
       "name": "CPU",
-      "runs-on": ["macos-latest"],
-      "exclude-list": "${{ github.workspace }}/integration-tests/config/cpu-exclude.txt"
+      "runs-on": ["macos-12"],
+      "exclude-list": "$GITHUB_WORKSPACE/integration-tests/config/cpu-exclude.txt"
     },
     {
       "name": "Metal",
-      "runs-on": ["macos-latest"],
-      "exclude-list": "${{ github.workspace }}/integration-tests/config/metal-exclude.txt"
+      "runs-on": ["macos-12"],
+      "exclude-list": "$GITHUB_WORKSPACE/integration-tests/config/metal-exclude.txt"
     }
   ]
 }
