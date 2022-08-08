@@ -56,6 +56,7 @@ impl ProgramImpl for Program {
         let owned_device = devices.first().unwrap().upgrade().unwrap();
         let device = match owned_device.deref() {
             DeviceKind::Vulkan(device) => device,
+            #[allow(unreachable_patterns)]
             _ => panic!("unsupported enum"),
         };
         // TODO use context to compile in parallel
@@ -92,18 +93,11 @@ impl ProgramImpl for Program {
             return false;
         }
 
-<<<<<<< HEAD
-        let owned_context = self.context.upgrade().unwrap();
-        let context = match owned_context.deref() {
-            ContextKind::Vulkan(vk_ctx) => vk_ctx,
-            #[allow(unreachable_patterns)]
-            _ => panic!("Unsupported enum value"),
-=======
         let owned_device = devices.first().unwrap().upgrade().unwrap();
         let device = match owned_device.deref() {
             DeviceKind::Vulkan(device) => device,
+            #[allow(unreachable_patterns)]
             _ => panic!("unsupported enum"),
->>>>>>> 61f0492 (feat(compiler): add support for SPIR-V translator as a frontend)
         };
 
         let compiler = device.get_compiler();
