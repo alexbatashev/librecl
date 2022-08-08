@@ -460,7 +460,7 @@ public:
         reinterpret_cast<unsigned char *>(source.data()),
         reinterpret_cast<unsigned char *>(source.data() + source.size())};
 
-    return CompileResult{std::move(BinaryProgram{resBinary, kernels})};
+    return CompileResult{BinaryProgram{resBinary, kernels}};
   }
 
 private:
@@ -591,7 +591,7 @@ public:
       kernels.emplace_back(name, args);
     });
 
-    return CompileResult{std::move(BinaryProgram{resBinary, kernels})};
+    return CompileResult{BinaryProgram{resBinary, kernels}};
   }
 
 private:
@@ -662,7 +662,7 @@ CompileResult Compiler::compile(std::span<const char> source,
     }
 
     return JobInput{
-        SourceInput{std::string_view{source.begin(), source.end()}}};
+        SourceInput{std::string_view{source.data(), source.size()}}};
   }();
 
   if (std::holds_alternative<SourceInput>(input)) {
@@ -730,7 +730,7 @@ CompileResult Compiler::compile(std::span<CompileResult *> modules,
   auto clone = mlir::OwningOpRef<mlir::ModuleOp>(
       const_cast<mlir::OwningOpRef<mlir::ModuleOp> &>(module.getMLIR())
           ->clone());
-  JobInput input = std::move(CompileResult{std::move(clone)});
+  JobInput input = CompileResult{std::move(clone)};
 
   llvm::SmallVector<std::unique_ptr<CompilerJob>, 10> jobs;
 

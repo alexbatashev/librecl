@@ -1,8 +1,6 @@
 use crate::api::cl_types::*;
 use crate::interface::{ContextImpl, ContextKind, DeviceKind, MemKind, ProgramKind};
 use crate::sync::{self, *};
-use librecl_compiler::ClangFrontend;
-use librecl_compiler::MetalBackend;
 use ocl_type_wrapper::ClObjImpl;
 use tokio::runtime::Runtime;
 
@@ -16,8 +14,6 @@ pub struct Context {
     _error_callback: cl_context_callback,
     _callback_user_data: *mut libc::c_void,
     threading_runtime: Runtime,
-    clang_fe: ClangFrontend,
-    metal_be: MetalBackend,
     handle: UnsafeHandle<cl_context>,
 }
 
@@ -42,18 +38,9 @@ impl Context {
             _error_callback: error_callback,
             _callback_user_data: callback_user_data,
             threading_runtime: runtime,
-            clang_fe: ClangFrontend::new(),
-            metal_be: MetalBackend::new(),
             handle: UnsafeHandle::null(),
         }
         .into()
-    }
-
-    pub fn get_clang_fe(&self) -> &ClangFrontend {
-        return &self.clang_fe;
-    }
-    pub fn get_metal_be(&self) -> &MetalBackend {
-        return &self.metal_be;
     }
 }
 
