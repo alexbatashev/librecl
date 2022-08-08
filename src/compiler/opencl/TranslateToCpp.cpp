@@ -246,8 +246,7 @@ static LogicalResult printOperation(CppEmitter &emitter,
   return printConstantOp(emitter, operation, value);
 }
 
-static LogicalResult printOperation(CppEmitter &emitter,
-                                    arith::ShLIOp shOp) {
+static LogicalResult printOperation(CppEmitter &emitter, arith::ShLIOp shOp) {
   if (failed(emitter.emitAssignPrefix(*shOp.getOperation())))
     return failure();
 
@@ -258,8 +257,7 @@ static LogicalResult printOperation(CppEmitter &emitter,
   return success();
 }
 
-static LogicalResult printOperation(CppEmitter &emitter,
-                                    arith::ShRSIOp shOp) {
+static LogicalResult printOperation(CppEmitter &emitter, arith::ShRSIOp shOp) {
   if (failed(emitter.emitAssignPrefix(*shOp.getOperation())))
     return failure();
 

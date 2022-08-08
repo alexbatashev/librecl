@@ -1,12 +1,12 @@
-use std::ops::Deref;
-
 use crate::api::cl_types::*;
 use crate::interface::{ContextKind, DeviceKind, KernelKind, ProgramImpl, ProgramKind};
 use crate::sync::{self, *};
-use librecl_compiler::FrontendResult;
-use librecl_compiler::{Backend, KernelInfo};
+use librecl_compiler::CompileResult;
+use librecl_compiler::KernelInfo;
 use metal_api::{CompileOptions, Library};
 use ocl_type_wrapper::ClObjImpl;
+use std::ops::Deref;
+use std::sync::Arc;
 
 use super::Kernel;
 
@@ -18,7 +18,7 @@ pub enum ProgramContent {
 pub struct Program {
     context: WeakPtr<ContextKind>,
     program_content: ProgramContent,
-    frontend_result: Option<FrontendResult>,
+    compile_result: Option<Arc<CompileResult>>,
     kernels: Vec<KernelInfo>,
     _binary: Vec<u8>,
     library: Option<Library>,
@@ -30,7 +30,7 @@ impl Program {
         Program {
             context,
             program_content,
-            frontend_result: Option::None,
+            compile_result: Option::None,
             kernels: vec![],
             _binary: vec![],
             library: Option::None,
@@ -50,42 +50,46 @@ impl ProgramImpl for Program {
     fn get_context(&self) -> WeakPtr<ContextKind> {
         return self.context.clone();
     }
-    fn compile_program(&mut self, _devices: &[WeakPtr<DeviceKind>]) -> bool {
-        // TODO do we need devices here?
-        let owned_context = self.context.upgrade().unwrap();
-        let context = match owned_context.deref() {
-            ContextKind::Metal(ctx) => ctx,
+    fn compile_program(&mut self, devices: &[WeakPtr<DeviceKind>]) -> bool {
+        let owned_device = devices.first().unwrap().upgrade().unwrap();
+        let device = match owned_device.deref() {
+            DeviceKind::Metal(device) => device,
             #[allow(unreachable_patterns)]
-            _ => panic!("Unsupported enum value"),
+            _ => panic!("unsupported enum"),
         };
         let compile_result = match &mut self.program_content {
             ProgramContent::Source(source) => {
-                let cfe = context.get_clang_fe();
-                let result = cfe.process_source(source.as_str());
+                let options: [String; 2] =
+                    [String::from("-c"), String::from("--target=metal-macos")];
+                let result = device
+                    .get_compiler()
+                    .compile_source(source.as_str(), &options);
                 Some(result)
             }
             #[allow(unreachable_patterns)]
             _ => None,
         };
 
-        self.frontend_result = compile_result;
+        self.compile_result = compile_result;
 
-        return self.frontend_result.is_some() && self.frontend_result.as_ref().unwrap().is_ok();
+        return self.compile_result.is_some() && self.compile_result.as_ref().unwrap().is_ok();
     }
     fn link_programs(&mut self, devices: &[WeakPtr<DeviceKind>]) -> bool {
-        if !self.frontend_result.is_some() {
+        if !self.compile_result.is_some() {
             return false;
         }
 
-        let owned_context = self.context.upgrade().unwrap();
-        let context = match owned_context.deref() {
-            ContextKind::Metal(ctx) => ctx,
+        let owned_device = devices.first().unwrap().upgrade().unwrap();
+        let device = match owned_device.deref() {
+            DeviceKind::Metal(device) => device,
             #[allow(unreachable_patterns)]
-            _ => panic!("Unsupported enum value"),
+            _ => panic!("unsupported enum"),
         };
 
-        let be = context.get_metal_be();
-        let result = be.compile(&self.frontend_result.as_ref().unwrap());
+        let compiler = device.get_compiler();
+        let modules = vec![self.compile_result.as_ref().unwrap().clone()];
+        let options: [String; 1] = [String::from("--target=metal-macos")];
+        let result = compiler.link(&modules, &options);
 
         self.kernels = result.get_kernels();
         let msl = result.get_binary();
@@ -105,7 +109,7 @@ impl ProgramImpl for Program {
                 .unwrap(),
         );
 
-        self.frontend_result = None;
+        self.compile_result = None;
 
         return true;
     }

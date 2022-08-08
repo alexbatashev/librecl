@@ -1,9 +1,9 @@
-use metal_api::Device as MTLDevice;
-use ocl_type_wrapper::ClObjImpl;
-
 use crate::api::cl_types::*;
 use crate::interface::{ContextKind, DeviceImpl, DeviceKind, PlatformKind, QueueKind};
 use crate::sync::{self, *};
+use librecl_compiler::Compiler;
+use metal_api::Device as MTLDevice;
+use ocl_type_wrapper::ClObjImpl;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -13,6 +13,7 @@ use super::InOrderQueue;
 pub struct Device {
     platform: WeakPtr<PlatformKind>,
     device: Arc<Mutex<UnsafeHandle<MTLDevice>>>,
+    compiler: Arc<Compiler>,
     handle: UnsafeHandle<cl_device_id>,
 }
 
@@ -21,6 +22,7 @@ impl Device {
         let device = Device {
             platform: SharedPtr::downgrade(platform),
             device: Arc::new(Mutex::new(UnsafeHandle::new(device))),
+            compiler: Compiler::new(),
             handle: UnsafeHandle::null(),
         }
         .into();
@@ -31,6 +33,10 @@ impl Device {
 
     pub fn get_native_device(&self) -> &Mutex<UnsafeHandle<MTLDevice>> {
         return &self.device;
+    }
+
+    pub fn get_compiler(&self) -> Arc<Compiler> {
+        self.compiler.clone()
     }
 }
 

@@ -5,8 +5,6 @@ use crate::interface::DeviceKind;
 use crate::interface::MemKind;
 use crate::interface::ProgramKind;
 use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
-use librecl_compiler::ClangFrontend;
-use librecl_compiler::VulkanBackend;
 use ocl_type_wrapper::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -23,8 +21,6 @@ pub struct Context {
     _error_callback: cl_context_callback,
     _callback_user_data: *mut libc::c_void,
     threading_runtime: Runtime,
-    clang_fe: ClangFrontend,
-    vulkan_be: VulkanBackend,
     // TODO make per-device
     allocator: Arc<vk_mem::Allocator>,
     #[cl_handle]
@@ -77,22 +73,10 @@ impl Context {
             _error_callback: error_callback,
             _callback_user_data: callback_user_data,
             threading_runtime: runtime,
-            clang_fe: ClangFrontend::new(),
-            vulkan_be: VulkanBackend::new(),
             allocator,
             handle: UnsafeHandle::null(),
         }
         .into()
-    }
-
-    // TODO return with locks?
-    pub fn get_clang_fe(&self) -> &ClangFrontend {
-        return &self.clang_fe;
-    }
-
-    // TODO return with locks?
-    pub fn get_vulkan_be(&self) -> &VulkanBackend {
-        return &self.vulkan_be;
     }
 
     pub fn get_allocator(&self) -> Arc<vk_mem::Allocator> {

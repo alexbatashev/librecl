@@ -15,4 +15,5 @@ libc = "0.2.126"
 cmake = "0.1"
 which = "4.2.5"
 build-target = "0.4.0"
+bindgen = "0.60.1"
 

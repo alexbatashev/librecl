@@ -12,14 +12,9 @@ add_subdirectory(dialects/Struct)
 add_subdirectory(passes/mlir)
 
 add_library(lcl_compiler SHARED
-  frontend.cpp
-  ClangFrontend.cpp
-  SPIRVFrontend.cpp
-  MetalBackend.cpp
-  VulkanBackend.cpp
-  VulkanSPVBackendImpl.cpp
-  TranslateToCpp.cpp
-  rust_bindings.cpp
+  opencl/Compiler.cpp
+  opencl/TranslateToCpp.cpp
+  opencl/rust_bindings.cpp
   passes/llvm/FixupStructuredCFGPass.cpp
 )
 
@@ -96,6 +91,7 @@ target_include_directories(lcl_compiler SYSTEM PRIVATE
   ${CLANG_INCLUDE_DIRS}
   ${MLIR_INCLUDE_DIRS}
   ${PROJECT_SOURCE_DIR}/third_party/SPIRV-LLVM-Translator/include
+  ${CMAKE_CURRENT_SOURCE_DIR}
   )
 
 target_include_directories(lcl_compiler PRIVATE
@@ -136,6 +132,7 @@ target_link_libraries(lcl_compiler PRIVATE
   MLIRSPIRVSerialization
   LLVMSPIRVLib
   LCLPasses
+  LLVMSPIRVLib
 )
 
 install(TARGETS lcl_compiler)
