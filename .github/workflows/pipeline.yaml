@@ -106,13 +106,22 @@ jobs:
         with:
           name: ${{ runner.os }}-${{ runner.arch }}-binaries
           path: target/
-      - run: |
+      - name: Build tests
+        # TODO temporary hack
+        env:
+          LD_LIBRARY_PATH: "${{ github.workspace }}/target/debug/:${{ github.workspace }}/target/debug/lcl_compiler/lib:${{ github.workspace }}/target/release/:${{ github.workspace }}/target/release/lcl_compiler/lib:${{env.LD_LIBRARY_PATH}}"
+          DYLD_LIBRARY_PATH: "${{ github.workspace }}/target/debug/:${{ github.workspace }}/target/debug/lcl_compiler/lib:${{ github.workspace }}/target/release/:${{ github.workspace }}/target/release/lcl_compiler/lib:${{env.LD_LIBRARY_PATH}}"
+        run: |
           cd target/
           mkdir integration-tests
           cd integration-tests
           cmake ../../integration-tests
           cmake --build .
-      - run: ./target/integration-tests/integration-tests `cat ${{ matrix.exclude-list }}` -r JUnit -o junit.xml
+      - name: Run tests
+        env:
+          LD_LIBRARY_PATH: "${{ github.workspace }}/target/debug/:${{ github.workspace }}/target/debug/lcl_compiler/lib:${{ github.workspace }}/target/release/:${{ github.workspace }}/target/release/lcl_compiler/lib:${{env.LD_LIBRARY_PATH}}"
+          DYLD_LIBRARY_PATH: "${{ github.workspace }}/target/debug/:${{ github.workspace }}/target/debug/lcl_compiler/lib:${{ github.workspace }}/target/release/:${{ github.workspace }}/target/release/lcl_compiler/lib:${{env.LD_LIBRARY_PATH}}"
+        run: ./target/integration-tests/integration-tests `cat ${{ matrix.exclude-list }}` -r JUnit -o junit.xml
       - name: Test Report
         uses: dorny/test-reporter@v1
         if: success() || failure()
