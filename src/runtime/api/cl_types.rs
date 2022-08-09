@@ -99,25 +99,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Clone)]
-#[repr(u32)]
-pub enum DeviceInfoNames {
-    // TODO support all info queries
-    CL_DEVICE_NAME = 0x102B,
-}
-
-impl TryFrom<cl_uint> for DeviceInfoNames {
-    type Error = ();
-
-    fn try_from(v: cl_uint) -> Result<Self, Self::Error> {
-        match v {
-            x if x == DeviceInfoNames::CL_DEVICE_NAME as cl_uint => {
-                Ok(DeviceInfoNames::CL_DEVICE_NAME)
-            }
-            _ => Err(()),
-        }
-    }
-}
+include!("cl_device_info.rs");
 
 pub type cl_platform_info = cl_uint;
 
@@ -244,7 +226,7 @@ impl<'a> ClErrorCode<'a> {
     pub(crate) const fn new(value: cl_int, name: &'a str, description: &'a str) -> Self {
         return Self {
             value,
-            name: name,
+            name,
             description,
         };
     }

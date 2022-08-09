@@ -56,4 +56,48 @@ impl DeviceImpl for Device {
     ) -> QueueKind {
         unimplemented!();
     }
+
+    fn get_vendor_name(&self) -> String {
+        unimplemented!()
+    }
+
+    fn get_vendor_id(&self) -> cl_uint {
+        unimplemented!()
+    }
+
+    fn get_max_compute_units(&self) -> cl_uint {
+        unimplemented!()
+    }
+
+    fn get_max_work_item_dimensions(&self) -> cl_uint {
+        unimplemented!()
+    }
+
+    fn get_max_work_item_sizes(&self) -> [cl_size_t; 3] {
+        unimplemented!()
+    }
+
+    fn is_compiler_available(&self) -> bool {
+        unimplemented!()
+    }
+
+    fn get_native_driver_version(&self) -> String {
+        unimplemented!()
+    }
+
+    fn get_device_profile(&self) -> String {
+        unimplemented!()
+    }
+
+    fn get_device_version_info(&self) -> String {
+        unimplemented!()
+    }
+
+    fn get_extension_names(&self) -> &[&str] {
+        unimplemented!()
+    }
+
+    fn get_extension_versions(&self) -> &[cl_version] {
+        unimplemented!()
+    }
 }

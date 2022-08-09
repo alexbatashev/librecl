@@ -31,3 +31,19 @@ macro_rules! return_error {
         }
     };
 }
+#[macro_export]
+macro_rules! return_result {
+    ($maybe_err:tt) => {
+        if $maybe_err.is_err() {
+            let err = $maybe_err.err().unwrap();
+            println!(
+                "{}\n{}\nBacktrace:\n{:?}",
+                err.error_code, err.error_message, err.backtrace
+            );
+
+            return err.error_code.value;
+        } else {
+            return CL_SUCCESS;
+        }
+    };
+}
