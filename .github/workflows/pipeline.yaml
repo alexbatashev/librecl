@@ -121,11 +121,8 @@ jobs:
         env:
           LD_LIBRARY_PATH: "${{ github.workspace }}/target/debug/:${{ github.workspace }}/target/debug/lcl_compiler/lib:${{ github.workspace }}/target/release/:${{ github.workspace }}/target/release/lcl_compiler/lib:${{env.LD_LIBRARY_PATH}}"
           DYLD_LIBRARY_PATH: "${{ github.workspace }}/target/debug/:${{ github.workspace }}/target/debug/lcl_compiler/lib:${{ github.workspace }}/target/release/:${{ github.workspace }}/target/release/lcl_compiler/lib:${{env.LD_LIBRARY_PATH}}"
-        run: ./target/integration-tests/integration-tests `cat ${{ matrix.exclude-list }}` -r JUnit -o junit.xml
-      - name: Test Report
-        uses: dorny/test-reporter@v1
-        if: success() || failure()
+        run: ./target/integration-tests/integration-tests `cat ${{ matrix.exclude-list }}` --reporter JUnit::out=test-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}.xml --reporter console::out=-
+      - uses: actions/upload-artifact@v3
         with:
-          name: Integration tests ${{ matrix.name }} - ${{ runner.os }} ${{ runner.arch }}
-          path: junit.xml
-          reporter: jest-junit
+          name: integration-test-results
+          path: test-*.xml

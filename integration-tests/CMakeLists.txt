@@ -17,10 +17,14 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2)
 
+enable_testing()
+
 add_executable(integration-tests
   src/basic-platform.cpp
   src/basic-kernel.cpp
 )
+
+add_test(NAME integration COMMAND integration-tests)
 
 target_link_directories(integration-tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/../target/debug/
