@@ -90,9 +90,10 @@ jobs:
 
   integration_tests:
     needs: [resolve_test_matrix]
-    if: ${{ needs.resolve_test_matrix.outputs.matrix != '' }}
+    # TODO figure out testing on macOS
+    if: ${{ needs.resolve_test_matrix.outputs.matrix != '' && runner.os != 'macOS' }}
     strategy:
-      matrix: 
+      matrix:
         include: ${{ fromJSON(needs.resolve_test_matrix.outputs.matrix) }}
       fail-fast: false
     runs-on: ${{ matrix.runs-on }}
