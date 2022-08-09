@@ -64,8 +64,10 @@ impl Device {
             "cl_khr_global_int32_extended_atomics",
             "cl_khr_local_int32_base_atomics",
             "cl_khr_local_int32_extended_atomics",
+            "cl_khr_il_program",
         ];
         let extension_versions = vec![
+            make_version(1, 0, 0),
             make_version(1, 0, 0),
             make_version(1, 0, 0),
             make_version(1, 0, 0),

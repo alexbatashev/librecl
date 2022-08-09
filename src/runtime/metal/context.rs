@@ -60,6 +60,9 @@ impl ContextImpl for Context {
             ProgramContent::Source(source),
         );
     }
+    fn create_program_with_spirv(&self, spirv: &[i8]) -> Result<ProgramKind, ClError> {
+        unimplemented!()
+    }
     fn create_buffer(&mut self, size: usize, _flags: cl_mem_flags) -> MemKind {
         let context: SharedPtr<ContextKind> = FromCl::try_from_cl(*self.handle.value()).unwrap();
         // TODO support multiple devices in one context

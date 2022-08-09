@@ -70,8 +70,8 @@ impl Platform {
     pub fn new(vendor_name: &str) -> Platform {
         let platform_name = std::format!("LibreCL {} Vulkan Platform", vendor_name);
 
-        let extension_names = vec!["cl_khr_icd"];
-        let extension_versions = vec![make_version(1, 0, 0)];
+        let extension_names = vec!["cl_khr_icd", "cl_khr_il_program"];
+        let extension_versions = vec![make_version(1, 0, 0), make_version(1, 0, 0)];
 
         return Platform {
             devices: vec![],

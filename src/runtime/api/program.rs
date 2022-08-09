@@ -73,6 +73,44 @@ fn clCreateProgramWithSource(
 }
 
 #[cl_api]
+pub unsafe extern "C" fn clCreateProgramWithIL(
+    context: cl_context,
+    il: *const libc::c_void,
+    length: cl_size_t,
+) -> Result<cl_program, ClError> {
+    let ctx_safe = ContextKind::try_from_cl(context).map_err(map_invalid_context)?;
+
+    lcl_contract!(
+        ctx_safe,
+        il.is_null(),
+        ClError::InvalidValue,
+        "il must not be NULL"
+    );
+    lcl_contract!(
+        ctx_safe,
+        length == 0,
+        ClError::InvalidValue,
+        "length must not be 0"
+    );
+
+    let spirv = unsafe { std::slice::from_raw_parts(il as *const i8, length as usize) };
+
+    let program = ctx_safe.create_program_with_spirv(spirv)?;
+
+    Ok(_cl_program::wrap(program))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn clCreateProgramWithILKHR(
+    context: cl_context,
+    il: *const libc::c_void,
+    length: cl_size_t,
+    errcode_ret: *mut cl_int,
+) -> cl_program {
+    return clCreateProgramWithILLCL(context, il, length, errcode_ret);
+}
+
+#[cl_api]
 fn clBuildProgram(
     program: cl_program,
     num_devices: cl_uint,
