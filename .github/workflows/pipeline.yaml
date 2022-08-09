@@ -91,7 +91,7 @@ jobs:
   integration_tests:
     needs: [resolve_test_matrix]
     # TODO figure out testing on macOS
-    if: needs.resolve_test_matrix.outputs.matrix != '' && matrix.runs-on != 'macos-12'
+    if: needs.resolve_test_matrix.outputs.matrix != '' && inputs.runs-on != 'macos-12'
     strategy:
       matrix:
         include: ${{ fromJSON(needs.resolve_test_matrix.outputs.matrix) }}
