@@ -11,8 +11,10 @@ jobs:
     uses: ./.github/workflows/pipeline.yaml
     with:
       runs-on: "ubuntu-22.04"
+      test-config: "linux"
   macos:
     name: macOS
     uses: ./.github/workflows/pipeline.yaml
     with:
       runs-on: "macos-12"
+      test-config: "macos"

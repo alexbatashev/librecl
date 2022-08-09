@@ -10,46 +10,120 @@ on:
         type: "string"
         required: false
         default: ""
+      test-config:
+        type: "string"
+        required: true
 
 jobs:
   build:
     name: Build runtime
     runs-on: ${{ inputs.runs-on }}
     steps:
-    - name: Install Ubuntu dependencies
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt install -yqq ninja-build libtbb-dev spirv-tools libvulkan-dev
-        curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 15
-        sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-11 15
-        sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-11 15
-        wget -P /tmp/ https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
-        tar -xvf /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz -C /tmp/
-        sudo install /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl/sccache /usr/bin/sccache
-    - name: Install dependencies (macOS)
-      if: ${{ runner.os == 'macOS' }}
-      run: |
-        brew install sccache ninja tbb ncurses
-        curl -LsSf https://get.nexte.st/latest/mac | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-    - name: Cache build artifacts
-      uses: actions/cache@v3
-      with:
-        path: ${{ github.workspace }}/cache
-        key: ${{ runner.os }}-build-${{ github.sha }}
-        restore-keys: ${{ runner.os }}-build-
-    - name: Build
-      env:
-        RUSTFLAGS: '-D warnings'
-        RUSTC_WRAPPER: sccache
-        SCCACHE_DIR: ${{ github.workspace }}/cache
-      run: cargo build --workspace -vv
-    - name: Runtime smoke test
-      env:
-        RUSTFLAGS: '-D warnings'
-        RUSTC_WRAPPER: sccache
-        SCCACHE_DIR: ${{ github.workspace }}/cache
-      run: cargo nextest run --all
+      - name: Install Ubuntu dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt install -yqq ninja-build libtbb-dev spirv-tools libvulkan-dev
+          curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 15
+          sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-11 15
+          sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-11 15
+          wget -P /tmp/ https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
+          tar -xvf /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz -C /tmp/
+          sudo install /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl/sccache /usr/bin/sccache
+      - name: Install dependencies (macOS)
+        if: ${{ runner.os == 'macOS' }}
+        run: |
+          brew install sccache ninja tbb ncurses
+          curl -LsSf https://get.nexte.st/latest/mac | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Cache build artifacts
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/cache
+          key: ${{ runner.os }}-build-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-build-
+      - name: Build
+        env:
+          RUSTFLAGS: "-D warnings"
+          RUSTC_WRAPPER: sccache
+          SCCACHE_DIR: ${{ github.workspace }}/cache
+        run: cargo build --workspace -vv
+      - name: Runtime smoke test
+        env:
+          RUSTFLAGS: "-D warnings"
+          RUSTC_WRAPPER: sccache
+          SCCACHE_DIR: ${{ github.workspace }}/cache
+        run: cargo nextest run --all
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ runner.os }}-${{ runner.arch }}-binaries
+          path: |
+            target/debug/*lcl_icd_runtime*
+            target/release/*lcl_icd_runtime*
+            target/debug/lcl_compiler/lib*/*lcl_compiler*
+            target/debug/lcl_compiler/bin/*lcl_compiler*
+            target/release/lcl_compiler/lib*/*lcl_compiler*
+            target/release/lcl_compiler/bin/*lcl_compiler*
+
+  resolve_test_matrix:
+    needs: [build]
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.work.outputs.matrix }}
+    steps:
+      - run: |
+          wget raw.githubusercontent.com/alexbatashev/librecl/${{ github.sha }}/.github/integration_test_configs.json
+          mv integration_test_configs.json test_configs.json
+          wget raw.githubusercontent.com/alexbatashev/librecl/${{ github.sha }}/.github/scripts/generate_test_matrix.js
+      - id: work
+        uses: actions/github-script@v6
+        name: Generate matrix
+        env:
+          GHA_INPUTS: ${{ toJSON(inputs) }}
+        with:
+          script: |
+            const script = require('./generate_test_matrix.js');
+            script({core, process});
+
+  integration_tests:
+    needs: [resolve_test_matrix]
+    # TODO figure out testing on macOS
+    if: needs.resolve_test_matrix.outputs.matrix != '' && inputs.runs-on != 'macos-12'
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.resolve_test_matrix.outputs.matrix) }}
+      fail-fast: false
+    runs-on: ${{ matrix.runs-on }}
+    name: ${{ matrix.name }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - uses: actions/download-artifact@v2
+        with:
+          name: ${{ runner.os }}-${{ runner.arch }}-binaries
+          path: target/
+      - name: Build tests
+        # TODO temporary hack
+        env:
+          LD_LIBRARY_PATH: "${{ github.workspace }}/target/debug/:${{ github.workspace }}/target/debug/lcl_compiler/lib:${{ github.workspace }}/target/release/:${{ github.workspace }}/target/release/lcl_compiler/lib:${{env.LD_LIBRARY_PATH}}"
+          DYLD_LIBRARY_PATH: "${{ github.workspace }}/target/debug/:${{ github.workspace }}/target/debug/lcl_compiler/lib:${{ github.workspace }}/target/release/:${{ github.workspace }}/target/release/lcl_compiler/lib:${{env.LD_LIBRARY_PATH}}"
+        run: |
+          cd target/
+          mkdir integration-tests
+          cd integration-tests
+          cmake ../../integration-tests
+          cmake --build .
+      - name: Run tests
+        env:
+          LD_LIBRARY_PATH: "${{ github.workspace }}/target/debug/:${{ github.workspace }}/target/debug/lcl_compiler/lib:${{ github.workspace }}/target/release/:${{ github.workspace }}/target/release/lcl_compiler/lib:${{env.LD_LIBRARY_PATH}}"
+          DYLD_LIBRARY_PATH: "${{ github.workspace }}/target/debug/:${{ github.workspace }}/target/debug/lcl_compiler/lib:${{ github.workspace }}/target/release/:${{ github.workspace }}/target/release/lcl_compiler/lib:${{env.LD_LIBRARY_PATH}}"
+        run: ./target/integration-tests/integration-tests `cat ${{ matrix.exclude-list }}` --reporter JUnit::out=test-${{ runner.os }}-${{ runner.arch }}-${{ matrix.name }}.xml --reporter console::out=-
+      - uses: actions/upload-artifact@v3
+        with:
+          name: integration-test-results
+          path: test-*.xml

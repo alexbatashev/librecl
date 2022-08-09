@@ -1,0 +1,21 @@
+{
+  "linux": [
+    {
+      "name": "CPU",
+      "runs-on": ["ubuntu-22.04"],
+      "exclude-list": "$GITHUB_WORKSPACE/integration-tests/config/cpu-exclude.txt"
+    }
+  ],
+  "macos": [
+    {
+      "name": "CPU",
+      "runs-on": ["macos-12"],
+      "exclude-list": "$GITHUB_WORKSPACE/integration-tests/config/cpu-exclude.txt"
+    },
+    {
+      "name": "Metal",
+      "runs-on": ["macos-12"],
+      "exclude-list": "$GITHUB_WORKSPACE/integration-tests/config/metal-exclude.txt"
+    }
+  ]
+}
