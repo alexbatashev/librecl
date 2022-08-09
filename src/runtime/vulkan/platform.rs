@@ -125,8 +125,13 @@ impl Platform {
 
             for device_parts in devices {
                 let (device, queue_index) = device_parts;
-                let cl_device =
-                    Device::new(SharedPtr::downgrade(&cl_platform), device, queue_index).into();
+                let cl_device = Device::new(
+                    SharedPtr::downgrade(&cl_platform),
+                    device,
+                    queue_index,
+                    vendor_name,
+                )
+                .into();
                 cl_platform.deref_mut().add_device(cl_device);
             }
 

@@ -90,6 +90,11 @@ impl Compiler {
         Arc::new(Compiler { handle })
     }
 
+    // TODO use dispatch table and dynamic library loading
+    pub fn is_available(&self) -> bool {
+        true
+    }
+
     pub fn compile_source(&self, source: &str, options: &[String]) -> Arc<CompileResult> {
         let mut c_opts = vec![];
         let mut char_opts = vec![];
