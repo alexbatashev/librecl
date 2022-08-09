@@ -2,6 +2,8 @@ cmake_minimum_required (VERSION 3.17)
 
 project(librecl-integration-tests VERSION 0.1 LANGUAGES C CXX)
 
+cmake_policy(CMP0042 NEW)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -21,8 +23,6 @@ add_executable(integration-tests
 )
 
 target_link_directories(integration-tests PRIVATE
-  # Used in CI tests
-  ${CMAKE_CURRENT_SOURCE_DIR}/../target/artifact/
   ${CMAKE_CURRENT_SOURCE_DIR}/../target/debug/
 )
 target_include_directories(integration-tests PRIVATE

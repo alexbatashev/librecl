@@ -86,7 +86,7 @@ impl Platform {
             return;
         }
 
-        let instance = unsafe { VK_INSTANCE.unwrap().clone() };
+        let instance = unsafe { VK_INSTANCE.as_ref().unwrap() };
 
         // TODO this should be safer
         let extensions = DeviceExtensions {
@@ -94,7 +94,7 @@ impl Platform {
             ..DeviceExtensions::none()
         };
 
-        let devices = PhysicalDevice::enumerate(&instance)
+        let devices = PhysicalDevice::enumerate(instance)
             .filter(|&p| p.supported_extensions().is_superset_of(&extensions))
             .filter_map(|p| {
                 p.queue_families()
