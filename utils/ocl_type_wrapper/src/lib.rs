@@ -1,6 +1,10 @@
 extern crate proc_macro;
+use std::ops::Deref;
+
+use convert_case::{Case, Casing};
 use darling::{FromDeriveInput, FromField};
 use proc_macro::TokenStream;
+use quote::format_ident;
 use quote::quote;
 use syn::{self, parse_macro_input, DeriveInput};
 
@@ -46,12 +50,12 @@ pub fn cl_object(args: TokenStream, item: TokenStream) -> TokenStream {
         }
 
         impl FromCl<*mut #name> for #dependent {
-            type Error = ();
+            type Error = String;
 
             fn try_from_cl(value: *mut #name) -> Result<sync::SharedPtr<#dependent>, Self::Error> {
                 match unsafe { value.as_ref() } {
                     Some(obj) => Ok(obj.handle.clone()),
-                    None => Err(()),
+                    None => Err("value is NULL".to_owned()),
                 }
             }
         }
@@ -116,7 +120,104 @@ pub fn derive(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-mod test {
-    #[test]
-    fn derive_macro_parsing() {}
+#[proc_macro_attribute]
+pub fn cl_api(_args: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as syn::ItemFn);
+
+    let body = input.block.clone();
+
+    let func_name = input.sig.ident.clone();
+    // TODO correctly handle IDs, KHR and LCL patterns.
+    let func_name_str = func_name.clone().to_string();
+    let func_name_processed = func_name_str
+        .clone()
+        .replace("IDs", "_ids")
+        .replace("KHR", "_khr")
+        .replace("LCL", "_lcl");
+    let impl_name = format_ident!(
+        "{}_impl",
+        func_name_processed
+            .from_case(Case::Camel)
+            .to_case(Case::Snake)
+    );
+
+    let args = input.sig.inputs.clone();
+    let arg_names = args.clone().into_iter().map(|arg| match arg {
+        syn::FnArg::Typed(pat) => pat.pat,
+        _ => panic!(),
+    });
+
+    let return_type = match input.sig.output {
+        syn::ReturnType::Type(_, ret_type) => ret_type,
+        _ => panic!(),
+    };
+
+    let cl_object_type = match return_type.deref() {
+        syn::Type::Path(path) => {
+            let first = path.path.segments.first();
+            let result = first.unwrap();
+            match result.arguments.clone() {
+                syn::PathArguments::AngleBracketed(b) => {
+                    let first = b.args.first().unwrap().clone();
+                    match first {
+                        syn::GenericArgument::Type(ty) => ty,
+                        _ => panic!(),
+                    }
+                }
+                _ => panic!(),
+            }
+        }
+        _ => panic!(),
+    };
+
+    let api = match cl_object_type {
+        syn::Type::Tuple(_) => {
+            quote! {
+                #[no_mangle]
+                pub(crate) unsafe extern "C" fn #func_name(#args) -> cl_int {
+                    let _span_ = tracing::span!(tracing::Level::TRACE, #func_name_str).entered();
+                    let result = #impl_name(#(#arg_names),*);
+                    match result {
+                        Ok(_) => 0,
+                        Err(err) => {
+                            tracing::error!("{}", err);
+                            err.error_code()
+                        }
+                    }
+                }
+            }
+        }
+        _ => {
+            quote! {
+                #[no_mangle]
+                pub(crate) unsafe extern "C" fn #func_name(#args errorcode_ret: *mut cl_int) -> #cl_object_type {
+                    let _span_ = tracing::span!(tracing::Level::TRACE, #func_name_str).entered();
+                    let result = #impl_name(#(#arg_names),*);
+                    match result {
+                        Ok(ret) => {
+                            if !errorcode_ret.is_null() {
+                                *errorcode_ret = 0;
+                            }
+                            ret
+                        },
+                        Err(err) => {
+                            tracing::error!("{}", err);
+                            if !errorcode_ret.is_null() {
+                                *errorcode_ret = err.error_code();
+                            }
+                            std::ptr::null_mut()
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    let gen = quote! {
+        fn #impl_name(#args) -> #return_type #body
+
+        #api
+    };
+
+    gen.into()
 }

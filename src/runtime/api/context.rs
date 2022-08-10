@@ -1,56 +1,52 @@
-use crate::sync::*;
-use std::ops::Deref;
-
 use super::cl_types::*;
+use crate::api::error_handling::ClError;
 use crate::{
-    format_error,
     interface::{DeviceImpl, DeviceKind, PlatformImpl},
     lcl_contract,
 };
+use crate::{success, sync::*};
+use ocl_type_wrapper::cl_api;
+use std::ops::Deref;
 
-#[no_mangle]
-pub unsafe extern "C" fn clCreateContext(
+#[cl_api]
+fn clCreateContext(
     _properties: *const cl_context_properties,
     num_devices: cl_uint,
     devices: *const cl_device_id,
     callback: cl_context_callback,
     user_data: *mut libc::c_void,
-    errcode_ret: *mut cl_int,
-) -> cl_context {
+) -> Result<cl_context, ClError> {
     // TODO support properties
 
     lcl_contract!(
         num_devices > 0,
-        "context requires at leas one device",
-        CL_INVALID_VALUE,
-        errcode_ret
+        ClError::InvalidValue,
+        "context requires at leas one device"
     );
 
     lcl_contract!(
         !devices.is_null(),
-        "devices can't be NULL",
-        CL_INVALID_VALUE,
-        errcode_ret
+        ClError::InvalidValue,
+        "devices can't be NULL"
     );
 
-    let devices_array: Vec<_> = std::slice::from_raw_parts(devices, num_devices as usize)
-        .iter()
-        .map(|&d| DeviceKind::try_from_cl(d))
-        .collect();
+    let devices_array: Vec<_> =
+        unsafe { std::slice::from_raw_parts(devices, num_devices as usize) }
+            .iter()
+            .map(|&d| DeviceKind::try_from_cl(d))
+            .collect();
 
     lcl_contract!(
         devices_array.iter().all(|d| d.is_ok()),
-        "some of devices are NULL",
-        CL_INVALID_DEVICE,
-        errcode_ret
+        ClError::InvalidDevice,
+        "some of devices are NULL"
     );
     lcl_contract!(
         devices_array
             .iter()
             .all(|d| d.as_ref().unwrap().is_available()),
-        "some devices are unavailable",
-        CL_DEVICE_NOT_AVAILABLE,
-        errcode_ret
+        ClError::DeviceNotAvailable,
+        "some devices are unavailable"
     );
 
     let ok_devices: Vec<_> = devices_array
@@ -73,51 +69,49 @@ pub unsafe extern "C" fn clCreateContext(
             .deref()
             .create_context(ok_devices.as_slice(), callback, user_data);
 
-    *errcode_ret = CL_SUCCESS;
-
-    return _cl_context::wrap(context);
+    return Ok(_cl_context::wrap(context));
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clGetContextInfo(
+#[cl_api]
+fn clGetContextInfo(
     _context: cl_context,
     _param_name: cl_context_info,
     _param_value_size: cl_size_t,
     _param_value: *mut libc::c_void,
     _param_value_size_ret: *mut cl_size_t,
-) -> cl_int {
+) -> Result<(), ClError> {
     unimplemented!();
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clRetainContext(context: cl_context) -> cl_int {
+#[cl_api]
+fn clRetainContext(context: cl_context) -> Result<(), ClError> {
     lcl_contract!(
         !context.is_null(),
-        "context can't be NULL",
-        CL_INVALID_CONTEXT
+        ClError::InvalidContext,
+        "context can't be NULL"
     );
 
-    let context_ref = &mut *context;
+    let context_ref = unsafe { &mut *context };
 
     context_ref.retain();
 
-    return CL_SUCCESS;
+    return success!();
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clReleaseContext(context: cl_context) -> cl_int {
+#[cl_api]
+fn clReleaseContext(context: cl_context) -> Result<(), ClError> {
     lcl_contract!(
         !context.is_null(),
-        "context can't be NULL",
-        CL_INVALID_CONTEXT
+        ClError::InvalidContext,
+        "context can't be NULL"
     );
 
-    let context_ref = &mut *context;
+    let context_ref = unsafe { &mut *context };
 
     if context_ref.release() == 1 {
         // Intentionally ignore value to destroy pointer and its content
-        Box::from_raw(context);
+        unsafe { Box::from_raw(context) };
     }
 
-    return CL_SUCCESS;
+    return success!();
 }

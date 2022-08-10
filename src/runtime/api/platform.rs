@@ -2,7 +2,8 @@ use super::error_handling::ClError;
 use crate::api::cl_types::*;
 use crate::interface::{PlatformImpl, PlatformKind};
 use crate::sync::SharedPtr;
-use crate::{format_error, lcl_contract, return_error, set_info_array, set_info_int, set_info_str};
+use crate::{lcl_contract, set_info_array, set_info_int, set_info_str, success};
+use ocl_type_wrapper::cl_api;
 use once_cell::sync::Lazy;
 use std::ops::Deref;
 
@@ -34,75 +35,70 @@ static mut GLOBAL_PLATFORMS: Lazy<Vec<SharedPtr<PlatformKind>>> = Lazy::new(|| {
     return platforms;
 });
 
-#[no_mangle]
-pub(crate) unsafe extern "C" fn clGetPlatformIDs(
+#[cl_api]
+fn clGetPlatformIDs(
     num_entries: cl_uint,
     platforms_raw: *mut cl_platform_id,
     num_platforms_raw: *mut cl_uint,
-) -> cl_int {
-    let num_platforms = num_platforms_raw.as_ref();
-    let platforms = platforms_raw.as_ref();
+) -> Result<(), ClError> {
+    let num_platforms = unsafe { num_platforms_raw.as_ref() };
+    let platforms = unsafe { platforms_raw.as_ref() };
 
     lcl_contract!(
         num_entries != 0 || !num_platforms.is_none(),
-        "either num_platforms is not NULL or num_entries is not 0",
-        CL_INVALID_VALUE
+        ClError::InvalidValue,
+        "either num_platforms is not NULL or num_entries is not 0"
     );
 
     lcl_contract!(
         !platforms.is_none() || !num_platforms.is_none(),
-        "num_platforms and platforms can not be NULL at the same time",
-        CL_INVALID_VALUE
+        ClError::InvalidValue,
+        "num_platforms and platforms can not be NULL at the same time"
     );
 
     if !platforms.is_none() {
-        let platforms_array = std::slice::from_raw_parts_mut(
-            platforms_raw as *mut cl_platform_id,
-            num_entries as usize,
-        );
+        let platforms_array = unsafe {
+            std::slice::from_raw_parts_mut(
+                platforms_raw as *mut cl_platform_id,
+                num_entries as usize,
+            )
+        };
         for i in 0..num_entries {
-            platforms_array[i as usize] = GLOBAL_PLATFORMS[i as usize].deref().get_cl_handle();
+            platforms_array[i as usize] =
+                unsafe { GLOBAL_PLATFORMS[i as usize].deref().get_cl_handle() };
         }
     }
 
     if !num_platforms.is_none() {
-        *num_platforms_raw = GLOBAL_PLATFORMS.len() as u32;
+        unsafe { *num_platforms_raw = GLOBAL_PLATFORMS.len() as u32 };
     }
-    return CL_SUCCESS;
+
+    // TODO return error if there are no platforms
+    return success!();
 }
 
-#[no_mangle]
-pub(crate) unsafe extern "C" fn clGetPlatformInfo(
+#[cl_api]
+fn clGetPlatformInfo(
     platform: cl_platform_id,
     param_name_num: u32,
     _param_value_size: cl_size_t,
     param_value: *mut libc::c_void,
     param_size_ret: *mut cl_size_t,
-) -> libc::c_int {
+) -> Result<(), ClError> {
     lcl_contract!(
         !platform.is_null(),
-        "platfrom can't be NULL",
-        CL_INVALID_PLATFORM
+        ClError::InvalidPlatform,
+        "platfrom can't be NULL"
     );
 
-    let platform_safe = PlatformKind::try_from_cl(platform).unwrap();
+    let platform_safe = PlatformKind::try_from_cl(platform)
+        .map_err(|_| ClError::InvalidPlatform("not a LibreCL platform".into()))?;
 
     let param_name = PlatformInfoNames::try_from(param_name_num).map_err(|_err| {
-        ClError::new(
-            ClErrorCode::InvalidValue,
-            format!("Unknown param_name value {}", param_name_num),
-        )
+        ClError::InvalidValue(format!("Unknown param_name value {}", param_name_num).into())
     });
 
-    lcl_contract!(
-        param_name.is_ok(),
-        "invalid param_name value",
-        CL_INVALID_VALUE
-    );
-
-    return_error!(param_name);
-
-    let result: Result<(), ClError> = match param_name {
+    match param_name {
         Ok(PlatformInfoNames::CL_PLATFORM_PROFILE) => {
             let profile = platform_safe.get_profile();
             // TODO check param value size
@@ -147,19 +143,8 @@ pub(crate) unsafe extern "C" fn clGetPlatformInfo(
             let resolution = platform_safe.get_host_timer_resolution();
             set_info_int!(cl_ulong, resolution, param_value, param_size_ret)
         }
-        // Error has been handled before
         Err(err) => Err(err),
-    };
-
-    // TODO log error message
-    return if result.is_ok() {
-        CL_SUCCESS
-    } else {
-        match result {
-            Err(err) => err.error_code.value,
-            _ => panic!("unexpected"),
-        }
-    };
+    }
 }
 
 #[no_mangle]
@@ -174,6 +159,8 @@ pub(crate) unsafe extern "C" fn clIcdGetPlatformIDsKHR(
 #[cfg(test)]
 mod tests {
     use crate::api::cl_types::*;
+    use crate::api::error_handling::error_codes::CL_SUCCESS;
+    use crate::api::error_handling::error_codes::*;
     use crate::api::platform::*;
     #[test]
     fn all_null_pointers() {

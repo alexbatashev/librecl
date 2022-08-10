@@ -1,62 +1,46 @@
-use std::ops::Deref;
-
 use super::cl_types::*;
+use super::error_handling::{
+    map_invalid_context, map_invalid_device, map_invalid_kernel, map_invalid_mem,
+    map_invalid_queue, ClError,
+};
 use crate::{
-    format_error,
     interface::{
         ContextImpl, ContextKind, DeviceImpl, DeviceKind, KernelKind, MemKind, QueueImpl, QueueKind,
     },
-    lcl_contract,
+    lcl_contract, success,
     sync::SharedPtr,
 };
+use ocl_type_wrapper::cl_api;
+use std::ops::Deref;
 
-#[no_mangle]
-pub unsafe extern "C" fn clCreateCommandQueueWithProperties(
+#[cl_api]
+fn clCreateCommandQueueWithProperties(
     context: cl_context,
     device: cl_device_id,
     _properties: *const cl_queue_properties,
-    errcode_ret: *mut cl_int,
-) -> cl_command_queue {
+) -> Result<cl_command_queue, ClError> {
     // TODO do not ignore properties
 
-    lcl_contract!(
-        !context.is_null(),
-        "context can't be NULL",
-        CL_INVALID_CONTEXT,
-        errcode_ret
-    );
+    let context_safe = ContextKind::try_from_cl(context).map_err(map_invalid_context)?;
 
-    let context_safe = ContextKind::try_from_cl(context).unwrap();
-
-    lcl_contract!(
-        context_safe,
-        !device.is_null(),
-        "device can't be NULL",
-        CL_INVALID_DEVICE,
-        errcode_ret
-    );
-
-    let device_safe = DeviceKind::try_from_cl(device).unwrap();
+    let device_safe = DeviceKind::try_from_cl(device).map_err(map_invalid_device)?;
 
     lcl_contract!(
         context_safe,
         context_safe
             .deref()
             .has_device(SharedPtr::downgrade(&device_safe)),
-        "device must belong to the provided context",
-        CL_INVALID_DEVICE,
-        errcode_ret
+        ClError::InvalidDevice,
+        "device must belong to the provided context"
     );
 
     let queue = device_safe.create_queue(context_safe, device_safe.clone());
 
-    *errcode_ret = CL_SUCCESS;
-
-    return _cl_command_queue::wrap(queue);
+    Ok(_cl_command_queue::wrap(queue))
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clEnqueueWriteBuffer(
+#[cl_api]
+fn clEnqueueWriteBuffer(
     command_queue: cl_command_queue,
     buffer: cl_mem,
     _blocking_write: cl_bool,
@@ -67,33 +51,21 @@ pub unsafe extern "C" fn clEnqueueWriteBuffer(
     // TODO support events
     _event_wait_list: *const cl_event,
     _event: *mut cl_event,
-) -> cl_int {
-    lcl_contract!(
-        !command_queue.is_null(),
-        "queue can't be null",
-        CL_INVALID_COMMAND_QUEUE
-    );
+) -> Result<(), ClError> {
+    let queue = QueueKind::try_from_cl(command_queue).map_err(map_invalid_queue)?;
 
-    let queue = QueueKind::try_from_cl(command_queue).unwrap();
-
-    lcl_contract!(
-        !buffer.is_null(),
-        "buffer can't be NULL",
-        CL_INVALID_MEM_OBJECT
-    );
-
-    let buffer_safe = MemKind::try_from_cl(buffer).unwrap();
+    let buffer_safe = MemKind::try_from_cl(buffer).map_err(map_invalid_mem)?;
 
     // TODO proper error handling
 
     // TODO blocking - non-blocking
     queue.enqueue_buffer_write(ptr, SharedPtr::downgrade(&buffer_safe));
 
-    return CL_SUCCESS;
+    return success!();
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clEnqueueReadBuffer(
+#[cl_api]
+fn clEnqueueReadBuffer(
     command_queue: cl_command_queue,
     buffer: cl_mem,
     _blocking_read: cl_bool,
@@ -104,32 +76,20 @@ pub unsafe extern "C" fn clEnqueueReadBuffer(
     // TODO support events
     _event_wait_list: *const cl_event,
     _event: *mut cl_event,
-) -> cl_int {
-    lcl_contract!(
-        !command_queue.is_null(),
-        "queue can't be null",
-        CL_INVALID_COMMAND_QUEUE
-    );
-
-    let queue = QueueKind::try_from_cl(command_queue).unwrap();
-
-    lcl_contract!(
-        !buffer.is_null(),
-        "buffer can't be NULL",
-        CL_INVALID_MEM_OBJECT
-    );
+) -> Result<(), ClError> {
+    let queue = QueueKind::try_from_cl(command_queue).map_err(map_invalid_queue)?;
 
     // TODO proper error handling
 
     // TODO blocking - non-blocking
-    let buffer_safe = MemKind::try_from_cl(buffer).unwrap();
+    let buffer_safe = MemKind::try_from_cl(buffer).map_err(map_invalid_mem)?;
     queue.enqueue_buffer_read(SharedPtr::downgrade(&buffer_safe), ptr);
 
-    return CL_SUCCESS;
+    return success!();
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clEnqueueNDRangeKernel(
+#[cl_api]
+fn clEnqueueNDRangeKernel(
     command_queue: cl_command_queue,
     kernel: cl_kernel,
     work_dim: cl_uint,
@@ -139,25 +99,20 @@ pub unsafe extern "C" fn clEnqueueNDRangeKernel(
     _num_events_in_wait_list: cl_uint,
     _event_wait_list: *const cl_event,
     _event: *mut cl_event,
-) -> cl_int {
+) -> Result<(), ClError> {
     lcl_contract!(
-        !command_queue.is_null(),
-        "queue can't be null",
-        CL_INVALID_COMMAND_QUEUE
+        work_dim > 0 && work_dim <= 3,
+        ClError::InvalidValue,
+        "invalid work_dim"
     );
 
-    lcl_contract!(
-        work_dim > 0 && work_dim <= 4,
-        "invalid work_dim",
-        CL_INVALID_VALUE
-    );
-
-    let queue = QueueKind::try_from_cl(command_queue).unwrap();
-    let kernel_safe = KernelKind::try_from_cl(kernel).unwrap();
+    let queue = QueueKind::try_from_cl(command_queue).map_err(map_invalid_queue)?;
+    let kernel_safe = KernelKind::try_from_cl(kernel).map_err(map_invalid_kernel)?;
 
     let offset = [0u32, 0, 0];
 
-    let global_size_slice = std::slice::from_raw_parts(global_work_size, work_dim as usize);
+    let global_size_slice =
+        unsafe { std::slice::from_raw_parts(global_work_size, work_dim as usize) };
 
     let global_size = match work_dim {
         1 => [global_size_slice[0] as u32, 1, 1],
@@ -180,51 +135,46 @@ pub unsafe extern "C" fn clEnqueueNDRangeKernel(
         local_size,
     );
 
-    return CL_SUCCESS;
+    return success!();
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clFinish(command_queue: cl_command_queue) -> cl_int {
-    lcl_contract!(
-        !command_queue.is_null(),
-        "queue can't be null",
-        CL_INVALID_COMMAND_QUEUE
-    );
-    let queue = QueueKind::try_from_cl(command_queue).unwrap();
+#[cl_api]
+fn clFinish(command_queue: cl_command_queue) -> Result<(), ClError> {
+    let queue = QueueKind::try_from_cl(command_queue).map_err(map_invalid_queue)?;
     queue.finish();
 
-    return CL_SUCCESS;
+    return success!();
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clRetainCommandQueue(queue: cl_command_queue) -> cl_int {
+#[cl_api]
+fn clRetainCommandQueue(queue: cl_command_queue) -> Result<(), ClError> {
     lcl_contract!(
         !queue.is_null(),
-        "queue can't be NULL",
-        CL_INVALID_COMMAND_QUEUE
+        ClError::InvalidCommandQueue,
+        "queue can't be NULL"
     );
 
-    let queue_ref = &mut *queue;
+    let queue_ref = unsafe { &mut *queue };
 
     queue_ref.retain();
 
-    return CL_SUCCESS;
+    return success!();
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clReleaseCommandQueue(queue: cl_command_queue) -> cl_int {
+#[cl_api]
+fn clReleaseCommandQueue(queue: cl_command_queue) -> Result<(), ClError> {
     lcl_contract!(
         !queue.is_null(),
-        "queue can't be NULL",
-        CL_INVALID_COMMAND_QUEUE
+        ClError::InvalidCommandQueue,
+        "queue can't be NULL"
     );
 
-    let queue_ref = &mut *queue;
+    let queue_ref = unsafe { &mut *queue };
 
     if queue_ref.release() == 1 {
         // Intentionally ignore value to destroy pointer and its content
-        Box::from_raw(queue);
+        unsafe { Box::from_raw(queue) };
     }
 
-    return CL_SUCCESS;
+    return success!();
 }

@@ -150,122 +150,34 @@ unsafe impl<T> Sync for UnsafeHandle<T> {}
 unsafe impl<T> Send for UnsafeHandle<T> {}
 
 #[macro_export]
-macro_rules! format_error {
-    ($api_name_full:tt, $message:tt, $exit_code:tt) => {
-        (|| -> String {
-            let api_name = $api_name_full.split("::").last().unwrap_or("unknown");
-            let bt = backtrace::Backtrace::new();
-            let frame_id = (|bt: &backtrace::Backtrace| -> Option<usize> {
-                for (id, f) in bt.frames().into_iter().enumerate().rev() {
-                    let frame_id = f.symbols().into_iter().find_map(|s| {
-                        if s.name()
-                            .unwrap()
-                            .as_str()
-                            .unwrap_or("")
-                            .starts_with(api_name)
-                        {
-                            return Some(id);
-                        }
-                        return Option::None;
-                    });
-                    if frame_id.is_some() {
-                        return Some(frame_id.unwrap());
-                    }
-                }
-                return Option::None;
-            })(&bt);
-
-            let mut symbol = Option::None;
-
-            if frame_id.is_some() {
-                symbol = Some(&bt.frames()[frame_id.unwrap() + 1].symbols()[0]);
-            }
-
-            if symbol.is_some() && symbol.unwrap().filename().is_some() {
-                let final_message = std::format!(
-                    "{}(...) -> {}: called from {} +{} ({}):\n{}\nBacktrace:\n{:?}\n",
-                    api_name,
-                    $exit_code,
-                    symbol
-                        .as_ref()
-                        .unwrap()
-                        .filename()
-                        .unwrap_or(std::path::Path::new("unknown_file"))
-                        .to_str()
-                        .unwrap_or("unknown_file"),
-                    symbol.as_ref().unwrap().lineno().unwrap_or(0),
-                    symbol
-                        .as_ref()
-                        .unwrap()
-                        .name()
-                        .unwrap()
-                        .as_str()
-                        .unwrap_or("unknown function"),
-                    $message,
-                    bt
-                );
-
-                return final_message;
-            }
-
-            return std::format!(
-                "{}(...) -> {}\n{}\nBacktrace:\n{:?}",
-                api_name,
-                $exit_code,
-                $message,
-                bt
-            );
-        })()
-    };
-}
-#[macro_export]
 macro_rules! lcl_contract {
-    ($cond:expr, $message:tt, $exit_code:tt) => {
+    ($cond:expr, $err_type:path, $message:expr) => {
         if !$cond {
-            let name = stdext::function_name!();
-            let assertion_message =
-                std::format!("Assertion {} failed: {}", stringify!($cond), $message);
-            let full_message = format_error!(name, assertion_message, $exit_code);
-            println!("{}", full_message);
-            return $exit_code;
+            let message = $message;
+            let func_name = stdext::function_name!();
+            let assertion_message = format!(
+                "Assertion {} failed in function {}: {}",
+                stringify!($cond),
+                func_name,
+                message
+            );
+            let error = $err_type(assertion_message.into());
+            return Err(error);
         }
     };
-    ($cond:expr, $message:tt, $exit_code:tt, $ret_err:tt) => {
+    ($context:tt, $cond:expr, $err_type:path, $message:expr) => {
         if !$cond {
-            let name = stdext::function_name!();
-            let assertion_message =
-                std::format!("Assertion {} failed: {}", stringify!($cond), $message);
-            let full_message = format_error!(name, assertion_message, $exit_code);
-            println!("{}", full_message);
-            let ret_err_safe = $ret_err.as_ref();
-            if ret_err_safe.is_some() {
-                *$ret_err = $exit_code;
-            }
-            return std::ptr::null_mut();
-        }
-    };
-    ($ctx:tt, $cond:expr, $message:tt, $exit_code:tt) => {
-        if !$cond {
-            let name = stdext::function_name!();
-            let assertion_message =
-                std::format!("Assertion {} failed: {}", stringify!($cond), $message);
-            let full_message = format_error!(name, assertion_message, $exit_code);
-            $ctx.notify_error(full_message);
-            return $exit_code;
-        }
-    };
-    ($ctx:tt, $cond:expr, $message:tt, $exit_code:tt, $ret_err:tt) => {
-        if !$cond {
-            let name = stdext::function_name!();
-            let assertion_message =
-                std::format!("Assertion {} failed: {}", stringify!($cond), $message);
-            let full_message = format_error!(name, assertion_message, $exit_code);
-            $ctx.notify_error(full_message);
-            let ret_err_safe = $ret_err.as_ref();
-            if ret_err_safe.is_some() {
-                *$ret_err = $exit_code;
-            }
-            return std::ptr::null_mut();
+            let message = $message;
+            let func_name = stdext::function_name!();
+            let assertion_message = format!(
+                "Assertion {} failed in function {}: {}",
+                stringify!($cond),
+                func_name,
+                message
+            );
+            let error = $err_type(assertion_message.into());
+            $context.notify_error(format!("{}", error));
+            return Err(error);
         }
     };
 }
@@ -273,20 +185,22 @@ macro_rules! lcl_contract {
 #[macro_export]
 macro_rules! set_info_str {
     ($str:tt, $ptr:tt, $size_ptr:tt) => {{
-        let ptr_safe = $ptr.as_ref();
-        let size_ptr_safe = $size_ptr.as_ref();
+        let ptr_safe = unsafe { $ptr.as_ref() };
+        let size_ptr_safe = unsafe { $size_ptr.as_ref() };
 
-        if !size_ptr_safe.is_none() {
-            *$size_ptr = $str.len() as cl_size_t + 1;
+        if size_ptr_safe.is_some() {
+            unsafe { *$size_ptr = $str.len() as cl_size_t + 1 };
         }
 
-        if !ptr_safe.is_none() {
-            libc::strncpy(
-                $ptr as *mut libc::c_char,
-                $str.as_bytes().as_ptr() as *const libc::c_char,
-                $str.len() as libc::size_t,
-            );
-            *($ptr as *mut u8).offset($str.len() as isize) = 0;
+        if ptr_safe.is_some() {
+            unsafe {
+                libc::strncpy(
+                    $ptr as *mut libc::c_char,
+                    $str.as_bytes().as_ptr() as *const libc::c_char,
+                    $str.len() as libc::size_t,
+                );
+                *($ptr as *mut u8).offset($str.len() as isize) = 0;
+            }
         }
 
         Result::<(), crate::api::error_handling::ClError>::Ok(())
@@ -295,19 +209,21 @@ macro_rules! set_info_str {
 #[macro_export]
 macro_rules! set_info_int {
     ($ty:ty, $int:tt, $ptr:tt, $size_ptr:tt) => {{
-        let ptr_safe = $ptr.as_ref();
-        let size_ptr_safe = $size_ptr.as_ref();
+        let ptr_safe = unsafe { $ptr.as_ref() };
+        let size_ptr_safe = unsafe { $size_ptr.as_ref() };
 
         if !size_ptr_safe.is_none() {
-            *$size_ptr = std::mem::size_of::<$ty>() as cl_size_t;
+            unsafe { *$size_ptr = std::mem::size_of::<$ty>() as cl_size_t };
         }
 
         if !ptr_safe.is_none() {
-            libc::memcpy(
-                $ptr as *mut libc::c_void,
-                &$int as *const $ty as *const libc::c_void,
-                std::mem::size_of::<$ty>() as libc::size_t,
-            );
+            unsafe {
+                libc::memcpy(
+                    $ptr as *mut libc::c_void,
+                    &$int as *const $ty as *const libc::c_void,
+                    std::mem::size_of::<$ty>() as libc::size_t,
+                );
+            }
         }
 
         Result::<(), crate::api::error_handling::ClError>::Ok(())
@@ -316,14 +232,14 @@ macro_rules! set_info_int {
 #[macro_export]
 macro_rules! set_info_array {
     ($base_ty:ty, $array:tt, $ptr:tt, $size_ptr:tt) => {{
-        let ptr_safe = $ptr.as_ref();
-        let size_ptr_safe = $size_ptr.as_ref();
+        let ptr_safe = unsafe { $ptr.as_ref() };
+        let size_ptr_safe = unsafe { $size_ptr.as_ref() };
 
         if !size_ptr_safe.is_none() {
-            *$size_ptr = (std::mem::size_of::<$base_ty>() * $array.len()) as cl_size_t;
+            unsafe { *$size_ptr = (std::mem::size_of::<$base_ty>() * $array.len()) as cl_size_t };
         }
 
-        let dst = std::slice::from_raw_parts_mut($ptr as *mut $base_ty, $array.len());
+        let dst = unsafe { std::slice::from_raw_parts_mut($ptr as *mut $base_ty, $array.len()) };
 
         if !ptr_safe.is_none() {
             for i in 0..$array.len() {

@@ -1,71 +1,64 @@
 use super::cl_types::*;
+use super::error_handling::map_invalid_context;
+use crate::api::error_handling::ClError;
+use crate::success;
 use crate::{
-    format_error,
     interface::{ContextImpl, ContextKind},
     lcl_contract,
 };
+use ocl_type_wrapper::cl_api;
 
-#[no_mangle]
+#[cl_api]
 pub unsafe extern "C" fn clCreateBuffer(
     context: cl_context,
     flags: cl_mem_flags,
     size: cl_size_t,
     _host_ptr: *mut libc::c_void,
-    errcode_ret: *mut cl_int,
-) -> cl_mem {
-    lcl_contract!(
-        !context.is_null(),
-        "context can't be NULL",
-        CL_INVALID_CONTEXT,
-        errcode_ret
-    );
-
-    let mut context_safe = ContextKind::try_from_cl(context).unwrap();
+) -> Result<cl_mem, ClError> {
+    let mut context_safe = ContextKind::try_from_cl(context).map_err(map_invalid_context)?;
 
     lcl_contract!(
         context_safe,
         size > 0,
-        "size must be greater than 0",
-        CL_INVALID_BUFFER_SIZE,
-        errcode_ret
+        ClError::InvalidBufferSize,
+        "size must be greater than 0"
     );
 
     // TODO check flags
     let mem = context_safe.create_buffer(size as usize, flags);
-    *errcode_ret = CL_SUCCESS;
 
-    return _cl_mem::wrap(mem);
+    return Ok(_cl_mem::wrap(mem));
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clRetainMemObject(mem_obj: cl_mem) -> cl_int {
+#[cl_api]
+fn clRetainMemObject(mem_obj: cl_mem) -> Result<(), ClError> {
     lcl_contract!(
         !mem_obj.is_null(),
-        "mem_obj can't be NULL",
-        CL_INVALID_MEM_OBJECT
+        ClError::InvalidMemObject,
+        "mem_obj can't be NULL"
     );
 
-    let mem_obj_ref = &mut *mem_obj;
+    let mem_obj_ref = unsafe { &mut *mem_obj };
 
     mem_obj_ref.retain();
 
-    return CL_SUCCESS;
+    return success!();
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clReleaseMemObject(mem_obj: cl_mem) -> cl_int {
+#[cl_api]
+fn clReleaseMemObject(mem_obj: cl_mem) -> Result<(), ClError> {
     lcl_contract!(
         !mem_obj.is_null(),
-        "mem_obj can't be NULL",
-        CL_INVALID_MEM_OBJECT
+        ClError::InvalidMemObject,
+        "mem_obj can't be NULL"
     );
 
-    let mem_obj_ref = &mut *mem_obj;
+    let mem_obj_ref = unsafe { &mut *mem_obj };
 
     if mem_obj_ref.release() == 1 {
         // Intentionally ignore value to destroy pointer and its content
-        Box::from_raw(mem_obj);
+        unsafe { Box::from_raw(mem_obj) };
     }
 
-    return CL_SUCCESS;
+    return success!();
 }

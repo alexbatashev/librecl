@@ -1,120 +1,123 @@
 use super::cl_types::*;
+use super::error_handling::ClError;
+use crate::api::error_handling::{map_invalid_context, map_invalid_program};
 use crate::interface::{DeviceKind, ProgramKind};
+use crate::success;
 use crate::sync::{SharedPtr, WeakPtr};
 use crate::{
-    format_error,
     interface::{ContextImpl, ContextKind, ProgramImpl},
     lcl_contract,
 };
+use ocl_type_wrapper::cl_api;
 
-#[no_mangle]
-pub unsafe extern "C" fn clCreateProgramWithSource(
+#[cl_api]
+fn clCreateProgramWithSource(
     context: cl_context,
     count: cl_uint,
     strings: *mut *const libc::c_char,
     lengths: *const cl_size_t,
-    errcode_ret: *mut cl_int,
-) -> cl_program {
-    lcl_contract!(
-        !context.is_null(),
-        "context must not be NULL",
-        CL_INVALID_CONTEXT,
-        errcode_ret
-    );
-
-    let ctx_safe = ContextKind::try_from_cl(context).unwrap();
+) -> Result<cl_program, ClError> {
+    let ctx_safe = ContextKind::try_from_cl(context).map_err(map_invalid_context)?;
 
     lcl_contract!(
         ctx_safe,
         count != 0,
-        "program must have at least one line",
-        CL_INVALID_VALUE,
-        errcode_ret
+        ClError::InvalidValue,
+        "program must have at least one line"
     );
     lcl_contract!(
         ctx_safe,
         !strings.is_null(),
-        "strings can't be NULL",
-        CL_INVALID_VALUE,
-        errcode_ret
+        ClError::InvalidValue,
+        "strings can't be NULL"
     );
 
     let mut program_source: String = String::new();
 
-    let strings_array = std::slice::from_raw_parts(strings, count as usize);
+    let strings_array = unsafe { std::slice::from_raw_parts(strings, count as usize) };
 
     if lengths.is_null() {
         for s in strings_array {
             lcl_contract!(
                 ctx_safe,
                 !s.is_null(),
-                "neither of strings can be NULL",
-                CL_INVALID_VALUE,
-                errcode_ret
+                ClError::InvalidValue,
+                "neither of strings can be NULL"
             );
-            let c_str = std::ffi::CStr::from_ptr(*s);
+            let c_str = unsafe { std::ffi::CStr::from_ptr(*s) };
             program_source.push_str(c_str.to_str().unwrap());
         }
     } else {
-        let lengths_array = std::slice::from_raw_parts(lengths, count as usize);
+        let lengths_array = unsafe { std::slice::from_raw_parts(lengths, count as usize) };
         for (s, l) in strings_array.into_iter().zip(lengths_array) {
             lcl_contract!(
                 ctx_safe,
                 !s.is_null(),
-                "neither of strings can be NULL",
-                CL_INVALID_VALUE,
-                errcode_ret
+                ClError::InvalidValue,
+                "neither of strings can be NULL"
             );
 
-            let cur_string =
-                String::from_raw_parts(*s as *const u8 as *mut u8, *l as usize, *l as usize);
+            let cur_string = unsafe {
+                String::from_raw_parts(*s as *const u8 as *mut u8, *l as usize, *l as usize)
+            };
             std::mem::forget(&cur_string);
 
             program_source.push_str(&cur_string);
         }
     }
 
+    // TODO switch to Result<ProgramKind, ClError>
     let program = ctx_safe.create_program_with_source(program_source);
-    *errcode_ret = CL_SUCCESS;
 
-    return _cl_program::wrap(program);
+    return Ok(_cl_program::wrap(program));
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clBuildProgram(
+#[cl_api]
+fn clBuildProgram(
     program: cl_program,
     num_devices: cl_uint,
     device_list: *const cl_device_id,
     _options: *const libc::c_char,
     callback: cl_build_callback,
     user_data: *mut libc::c_void,
-) -> cl_int {
+) -> Result<(), ClError> {
+    let program_safe = ProgramKind::try_from_cl(program).map_err(map_invalid_program)?;
+
+    let context = program_safe
+        .get_context()
+        .upgrade()
+        .ok_or(())
+        .map_err(|_| {
+            ClError::InvalidProgram(
+                "failed to acquire owning reference to program. Was it released before?".into(),
+            )
+        })?;
+
     lcl_contract!(
-        !program.is_null(),
-        "program can't be NULL",
-        CL_INVALID_PROGRAM
+        context,
+        ((device_list.is_null() && num_devices == 0) || (!device_list.is_null() && num_devices > 0)),
+        ClError::InvalidValue,
+        "either num_devices is > 0 and device_list is not NULL, or num_devices == 0 and device_list is NULL"
     );
-    let program_safe = ProgramKind::try_from_cl(program).unwrap();
-
-    let context = program_safe.get_context().upgrade().unwrap();
-
-    lcl_contract!(context, (device_list.is_null() && num_devices == 0) || (!device_list.is_null() && num_devices > 0), "either num_devices is > 0 and device_list is not NULL, or num_devices == 0 and device_list is NULL", CL_INVALID_VALUE);
 
     // TODO support options
     let build_function = |devices: Vec<WeakPtr<DeviceKind>>,
-                          mut program: SharedPtr<ProgramKind>| {
+                          mut program: SharedPtr<ProgramKind>|
+     -> Result<(), ClError> {
         if !program.compile_program(devices.as_slice()) {
-            return CL_BUILD_PROGRAM_FAILURE;
+            // TODO proper error
+            return Err(ClError::BuildProgramFailure("".into()));
         }
         if !program.link_programs(devices.as_slice()) {
-            return CL_BUILD_PROGRAM_FAILURE;
+            // TODO proper error
+            return Err(ClError::BuildProgramFailure("".into()));
         }
 
-        return CL_SUCCESS;
+        return success!();
     };
 
     let devices_array = if num_devices > 0 {
-        (std::slice::from_raw_parts(device_list, num_devices as usize)
+        (unsafe { std::slice::from_raw_parts(device_list, num_devices as usize) }
             .iter()
             .map(|&d| SharedPtr::downgrade(&DeviceKind::try_from_cl(d).unwrap())))
         .collect::<Vec<WeakPtr<DeviceKind>>>()
@@ -128,7 +131,7 @@ pub unsafe extern "C" fn clBuildProgram(
 
     if callback.is_some() {
         let _guard = context.get_threading_runtime().enter();
-        let _safe_data = user_data.as_ref();
+        let _safe_data = unsafe { user_data.as_ref() };
         // TODO figure out how to make the whole thing thread-safe
         /*
         tokio::spawn(async move {
@@ -142,41 +145,41 @@ pub unsafe extern "C" fn clBuildProgram(
         });
         */
 
-        return CL_SUCCESS;
+        return success!();
     } else {
         return build_function(devices_array, program_safe);
     }
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clRetainProgram(program: cl_program) -> cl_int {
+#[cl_api]
+fn clRetainProgram(program: cl_program) -> Result<(), ClError> {
     lcl_contract!(
         !program.is_null(),
-        "program can't be NULL",
-        CL_INVALID_PROGRAM
+        ClError::InvalidProgram,
+        "program can't be NULL"
     );
 
-    let program_ref = &mut *program;
+    let program_ref = unsafe { &mut *program };
 
     program_ref.retain();
 
-    return CL_SUCCESS;
+    return success!();
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn clReleaseProgram(program: cl_program) -> cl_int {
+#[cl_api]
+fn clReleaseProgram(program: cl_program) -> Result<(), ClError> {
     lcl_contract!(
         !program.is_null(),
-        "program can't be NULL",
-        CL_INVALID_PROGRAM
+        ClError::InvalidProgram,
+        "program can't be NULL"
     );
 
-    let program_ref = &mut *program;
+    let program_ref = unsafe { &mut *program };
 
     if program_ref.release() == 1 {
         // Intentionally ignore value to destroy pointer and its content
-        Box::from_raw(program);
+        unsafe { Box::from_raw(program) };
     }
 
-    return CL_SUCCESS;
+    return success!();
 }

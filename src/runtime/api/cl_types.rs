@@ -6,7 +6,6 @@ use crate::interface::*;
 
 use crate::sync;
 use bitflags::bitflags;
-use core::fmt;
 use ocl_type_wrapper::cl_object;
 use std::convert::TryFrom;
 
@@ -198,48 +197,9 @@ bitflags! {
     }
 }
 
-pub const CL_DEVICE_NOT_AVAILABLE: cl_int = -2;
-pub const CL_BUILD_PROGRAM_FAILURE: cl_int = -11;
-pub const CL_INVALID_PLATFORM: cl_int = -32;
-pub const CL_INVALID_DEVICE: cl_int = -33;
-pub const CL_INVALID_CONTEXT: cl_int = -34;
-pub const CL_INVALID_COMMAND_QUEUE: cl_int = -36;
-pub const CL_INVALID_MEM_OBJECT: cl_int = -38;
-pub const CL_INVALID_PROGRAM: cl_int = -44;
-pub const CL_INVALID_KERNEL: cl_int = -48;
-pub const CL_INVALID_BUFFER_SIZE: cl_int = -61;
-
-#[derive(Clone)]
-pub struct ClErrorCode<'a> {
-    pub value: cl_int,
-    pub name: &'a str,
-    pub description: &'a str,
-}
-
-impl<'a> fmt::Display for ClErrorCode<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} - {} ({})", self.value, self.name, self.description)
-    }
-}
-
-impl<'a> ClErrorCode<'a> {
-    pub(crate) const fn new(value: cl_int, name: &'a str, description: &'a str) -> Self {
-        return Self {
-            value,
-            name,
-            description,
-        };
-    }
-    pub const Success: Self = Self::new(0, "CL_SUCCESS", "Success");
-    pub const InvalidValue: Self = Self::new(
-        -30,
-        "CL_INVALID_VALUE",
-        "One of the API arguments is not valid",
-    );
-}
-
-pub const CL_SUCCESS: cl_int = ClErrorCode::Success.value;
-pub const CL_INVALID_VALUE: cl_int = ClErrorCode::InvalidValue.value;
+/// This is an exception to generic error handling mechanism, because success
+/// error code had no meaning.
+pub const CL_SUCCESS: cl_int = 0;
 
 const CL_VERSION_MAJOR_BITS: u32 = 10;
 const CL_VERSION_MINOR_BITS: u32 = 10;
