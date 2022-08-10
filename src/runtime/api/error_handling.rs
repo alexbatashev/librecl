@@ -1,49 +1,69 @@
-use super::cl_types::ClErrorCode;
+use super::cl_types::*;
 use backtrace::Backtrace;
+use core::fmt;
 
-pub struct ClError<'a> {
-    pub error_code: ClErrorCode<'a>,
-    pub error_message: String,
+#[derive(Debug, Clone)]
+pub struct ErrorDescription {
+    pub message: String,
     pub backtrace: Backtrace,
 }
 
-impl<'a> ClError<'a> {
-    pub fn new(error_code: ClErrorCode<'a>, error_message: String) -> ClError {
-        return ClError {
-            error_code,
-            error_message,
+impl std::convert::From<&str> for ErrorDescription {
+    fn from(message: &str) -> Self {
+        ErrorDescription {
+            message: message.to_owned(),
             backtrace: Backtrace::new(),
-        };
+        }
+    }
+}
+
+impl std::convert::From<String> for ErrorDescription {
+    fn from(message: String) -> Self {
+        ErrorDescription {
+            message,
+            backtrace: Backtrace::new(),
+        }
+    }
+}
+
+include!("cl_error_codes.rs");
+
+impl std::convert::Into<Result<(), ClError>> for ClError {
+    fn into(self) -> Result<(), ClError> {
+        match self {
+            ClError::Success(_) => Ok(()),
+            _ => Err(self),
+        }
     }
 }
 
 #[macro_export]
-macro_rules! return_error {
-    ($maybe_err:tt) => {
-        if $maybe_err.is_err() {
-            let err = $maybe_err.err().unwrap();
-            println!(
-                "{}\n{}\nBacktrace:\n{:?}",
-                err.error_code, err.error_message, err.backtrace
-            );
-
-            return err.error_code.value;
-        }
+macro_rules! success {
+    () => {
+        ClError::Success("".into()).into()
     };
 }
-#[macro_export]
-macro_rules! return_result {
-    ($maybe_err:tt) => {
-        if $maybe_err.is_err() {
-            let err = $maybe_err.err().unwrap();
-            println!(
-                "{}\n{}\nBacktrace:\n{:?}",
-                err.error_code, err.error_message, err.backtrace
-            );
 
-            return err.error_code.value;
-        } else {
-            return CL_SUCCESS;
-        }
-    };
+pub fn map_invalid_context(reason: String) -> ClError {
+    ClError::InvalidContext(format!("invalid context: {}", reason).into())
+}
+
+pub fn map_invalid_device(reason: String) -> ClError {
+    ClError::InvalidDevice(format!("invalid device: {}", reason).into())
+}
+
+pub fn map_invalid_kernel(reason: String) -> ClError {
+    ClError::InvalidKernel(format!("invalid kernel: {}", reason).into())
+}
+
+pub fn map_invalid_queue(reason: String) -> ClError {
+    ClError::InvalidCommandQueue(format!("invalid queue: {}", reason).into())
+}
+
+pub fn map_invalid_mem(reason: String) -> ClError {
+    ClError::InvalidCommandQueue(format!("invalid queue: {}", reason).into())
+}
+
+pub fn map_invalid_program(reason: String) -> ClError {
+    ClError::InvalidProgram(format!("invalid program: {}", reason).into())
 }

@@ -195,4 +195,3 @@ impl DeviceImpl for Device {
         &self.extension_versions
     }
 }
-
