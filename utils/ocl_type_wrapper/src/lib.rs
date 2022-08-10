@@ -175,6 +175,7 @@ pub fn cl_api(_args: TokenStream, item: TokenStream) -> TokenStream {
             quote! {
                 #[no_mangle]
                 pub(crate) unsafe extern "C" fn #func_name(#args) -> cl_int {
+                    let _span_ = tracing::span!(tracing::Level::TRACE, #func_name_str).entered();
                     let result = #impl_name(#(#arg_names),*);
                     match result {
                         Ok(_) => 0,
@@ -190,6 +191,7 @@ pub fn cl_api(_args: TokenStream, item: TokenStream) -> TokenStream {
             quote! {
                 #[no_mangle]
                 pub(crate) unsafe extern "C" fn #func_name(#args errorcode_ret: *mut cl_int) -> #cl_object_type {
+                    let _span_ = tracing::span!(tracing::Level::TRACE, #func_name_str).entered();
                     let result = #impl_name(#(#arg_names),*);
                     match result {
                         Ok(ret) => {

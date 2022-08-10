@@ -64,7 +64,8 @@ errors = """#define CL_SUCCESS                                  0
 
 lines = errors.splitlines()
 
-enum = """#[derive(Debug, Clone)]
+enum = """use crate::api::error_handling::cl_int;
+#[derive(Debug, Clone)]
 pub enum ClError {
 """
 
@@ -85,6 +86,7 @@ fmt = """impl fmt::Display for ClError {
 
 test = """#[cfg(test)]
 pub mod error_codes {
+use crate::api::error_handling::cl_int;
 """
 
 for line in lines:

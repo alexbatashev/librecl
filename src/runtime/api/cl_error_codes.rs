@@ -1,3 +1,4 @@
+use crate::api::error_handling::cl_int;
 #[derive(Debug, Clone)]
 pub enum ClError {
     Success(ErrorDescription),
@@ -276,6 +277,7 @@ impl fmt::Display for ClError {
 }
 #[cfg(test)]
 pub mod error_codes {
+use crate::api::error_handling::cl_int;
     pub const CL_SUCCESS: cl_int = 0;
     pub const CL_DEVICE_NOT_FOUND: cl_int = -1;
     pub const CL_DEVICE_NOT_AVAILABLE: cl_int = -2;
