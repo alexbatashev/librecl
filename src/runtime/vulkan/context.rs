@@ -1,7 +1,9 @@
 use crate::api::cl_types::*;
+use crate::api::error_handling::ClError;
 use crate::interface::ContextImpl;
 use crate::interface::ContextKind;
 use crate::interface::DeviceKind;
+use crate::interface::EventKind;
 use crate::interface::MemKind;
 use crate::interface::ProgramKind;
 use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
@@ -108,6 +110,7 @@ impl ContextImpl for Context {
     fn get_threading_runtime(&self) -> &Runtime {
         return &self.threading_runtime;
     }
+
     fn create_buffer(&mut self, size: usize, _flags: cl_mem_flags) -> MemKind {
         let owned_context = FromCl::try_from_cl(self.get_cl_handle()).unwrap();
         if self.devices.len() == 1 {
@@ -121,6 +124,31 @@ impl ContextImpl for Context {
         } else {
             unimplemented!();
         }
+    }
+
+    fn wait_for_events(&self, events: &mut [EventKind]) -> Result<(), ClError> {
+        let host_events = events.iter_mut().filter_map(|e: &mut EventKind| match e {
+            EventKind::VulkanHost(ref mut evt) => Some(evt),
+            _ => None,
+        });
+
+        for e in host_events {
+            // TODO should we wait for all events before returning error?
+            e.wait()?;
+        }
+
+        let device_events = events.iter().filter_map(|e| match e {
+            EventKind::Vulkan(evt) => Some(evt.get_fence()),
+            _ => None,
+        });
+
+        for e in device_events {
+            // TODO should we wait for all events before returning error?
+            e.wait(Option::None)
+                .map_err(|_| ClError::OutOfResources("failed to wait for event".into()))?;
+        }
+
+        Ok(())
     }
 }
 

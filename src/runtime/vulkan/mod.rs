@@ -1,6 +1,7 @@
 // mod command_pool;
 mod context;
 mod device;
+mod event;
 mod kernel;
 mod memory;
 pub mod platform;
@@ -10,6 +11,7 @@ mod queue;
 // pub use crate::vulkan::command_pool::*;
 pub use crate::vulkan::context::*;
 pub use crate::vulkan::device::*;
+pub use crate::vulkan::event::*;
 pub use crate::vulkan::kernel::*;
 pub use crate::vulkan::memory::*;
 pub use crate::vulkan::platform::*;

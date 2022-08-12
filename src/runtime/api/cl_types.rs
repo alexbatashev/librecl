@@ -28,8 +28,6 @@ pub struct _cl_name_version {
 }
 pub type cl_name_version = _cl_name_version;
 
-pub use super::cl_icd::cl_event;
-
 pub trait IntoCl<T> {
     type Error;
 
@@ -72,6 +70,10 @@ pub type cl_kernel = *mut _cl_kernel;
 #[cl_object(MemKind)]
 pub struct _cl_mem;
 pub type cl_mem = *mut _cl_mem;
+
+#[cl_object(EventKind)]
+pub struct _cl_event;
+pub type cl_event = *mut _cl_event;
 
 pub trait ClObjectImpl<T> {
     fn get_cl_handle(&self) -> T;

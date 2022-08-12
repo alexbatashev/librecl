@@ -21,6 +21,8 @@ fn main() {
         .allowlist_type("cl_program_.*")
         .allowlist_type("cl_kernel_.*")
         .allowlist_type("cl_event.*")
+        .blocklist_type("cl_event")
+        .blocklist_type("_cl_event")
         .allowlist_type("cl_profiling.*")
         .allowlist_type("cl_map.*")
         .allowlist_type("cl_GL.*")
