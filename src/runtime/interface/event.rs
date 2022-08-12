@@ -1,6 +1,9 @@
 use enum_dispatch::enum_dispatch;
 
+use super::ContextKind;
 use crate::api::cl_types::{cl_event, ClObjectImpl};
+use crate::sync::WeakPtr;
+
 #[cfg(feature = "vulkan")]
 use crate::vulkan::Event as VkEvent;
 #[cfg(feature = "vulkan")]
@@ -22,7 +25,9 @@ pub enum EventKind {
 
 /// Common interface for Event objects for all backends.
 #[enum_dispatch(EventKind)]
-pub trait EventImpl: ClObjectImpl<cl_event> {}
+pub trait EventImpl: ClObjectImpl<cl_event> {
+    fn get_context(&self) -> WeakPtr<ContextKind>;
+}
 
 impl ClObjectImpl<cl_event> for EventKind {
     fn get_cl_handle(&self) -> cl_event {

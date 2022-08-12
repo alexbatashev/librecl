@@ -9,6 +9,7 @@ use crate::interface::ProgramKind;
 use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
 use ocl_type_wrapper::ClObjImpl;
 use std::ops::Deref;
+use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use vulkano::VulkanObject;
@@ -126,18 +127,20 @@ impl ContextImpl for Context {
         }
     }
 
-    fn wait_for_events(&self, events: &mut [EventKind]) -> Result<(), ClError> {
-        let host_events = events.iter_mut().filter_map(|e: &mut EventKind| match e {
-            EventKind::VulkanHost(ref mut evt) => Some(evt),
-            _ => None,
-        });
+    fn wait_for_events(&self, events: &mut [SharedPtr<EventKind>]) -> Result<(), ClError> {
+        let host_events = events
+            .iter_mut()
+            .filter_map(|e: &mut SharedPtr<EventKind>| match e.deref_mut() {
+                EventKind::VulkanHost(ref mut evt) => Some(evt),
+                _ => None,
+            });
 
         for e in host_events {
             // TODO should we wait for all events before returning error?
             e.wait()?;
         }
 
-        let device_events = events.iter().filter_map(|e| match e {
+        let device_events = events.iter().filter_map(|e| match e.deref() {
             EventKind::Vulkan(evt) => Some(evt.get_fence()),
             _ => None,
         });

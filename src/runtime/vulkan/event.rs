@@ -17,7 +17,7 @@ type Fence = FenceSignalFuture<CommandBufferExecFuture<NowFuture, PrimaryAutoCom
 
 #[derive(ClObjImpl)]
 pub struct Event {
-    _context: WeakPtr<ContextKind>,
+    context: WeakPtr<ContextKind>,
     fence: SharedPtr<Fence>,
     #[cl_handle]
     handle: UnsafeHandle<cl_event>,
@@ -26,7 +26,7 @@ pub struct Event {
 impl Event {
     pub fn new(context: WeakPtr<ContextKind>, fence: SharedPtr<Fence>) -> EventKind {
         Event {
-            _context: context,
+            context,
             fence,
             handle: UnsafeHandle::null(),
         }
@@ -38,7 +38,11 @@ impl Event {
     }
 }
 
-impl EventImpl for Event {}
+impl EventImpl for Event {
+    fn get_context(&self) -> WeakPtr<ContextKind> {
+        self.context.clone()
+    }
+}
 
 #[derive(ClObjImpl)]
 pub struct HostToGPUEvent {
@@ -78,4 +82,8 @@ impl HostToGPUEvent {
     }
 }
 
-impl EventImpl for HostToGPUEvent {}
+impl EventImpl for HostToGPUEvent {
+    fn get_context(&self) -> WeakPtr<ContextKind> {
+        self.context.clone()
+    }
+}
