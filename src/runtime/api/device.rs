@@ -168,3 +168,14 @@ fn clGetDeviceInfo(
         )),
     }
 }
+
+#[cl_api]
+fn clRetainDevice(_device: cl_device_id) -> Result<(), ClError> {
+    // since all devices are root devices for now, simply return
+    return success!();
+}
+
+#[cl_api]
+fn clReleaseDevice(_device: cl_device_id) -> Result<(), ClError> {
+    return success!();
+}
