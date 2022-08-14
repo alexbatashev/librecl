@@ -22,7 +22,7 @@ tracing = "0.1.36"
 pytorch-cpuinfo = "0.1.1"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 name = "lcl_icd_runtime"
 path = "./lib.rs"
 
