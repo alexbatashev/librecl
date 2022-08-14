@@ -113,6 +113,7 @@ pub enum PlatformInfoNames {
     CL_PLATFORM_HOST_TIMER_RESOLUTION = 0x0905,
     CL_PLATFORM_NUMERIC_VERSION = 0x0906,
     CL_PLATFORM_EXTENSIONS_WITH_VERSION = 0x0907,
+    CL_PLATFORM_ICD_SUFFIX_KHR = 0x0920,
 }
 
 pub const CL_PLATFORM_NAME: u32 = 0x0902;
@@ -145,6 +146,9 @@ impl TryFrom<cl_uint> for PlatformInfoNames {
             }
             x if x == PlatformInfoNames::CL_PLATFORM_EXTENSIONS_WITH_VERSION as cl_uint => {
                 Ok(PlatformInfoNames::CL_PLATFORM_EXTENSIONS_WITH_VERSION)
+            }
+            x if x == PlatformInfoNames::CL_PLATFORM_ICD_SUFFIX_KHR as cl_uint => {
+                Ok(PlatformInfoNames::CL_PLATFORM_ICD_SUFFIX_KHR)
             }
             _ => Err(()),
         }

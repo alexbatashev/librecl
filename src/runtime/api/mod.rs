@@ -5,6 +5,7 @@ pub(crate) mod utils;
 
 mod context;
 mod device;
+mod extensions;
 mod kernel;
 mod memory;
 mod platform;
