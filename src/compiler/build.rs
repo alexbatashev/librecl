@@ -133,9 +133,11 @@ fn main() {
     println!("cargo:rustc-link-arg=-Wl,-rpath,{}/lib", dst.display());
     println!("cargo:rustc-link-arg=-Wl,-rpath,{}/lib64", dst.display());
     println!("cargo:rustc-link-lib=dylib=lcl_compiler");
-    rerun_if_changed_anything_in_dir(Path::new("../../third_party/llvm-project"));
-    rerun_if_changed_anything_in_dir(Path::new("../compiler"));
-    println!("cargo:rerun-if-env-changed=RUSTC_WRAPPER");
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=../../build_dependencies.sh");
+    if env::var("CI").unwrap_or("false".to_owned()) == "false" {
+        rerun_if_changed_anything_in_dir(Path::new("../../third_party/llvm-project"));
+        rerun_if_changed_anything_in_dir(Path::new("../compiler"));
+        println!("cargo:rerun-if-env-changed=RUSTC_WRAPPER");
+        println!("cargo:rerun-if-changed=build.rs");
+        println!("cargo:rerun-if-changed=../../build_dependencies.sh");
+    }
 }

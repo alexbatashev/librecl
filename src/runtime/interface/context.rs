@@ -25,6 +25,12 @@ pub trait ContextImpl: ClObjectImpl<cl_context> {
     fn get_associated_devices(&self) -> &[WeakPtr<DeviceKind>];
     /// Creates a new program in input state from a raw source code string
     fn create_program_with_source(&self, source: String) -> ProgramKind;
+    /// Creates a new program in input state from a SPIR-V binary
+    ///
+    /// # Errors
+    /// - CL_INVALID_VALUE if the memory does not contain a valid SPIR-V image
+    /// - CL_INVALID_CONTEXT if failed to acquire owning reference to context
+    fn create_program_with_spirv(&self, spirv: &[i8]) -> Result<ProgramKind, ClError>;
     /// Creates a new buffer, bound to this context.
     fn create_buffer(&mut self, size: usize, flags: cl_mem_flags) -> MemKind;
     /// Waits for all the events in the list.

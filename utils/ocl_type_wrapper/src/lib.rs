@@ -4,6 +4,7 @@ use std::ops::Deref;
 use convert_case::{Case, Casing};
 use darling::{FromDeriveInput, FromField};
 use proc_macro::TokenStream;
+use proc_macro2;
 use quote::format_ident;
 use quote::quote;
 use syn::{self, parse_macro_input, DeriveInput};
@@ -129,6 +130,10 @@ pub fn cl_api(_args: TokenStream, item: TokenStream) -> TokenStream {
     let func_name = input.sig.ident.clone();
     // TODO correctly handle IDs, KHR and LCL patterns.
     let func_name_str = func_name.clone().to_string();
+    let func_name_lcl = proc_macro2::Ident::new(
+        (func_name_str.clone() + "LCL").as_str(),
+        proc_macro2::Span::call_site(),
+    );
     let func_name_processed = func_name_str
         .clone()
         .replace("IDs", "_ids")
@@ -143,6 +148,10 @@ pub fn cl_api(_args: TokenStream, item: TokenStream) -> TokenStream {
 
     let args = input.sig.inputs.clone();
     let arg_names = args.clone().into_iter().map(|arg| match arg {
+        syn::FnArg::Typed(pat) => pat.pat,
+        _ => panic!(),
+    });
+    let arg_names2 = args.clone().into_iter().map(|arg| match arg {
         syn::FnArg::Typed(pat) => pat.pat,
         _ => panic!(),
     });
@@ -174,7 +183,7 @@ pub fn cl_api(_args: TokenStream, item: TokenStream) -> TokenStream {
         syn::Type::Tuple(_) => {
             quote! {
                 #[no_mangle]
-                pub(crate) unsafe extern "C" fn #func_name(#args) -> cl_int {
+                pub(crate) unsafe extern "C" fn #func_name_lcl(#args) -> cl_int {
                     let _span_ = tracing::span!(tracing::Level::TRACE, #func_name_str).entered();
                     let result = #impl_name(#(#arg_names),*);
                     match result {
@@ -185,12 +194,16 @@ pub fn cl_api(_args: TokenStream, item: TokenStream) -> TokenStream {
                         }
                     }
                 }
+                #[no_mangle]
+                pub(crate) unsafe extern "C" fn #func_name(#args) -> cl_int {
+                    return #func_name_lcl(#(#arg_names2),*);
+                }
             }
         }
         _ => {
             quote! {
                 #[no_mangle]
-                pub(crate) unsafe extern "C" fn #func_name(#args errorcode_ret: *mut cl_int) -> #cl_object_type {
+                pub(crate) unsafe extern "C" fn #func_name_lcl(#args errorcode_ret: *mut cl_int) -> #cl_object_type {
                     let _span_ = tracing::span!(tracing::Level::TRACE, #func_name_str).entered();
                     let result = #impl_name(#(#arg_names),*);
                     match result {
@@ -208,6 +221,11 @@ pub fn cl_api(_args: TokenStream, item: TokenStream) -> TokenStream {
                             std::ptr::null_mut()
                         }
                     }
+                }
+
+                #[no_mangle]
+                pub(crate) unsafe extern "C" fn #func_name(#args errorcode_ret: *mut cl_int) -> #cl_object_type {
+                    return #func_name_lcl(#(#arg_names2),*, errorcode_ret);
                 }
             }
         }

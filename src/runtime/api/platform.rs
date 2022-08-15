@@ -143,17 +143,26 @@ fn clGetPlatformInfo(
             let resolution = platform_safe.get_host_timer_resolution();
             set_info_int!(cl_ulong, resolution, param_value, param_size_ret)
         }
+        Ok(PlatformInfoNames::CL_PLATFORM_ICD_SUFFIX_KHR) => {
+            let suffix = "LCL";
+            set_info_str!(suffix, param_value, param_size_ret)
+        }
         Err(err) => Err(err),
     }
 }
 
 #[no_mangle]
-pub(crate) unsafe extern "C" fn clIcdGetPlatformIDsKHR(
+pub(crate) unsafe extern "C" fn clIcdGetPlatformIDsLCL(
     num_entries: cl_uint,
     platforms_raw: *mut cl_platform_id,
     num_platforms_raw: *mut cl_uint,
 ) -> cl_int {
-    return clGetPlatformIDs(num_entries, platforms_raw, num_platforms_raw);
+    let result = cl_get_platform_ids_impl(num_entries, platforms_raw, num_platforms_raw);
+
+    match result {
+        Ok(_) => 0,
+        Err(err) => err.error_code(),
+    }
 }
 
 #[cfg(test)]
