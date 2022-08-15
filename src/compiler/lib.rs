@@ -119,6 +119,28 @@ impl Compiler {
         CompileResult::from_raw(result)
     }
 
+    pub fn compile_spirv(&self, source: &[i8], options: &[String]) -> Arc<CompileResult> {
+        let mut c_opts = vec![];
+        let mut char_opts = vec![];
+
+        for o in options {
+            c_opts.push(CString::new(o.as_str()).unwrap());
+            char_opts.push(c_opts.last().unwrap().as_ptr());
+        }
+
+        let result = unsafe {
+            ffi::lcl_compile(
+                self.handle,
+                source.len() as ffi::size_t,
+                source.as_ptr(),
+                char_opts.len() as ffi::size_t,
+                char_opts.as_ptr() as *mut *const i8,
+            )
+        };
+
+        CompileResult::from_raw(result)
+    }
+
     pub fn link(&self, modules: &[Arc<CompileResult>], options: &[String]) -> Arc<CompileResult> {
         let mut c_opts = vec![];
         let mut char_opts = vec![];
