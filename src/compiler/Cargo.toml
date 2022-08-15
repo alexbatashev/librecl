@@ -10,6 +10,7 @@ path = "./lib.rs"
 
 [dependencies]
 libc = "0.2.126"
+ocl_args = { path = "../../utils/ocl_args" }
 
 [build-dependencies]
 cmake = "0.1"
