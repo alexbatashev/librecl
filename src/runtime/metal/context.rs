@@ -1,4 +1,5 @@
 use crate::api::cl_types::*;
+use crate::api::error_handling::{map_invalid_context, ClError};
 use crate::interface::{ContextImpl, ContextKind, DeviceKind, MemKind, ProgramKind};
 use crate::sync::{self, *};
 use ocl_type_wrapper::ClObjImpl;
@@ -61,7 +62,12 @@ impl ContextImpl for Context {
         );
     }
     fn create_program_with_spirv(&self, spirv: &[i8]) -> Result<ProgramKind, ClError> {
-        unimplemented!()
+        let context: SharedPtr<ContextKind> =
+            FromCl::try_from_cl(*self.handle.value()).map_err(map_invalid_context)?;
+        Ok(Program::new(
+            SharedPtr::downgrade(&context),
+            ProgramContent::SPIRV(spirv.to_vec()),
+        ))
     }
     fn create_buffer(&mut self, size: usize, _flags: cl_mem_flags) -> MemKind {
         let context: SharedPtr<ContextKind> = FromCl::try_from_cl(*self.handle.value()).unwrap();

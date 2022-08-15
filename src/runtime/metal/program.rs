@@ -12,6 +12,7 @@ use super::Kernel;
 
 pub enum ProgramContent {
     Source(String),
+    SPIRV(Vec<i8>),
 }
 
 #[derive(ClObjImpl)]
@@ -65,9 +66,14 @@ impl ProgramImpl for Program {
                     .get_compiler()
                     .compile_source(source.as_str(), &options);
                 Some(result)
+            },
+            ProgramContent::SPIRV(spirv) => {
+                // TODO pass spec constants
+                let options: [String; 2] =
+                    [String::from("-c"), String::from("--target=metal-macos")];
+                let result = device.get_compiler().compile_spirv(spirv, &options);
+                Some(result)
             }
-            #[allow(unreachable_patterns)]
-            _ => None,
         };
 
         self.compile_result = compile_result;
