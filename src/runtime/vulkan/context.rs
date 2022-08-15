@@ -1,5 +1,5 @@
 use crate::api::cl_types::*;
-use crate::api::error_handling::ClError;
+use crate::api::error_handling::{ClError, map_invalid_context};
 use crate::interface::ContextImpl;
 use crate::interface::ContextKind;
 use crate::interface::DeviceKind;
@@ -104,14 +104,7 @@ impl ContextImpl for Context {
     }
 
     fn create_program_with_spirv(&self, spirv: &[i8]) -> Result<ProgramKind, ClError> {
-        let context: SharedPtr<ContextKind> =
-            FromCl::try_from_cl(*self.handle.value()).map_err(|_err| {
-                ClError::new(
-                    ClErrorCode::InvalidContext,
-                    "failed to acquire owning reference to context".to_owned(),
-                )
-            })?;
-
+        let context: SharedPtr<ContextKind> = FromCl::try_from_cl(*self.handle.value()).map_err(map_invalid_context)?;
         Ok(Program::new(
             SharedPtr::downgrade(&context),
             ProgramContent::SPIRV(spirv.to_vec()),
