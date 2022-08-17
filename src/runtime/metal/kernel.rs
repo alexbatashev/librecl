@@ -2,10 +2,10 @@ use crate::api::cl_types::*;
 use crate::interface::{DeviceKind, KernelImpl, KernelKind, MemKind, ProgramKind};
 use crate::sync::{self, *};
 use librecl_compiler::KernelArgInfo;
-use metal_api::{ComputeCommandEncoderRef, ComputePipelineState, Function, FunctionDescriptor};
+use cpmetal::{FunctionDescriptor, Function, ComputeCommandEncoder, ComputePipelineState};
 use ocl_type_wrapper::ClObjImpl;
 use std::ops::Deref;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use super::SingleDeviceBuffer;
 
@@ -21,7 +21,7 @@ pub struct Kernel {
     args: Vec<KernelArgInfo>,
     arg_buffers: Vec<Arc<ArgBuffer>>,
     // TODO make per device
-    function: Arc<Mutex<UnsafeHandle<Function>>>,
+    function: Function,
     handle: UnsafeHandle<cl_kernel>,
 }
 
@@ -37,14 +37,14 @@ impl Kernel {
         let descriptor = FunctionDescriptor::new();
         descriptor.set_name(name.as_str());
         let owned_program = program.upgrade().unwrap();
-        let function = Arc::new(Mutex::new(UnsafeHandle::new(match owned_program.deref() {
+        let function = match owned_program.deref() {
             ProgramKind::Metal(prog) => prog
                 .get_library()
                 .new_function_with_descriptor(&descriptor)
                 .unwrap(),
             #[allow(unreachable_patterns)]
             _ => panic!(),
-        })));
+        };
 
         Kernel {
             _program: program,
@@ -65,16 +65,14 @@ impl Kernel {
             _ => panic!(),
         };
 
-        let locked_function = self.function.lock().unwrap();
-        let locked_device = device_safe.get_native_device().lock().unwrap();
+        let native_device = device_safe.get_native_device();
 
-        return locked_device
-            .value()
-            .new_compute_pipeline_state_with_function(locked_function.value())
+        return native_device
+            .new_compute_pipeline_state_with_function(&self.function)
             .unwrap();
     }
 
-    pub fn encode_arguments(&self, compute_encoder: &ComputeCommandEncoderRef) {
+    pub fn encode_arguments(&self, compute_encoder: &ComputeCommandEncoder) {
         for (idx, arg) in self.arg_buffers.iter().enumerate() {
             match arg.as_ref() {
                 ArgBuffer::SDB(ref buffer) => buffer.encode_argument(compute_encoder, idx),
@@ -94,7 +92,9 @@ impl KernelImpl for Kernel {
         match owned_buffer.deref() {
             MemKind::MetalSDBuffer(ref buffer) => {
                 self.arg_buffers[index] = Arc::new(ArgBuffer::SDB(buffer.clone()));
-            }
+            },
+            #[allow(unreachable_patterns)]
+            _ => panic!(),
         }
     }
     fn get_arg_info(&self) -> &[KernelArgInfo] {
