@@ -10,6 +10,7 @@ path = "./lib.rs"
 
 [dependencies]
 libc = "0.2.126"
+libloading = "0.7.3"
 
 [build-dependencies]
 cmake = "0.1"

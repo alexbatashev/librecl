@@ -28,6 +28,7 @@ fn rerun_if_changed_anything_in_dir(dir: &Path) {
 fn main() {
     let compiler_bindings = bindgen::Builder::default()
         .header("opencl/rust_bindings.hpp")
+        .ignore_functions()
         .generate()
         .expect("Failed to generate bindings");
 
