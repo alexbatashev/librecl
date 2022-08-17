@@ -1,17 +1,15 @@
 use crate::api::cl_types::*;
 use crate::interface::{ContextKind, DeviceKind, KernelKind, MemKind, QueueImpl, QueueKind};
 use crate::sync::{self, *};
-use metal_api::CommandQueue;
-use metal_api::MTLSize;
+use cpmetal::CommandQueue;
 use ocl_type_wrapper::ClObjImpl;
 use std::ops::Deref;
-use std::sync::{Arc, Mutex};
 
 #[derive(ClObjImpl)]
 pub struct InOrderQueue {
     _context: WeakPtr<ContextKind>,
     device: WeakPtr<DeviceKind>,
-    queue: Arc<Mutex<UnsafeHandle<CommandQueue>>>,
+    queue: CommandQueue,
     handle: UnsafeHandle<cl_command_queue>,
 }
 
@@ -24,11 +22,7 @@ impl InOrderQueue {
             _ => panic!(),
         };
 
-        let device_lock = device_safe.get_native_device().lock().unwrap();
-
-        let queue = Arc::new(Mutex::new(UnsafeHandle::new(
-            device_lock.value().new_command_queue(),
-        )));
+        let queue = device_safe.get_native_device().new_command_queue();
 
         InOrderQueue {
             _context: context,
@@ -81,30 +75,22 @@ impl QueueImpl for InOrderQueue {
             _ => panic!(),
         };
 
-        let locked_queue = self.queue.lock().unwrap();
-
-        let command_buffer = locked_queue.value().new_command_buffer();
+        let command_buffer = self.queue.new_command_buffer();
         let compute_encoder = command_buffer.new_compute_command_encoder();
 
         let pso = kernel_safe.prepare_pso(self.device.clone());
 
         compute_encoder.set_compute_pipeline_state(&pso);
 
-        kernel_safe.encode_arguments(compute_encoder);
+        kernel_safe.encode_arguments(&compute_encoder);
 
-        let grid_size = MTLSize::new(
-            (global_size[0] / local_size[0]) as u64,
-            (global_size[1] / local_size[1]) as u64,
-            (global_size[2] / local_size[2]) as u64,
-        );
+        let grid_size = [
+            (global_size[0] / local_size[0]),
+            (global_size[1] / local_size[1]),
+            (global_size[2] / local_size[2]),
+        ];
 
-        let threadgroup_size = MTLSize::new(
-            local_size[0] as u64,
-            local_size[1] as u64,
-            local_size[2] as u64,
-        );
-
-        compute_encoder.dispatch_thread_groups(grid_size, threadgroup_size);
+        compute_encoder.dispatch_thread_groups(grid_size, local_size);
         compute_encoder.end_encoding();
 
         command_buffer.commit();

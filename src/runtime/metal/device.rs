@@ -2,17 +2,16 @@ use crate::api::cl_types::*;
 use crate::interface::{ContextKind, DeviceImpl, DeviceKind, PlatformKind, QueueKind};
 use crate::sync::{self, *};
 use librecl_compiler::Compiler;
-use metal_api::Device as MTLDevice;
+use cpmetal::Device as MTLDevice;
 use ocl_type_wrapper::ClObjImpl;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use super::InOrderQueue;
 
 #[derive(ClObjImpl)]
 pub struct Device {
     platform: WeakPtr<PlatformKind>,
-    device: Arc<Mutex<UnsafeHandle<MTLDevice>>>,
+    device: MTLDevice,
     compiler: Arc<Compiler>,
     handle: UnsafeHandle<cl_device_id>,
 }
@@ -21,7 +20,7 @@ impl Device {
     pub fn new(platform: &SharedPtr<PlatformKind>, device: MTLDevice) -> SharedPtr<DeviceKind> {
         let device = Device {
             platform: SharedPtr::downgrade(platform),
-            device: Arc::new(Mutex::new(UnsafeHandle::new(device))),
+            device,
             compiler: Compiler::new(),
             handle: UnsafeHandle::null(),
         }
@@ -31,7 +30,7 @@ impl Device {
         return DeviceKind::try_from_cl(raw_device).unwrap();
     }
 
-    pub fn get_native_device(&self) -> &Mutex<UnsafeHandle<MTLDevice>> {
+    pub fn get_native_device(&self) -> &MTLDevice {
         return &self.device;
     }
 
@@ -45,8 +44,7 @@ impl DeviceImpl for Device {
         return cl_device_type::GPU;
     }
     fn get_device_name(&self) -> String {
-        let locked_device = self.device.lock().unwrap();
-        return locked_device.value().name().to_owned();
+        self.device.name().clone()
     }
     fn is_available(&self) -> bool {
         // TODO some Intel-based Macs support hybrid graphics and eGPUs.

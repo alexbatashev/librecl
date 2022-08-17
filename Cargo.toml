@@ -11,4 +11,5 @@ members = [
   "src/runtime",
   "utils/ocl_args",
   "utils/ocl_type_wrapper",
+  "utils/cpmetal",
 ]
