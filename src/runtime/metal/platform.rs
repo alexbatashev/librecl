@@ -8,7 +8,7 @@ use crate::interface::PlatformKind;
 use crate::sync::{self, *};
 use ocl_type_wrapper::ClObjImpl;
 
-use metal_api::Device as MTLDevice;
+use cpmetal::Device as MTLDevice;
 
 use super::Context;
 use super::Device;
@@ -25,7 +25,7 @@ pub struct Platform {
 
 impl Platform {
     pub fn new() -> Platform {
-        let extension_names = vec!["cl_khr_id"];
+        let extension_names = vec!["cl_khr_icd"];
         let extension_versions = vec![make_version(1, 0, 0)];
         let platform_name = std::format!("LibreCL Apple Metal Platform");
         return Platform {

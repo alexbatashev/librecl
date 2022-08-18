@@ -26,7 +26,7 @@ lcl_compile(lcl::Compiler *compiler, size_t sourceLen, const char *source,
             size_t numOptions, const char **opts);
 LCL_COMP_EXPORT lcl::CompileResult *
 lcl_link(lcl::Compiler *compiler, size_t numModules, lcl::CompileResult **,
-         size_t numOptsions, const char **opts);
+         size_t numOptions, const char **opts);
 
 LCL_COMP_EXPORT void lcl_release_result(lcl::CompileResult *result);
 

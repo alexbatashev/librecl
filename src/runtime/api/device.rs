@@ -1,6 +1,6 @@
 use super::error_handling::ClError;
 use crate::api::cl_types::*;
-use crate::interface::{DeviceImpl, DeviceKind, PlatformImpl, PlatformKind};
+use crate::interface::{DeviceImpl, DeviceKind, DeviceLimitsInterface, PlatformImpl, PlatformKind};
 use crate::{lcl_contract, set_info_array, set_info_int, set_info_str, success};
 use ocl_type_wrapper::cl_api;
 use std::ops::Deref;
@@ -66,6 +66,10 @@ fn clGetDeviceInfo(
     })?;
 
     match param_name {
+        DeviceInfoNames::Type => {
+            let info: cl_ulong = device_safe.get_device_type().bits();
+            set_info_int!(cl_ulong, info, param_value, param_value_size_ret)
+        }
         DeviceInfoNames::Name => {
             let info = device_safe.get_device_name();
             set_info_str!(info, param_value, param_value_size_ret)
@@ -79,16 +83,76 @@ fn clGetDeviceInfo(
             set_info_int!(cl_uint, info, param_value, param_value_size_ret)
         }
         DeviceInfoNames::MaxComputeUnits => {
-            let info = device_safe.get_max_compute_units();
+            let info = device_safe.max_compute_units();
             set_info_int!(cl_uint, info, param_value, param_value_size_ret)
         }
         DeviceInfoNames::MaxWorkItemDimensions => {
-            let info = device_safe.get_max_work_item_dimensions();
+            let info = device_safe.max_work_item_dimensions();
             set_info_int!(cl_uint, info, param_value, param_value_size_ret)
         }
         DeviceInfoNames::MaxWorkItemSizes => {
-            let info = device_safe.get_max_work_item_sizes();
+            let info = device_safe.max_work_item_sizes();
             set_info_array!(cl_size_t, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::MaxWorkGroupSize => {
+            let info = device_safe.max_work_group_size();
+            set_info_int!(cl_size_t, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::PreferredVectorWidthChar => {
+            let info = device_safe.preferred_vector_width_char();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::PreferredVectorWidthShort => {
+            let info = device_safe.preferred_vector_width_short();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::PreferredVectorWidthInt => {
+            let info = device_safe.preferred_vector_width_int();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::PreferredVectorWidthLong => {
+            let info = device_safe.preferred_vector_width_long();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::PreferredVectorWidthFloat => {
+            let info = device_safe.preferred_vector_width_float();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::PreferredVectorWidthDouble => {
+            let info = device_safe.preferred_vector_width_double();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::PreferredVectorWidthHalf => {
+            let info = device_safe.preferred_vector_width_half();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::NativeVectorWidthChar => {
+            let info = device_safe.native_vector_width_char();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::NativeVectorWidthShort => {
+            let info = device_safe.native_vector_width_short();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::NativeVectorWidthInt => {
+            let info = device_safe.native_vector_width_int();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::NativeVectorWidthLong => {
+            let info = device_safe.native_vector_width_long();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::NativeVectorWidthFloat => {
+            let info = device_safe.native_vector_width_float();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::NativeVectorWidthDouble => {
+            let info = device_safe.native_vector_width_double();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::NativeVectorWidthHalf => {
+            let info = device_safe.native_vector_width_half();
+            set_info_int!(cl_uint, info, param_value, param_value_size_ret)
         }
         DeviceInfoNames::Available => {
             let info = if device_safe.is_available() {
@@ -162,6 +226,22 @@ fn clGetDeviceInfo(
                 })
                 .collect();
             set_info_array!(cl_name_version, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::MaxMemAllocSize => {
+            let info = device_safe.max_mem_alloc_size();
+            set_info_int!(cl_ulong, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::PreferredWorkGroupSizeMultiple => {
+            let info = device_safe.preferred_work_group_size_multiple();
+            set_info_int!(cl_size_t, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::ParentDevice => {
+            set_info_int!(
+                cl_device_id,
+                (std::ptr::null_mut()),
+                param_value,
+                param_value_size_ret
+            )
         }
         _ => Err(ClError::InvalidValue(
             format!("{} is not supported yet", param_name.as_cl_str()).into(),

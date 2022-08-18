@@ -54,11 +54,9 @@ fn main() {
     khr_icd_bindings
         .write_to_file(out_path.join("cl_icd.rs"))
         .expect("Couldn't write bindings!");
-    if build_target::target_os().unwrap() == build_target::Os::Linux {
-        println!("cargo:rustc-cfg=feature=\"vulkan\"");
-    } else if build_target::target_os().unwrap() == build_target::Os::MacOs {
-        println!("cargo:rustc-cfg=feature=\"metal\"");
-    }
+
+    #[cfg(not(any(feature = "vulkan", feature = "metal")))]
+    panic!("One of the features must be enabled: vulkan, metal");
 
     let out_dir = env::var("OUT_DIR").unwrap_or("none".to_string());
     println!(
