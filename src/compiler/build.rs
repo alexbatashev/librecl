@@ -25,36 +25,18 @@ fn rerun_if_changed_anything_in_dir(dir: &Path) {
     }
 }
 
-fn main() {
-    let compiler_bindings = bindgen::Builder::default()
-        .header("opencl/rust_bindings.hpp")
-        .ignore_functions()
-        .generate()
-        .expect("Failed to generate bindings");
-
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-    compiler_bindings
-        .write_to_file(out_path.join("compiler.rs"))
-        .expect("Couldn't write bindings!");
-
-    let wrapper = env::var("RUSTC_WRAPPER").unwrap_or("none".to_string());
-    let out_dir = env::var("OUT_DIR").unwrap_or("none".to_string());
-
-    let dir = String::from(env::current_dir().unwrap().as_os_str().to_str().unwrap());
-
+fn build_llvm(
+    dir: &str,
+    wrapper: &str,
+    out_dir: &str,
+    use_mold: bool,
+    use_lld: bool,
+    use_ninja: bool,
+) -> String {
     Command::new("bash")
         .args(&[std::format!("{}{}", dir, "/../../build_dependencies.sh")])
         .status()
         .unwrap();
-
-    #[cfg(not(target_os = "macos"))]
-    let use_mold = which("mold").is_ok();
-    #[cfg(target_os = "macos")]
-    let use_mold = false;
-
-    let use_lld = which("lld").is_ok();
-
-    let use_ninja = which("ninja").is_ok();
 
     let llvm_out = format!("{}/../../../llvm_build", out_dir);
     fs::create_dir_all(llvm_out.as_str()).expect("failed to create target dir");
@@ -75,8 +57,8 @@ fn main() {
 
     if wrapper.contains("sccache") {
         llvm_cfg
-            .define("CMAKE_CXX_COMPILER_LAUNCHER", wrapper.as_str())
-            .define("CMAKE_C_COMPILER_LAUNCHER", wrapper.as_str());
+            .define("CMAKE_CXX_COMPILER_LAUNCHER", wrapper)
+            .define("CMAKE_C_COMPILER_LAUNCHER", wrapper);
     }
 
     if use_mold {
@@ -90,6 +72,26 @@ fn main() {
     }
 
     llvm_cfg.build();
+
+    return llvm_out;
+}
+
+fn build_online_compiler() {
+    let dir = String::from(env::current_dir().unwrap().as_os_str().to_str().unwrap());
+
+    let wrapper = env::var("RUSTC_WRAPPER").unwrap_or("none".to_string());
+    let out_dir = env::var("OUT_DIR").unwrap_or("none".to_string());
+
+    #[cfg(not(target_os = "macos"))]
+    let use_mold = which("mold").is_ok();
+    #[cfg(target_os = "macos")]
+    let use_mold = false;
+
+    let use_lld = which("lld").is_ok();
+
+    let use_ninja = which("ninja").is_ok();
+
+    let llvm_out = build_llvm(&dir, &wrapper, &out_dir, use_mold, use_lld, use_ninja);
 
     let compiler_out = format!("{}/../../../lcl_compiler", out_dir);
     fs::create_dir_all(compiler_out.as_str()).expect("failed to create target dir");
@@ -133,7 +135,6 @@ fn main() {
     println!("cargo:rustc-link-search=native={}/lib/", dst.display());
     println!("cargo:rustc-link-arg=-Wl,-rpath,{}/lib", dst.display());
     println!("cargo:rustc-link-arg=-Wl,-rpath,{}/lib64", dst.display());
-    println!("cargo:rustc-link-lib=dylib=lcl_compiler");
     if env::var("CI").unwrap_or("false".to_owned()) == "false" {
         rerun_if_changed_anything_in_dir(Path::new("../../third_party/llvm-project"));
         rerun_if_changed_anything_in_dir(Path::new("../compiler"));
@@ -141,4 +142,20 @@ fn main() {
         println!("cargo:rerun-if-changed=build.rs");
         println!("cargo:rerun-if-changed=../../build_dependencies.sh");
     }
+}
+
+fn main() {
+    let compiler_bindings = bindgen::Builder::default()
+        .header("opencl/rust_bindings.hpp")
+        .ignore_functions()
+        .generate()
+        .expect("Failed to generate bindings");
+
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    compiler_bindings
+        .write_to_file(out_path.join("compiler.rs"))
+        .expect("Couldn't write bindings!");
+
+    #[cfg(feature = "online_compiler")]
+    build_online_compiler();
 }
