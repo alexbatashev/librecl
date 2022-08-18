@@ -1,6 +1,6 @@
 use super::error_handling::ClError;
 use crate::api::cl_types::*;
-use crate::interface::{DeviceImpl, DeviceKind, PlatformImpl, PlatformKind, DeviceLimitsInterface};
+use crate::interface::{DeviceImpl, DeviceKind, DeviceLimitsInterface, PlatformImpl, PlatformKind};
 use crate::{lcl_contract, set_info_array, set_info_int, set_info_str, success};
 use ocl_type_wrapper::cl_api;
 use std::ops::Deref;
@@ -66,6 +66,10 @@ fn clGetDeviceInfo(
     })?;
 
     match param_name {
+        DeviceInfoNames::Type => {
+            let info: cl_ulong = device_safe.get_device_type().bits();
+            set_info_int!(cl_ulong, info, param_value, param_value_size_ret)
+        }
         DeviceInfoNames::Name => {
             let info = device_safe.get_device_name();
             set_info_str!(info, param_value, param_value_size_ret)
@@ -230,6 +234,14 @@ fn clGetDeviceInfo(
         DeviceInfoNames::PreferredWorkGroupSizeMultiple => {
             let info = device_safe.preferred_work_group_size_multiple();
             set_info_int!(cl_size_t, info, param_value, param_value_size_ret)
+        }
+        DeviceInfoNames::ParentDevice => {
+            set_info_int!(
+                cl_device_id,
+                (std::ptr::null_mut()),
+                param_value,
+                param_value_size_ret
+            )
         }
         _ => Err(ClError::InvalidValue(
             format!("{} is not supported yet", param_name.as_cl_str()).into(),

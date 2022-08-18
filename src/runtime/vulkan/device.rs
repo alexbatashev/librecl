@@ -53,7 +53,7 @@ impl Device {
             },
         )
         .expect("could not create a device");
-        // TODO correct device type
+
         let device_type = match physical_device.properties().device_type {
             PhysicalDeviceType::Cpu => cl_device_type::CPU,
             PhysicalDeviceType::IntegratedGpu => cl_device_type::GPU,
