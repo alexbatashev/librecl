@@ -3,17 +3,20 @@ use crate::api::cl_types::ClObjectImpl;
 use crate::api::cl_types::*;
 use crate::interface::ContextKind;
 use crate::interface::DeviceKind;
+use crate::interface::DeviceLimits;
 use crate::interface::QueueKind;
+use crate::interface::VectorCaps;
 use crate::interface::{DeviceImpl, PlatformKind};
 use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
 use librecl_compiler::Compiler;
 use ocl_type_wrapper::ClObjImpl;
+use ocl_type_wrapper::DeviceLimitsInterface;
 use std::sync::Arc;
 use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType, QueueFamily};
 use vulkano::device::Queue;
 use vulkano::device::{Device as VkDevice, DeviceCreateInfo, Features, QueueCreateInfo};
 
-#[derive(ClObjImpl, Clone)]
+#[derive(ClObjImpl, Clone, DeviceLimitsInterface)]
 pub struct Device {
     vendor_name: String,
     physical_device: PhysicalDevice<'static>,
@@ -24,6 +27,7 @@ pub struct Device {
     compiler: Arc<Compiler>,
     extension_names: Vec<&'static str>,
     extension_versions: Vec<cl_version>,
+    device_limits: DeviceLimits,
     #[cl_handle]
     handle: UnsafeHandle<cl_device_id>,
 }
@@ -75,6 +79,36 @@ impl Device {
             make_version(1, 0, 0),
         ];
 
+        // TODO figure out real limits
+        let vec_limits = VectorCaps {
+            vector_width_char: 1,
+            vector_width_short: 1,
+            vector_width_int: 1,
+            vector_width_long: 1,
+            vector_width_float: 1,
+            vector_width_double: 1,
+            vector_width_half: 1,
+        };
+
+        let wg_sizes = [
+            physical_device.properties().max_compute_work_group_size[0] as cl_size_t,
+            physical_device.properties().max_compute_work_group_size[1] as cl_size_t,
+            physical_device.properties().max_compute_work_group_size[2] as cl_size_t,
+        ];
+
+        let device_limits = DeviceLimits {
+            max_compute_units: 1, // TODO this must be obtained from some table
+            max_work_item_dimensions: 3,
+            max_work_item_sizes: wg_sizes,
+            max_work_group_size: physical_device
+                .properties()
+                .max_compute_work_group_invocations as cl_size_t,
+            preferred_vector_caps: vec_limits.clone(),
+            native_vector_caps: vec_limits,
+            max_mem_alloc_size: physical_device.properties().max_buffer_size.unwrap_or(0),
+            preferred_work_group_size_multiple: 32,
+        };
+
         let device = Device {
             vendor_name: vendor_name.to_owned(),
             physical_device,
@@ -85,6 +119,7 @@ impl Device {
             compiler: Compiler::new(),
             extension_names,
             extension_versions,
+            device_limits,
             handle: UnsafeHandle::null(),
         }
         .into();
@@ -146,18 +181,6 @@ impl DeviceImpl for Device {
 
     fn get_vendor_id(&self) -> cl_uint {
         self.physical_device.properties().vendor_id
-    }
-
-    fn get_max_compute_units(&self) -> cl_uint {
-        unimplemented!()
-    }
-
-    fn get_max_work_item_dimensions(&self) -> cl_uint {
-        unimplemented!()
-    }
-
-    fn get_max_work_item_sizes(&self) -> [cl_size_t; 3] {
-        unimplemented!()
     }
 
     fn is_compiler_available(&self) -> bool {

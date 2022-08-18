@@ -1,8 +1,8 @@
 use crate::api::cl_types::*;
 use crate::interface::{DeviceKind, KernelImpl, KernelKind, MemKind, ProgramKind};
 use crate::sync::{self, *};
+use cpmetal::{ComputeCommandEncoder, ComputePipelineState, Function, FunctionDescriptor};
 use librecl_compiler::KernelArgInfo;
-use cpmetal::{FunctionDescriptor, Function, ComputeCommandEncoder, ComputePipelineState};
 use ocl_type_wrapper::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -92,7 +92,7 @@ impl KernelImpl for Kernel {
         match owned_buffer.deref() {
             MemKind::MetalSDBuffer(ref buffer) => {
                 self.arg_buffers[index] = Arc::new(ArgBuffer::SDB(buffer.clone()));
-            },
+            }
             #[allow(unreachable_patterns)]
             _ => panic!(),
         }
