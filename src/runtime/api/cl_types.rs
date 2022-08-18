@@ -90,11 +90,11 @@ pub const CL_DEVICE_TYPE_ALL: libc::c_ulong = 0xFFFFFFFF;
 bitflags! {
     #[repr(C)]
     pub struct cl_device_type: libc::c_ulong {
-        const DefaultDevice = 0;
-        const CPU = 1;
-        const GPU = 2;
-        const ACC = 3;
-        const CustomDevice = 4;
+        const DefaultDevice = 0b00000001;
+        const CPU = 0b00000010;
+        const GPU = 0b00000100;
+        const ACC = 0b00001000;
+        const CustomDevice = 0b00010000;
     }
 }
 
