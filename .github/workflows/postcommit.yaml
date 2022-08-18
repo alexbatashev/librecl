@@ -19,4 +19,4 @@ jobs:
       runs-on: "macos-12"
       test-config: "macos"
       # TODO figure out Vulkan builds
-      cargo-flags: "--no-default-features --features=metal"
+      cargo-flags: "--no-default-features --features=metal,online_compiler"

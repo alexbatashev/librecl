@@ -1,8 +1,8 @@
 use crate::api::cl_types::*;
 use crate::interface::{ContextKind, DeviceImpl, DeviceKind, PlatformKind, QueueKind};
 use crate::sync::{self, *};
-use librecl_compiler::Compiler;
 use cpmetal::Device as MTLDevice;
+use librecl_compiler::Compiler;
 use ocl_type_wrapper::ClObjImpl;
 use std::sync::Arc;
 

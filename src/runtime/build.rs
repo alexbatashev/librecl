@@ -53,7 +53,7 @@ fn main() {
         .write_to_file(out_path.join("cl_icd.rs"))
         .expect("Couldn't write bindings!");
 
-    #[cfg(not(any(feature="vulkan",feature="metal")))]
+    #[cfg(not(any(feature = "vulkan", feature = "metal")))]
     panic!("One of the features must be enabled: vulkan, metal");
 
     let out_dir = env::var("OUT_DIR").unwrap_or("none".to_string());
