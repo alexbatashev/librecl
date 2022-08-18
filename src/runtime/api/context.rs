@@ -1,10 +1,12 @@
 use super::cl_types::*;
+use super::error_handling::map_invalid_context;
 use crate::api::error_handling::ClError;
+use crate::interface::{ContextImpl, ContextKind};
 use crate::{
     interface::{DeviceImpl, DeviceKind, PlatformImpl},
     lcl_contract,
 };
-use crate::{success, sync::*};
+use crate::{set_info_array, set_info_int, success, sync::*};
 use ocl_type_wrapper::cl_api;
 use std::ops::Deref;
 
@@ -74,13 +76,49 @@ fn clCreateContext(
 
 #[cl_api]
 fn clGetContextInfo(
-    _context: cl_context,
-    _param_name: cl_context_info,
+    context: cl_context,
+    param_name_num: cl_context_info,
     _param_value_size: cl_size_t,
-    _param_value: *mut libc::c_void,
-    _param_value_size_ret: *mut cl_size_t,
+    param_value: *mut libc::c_void,
+    param_value_size_ret: *mut cl_size_t,
 ) -> Result<(), ClError> {
-    unimplemented!();
+    let context_safe = ContextKind::try_from_cl(context).map_err(map_invalid_context)?;
+
+    let param_name = ContextInfoNames::try_from(param_name_num).map_err(|_| {
+        ClError::InvalidValue(format!("unknown param_name: {}", param_name_num).into())
+    })?;
+
+    match param_name {
+        ContextInfoNames::ReferenceCount => {
+            let ctx = unsafe { context.as_ref() }.unwrap();
+            let ref_count = ctx.reference_count() as cl_uint;
+            set_info_int!(cl_uint, ref_count, param_value, param_value_size_ret)
+        }
+        ContextInfoNames::NumDevices => {
+            let num_devices = context_safe.get_associated_devices().len() as cl_uint;
+            set_info_int!(cl_uint, num_devices, param_value, param_value_size_ret)
+        }
+        ContextInfoNames::Devices => {
+            let devices = context_safe.get_associated_devices();
+            let mut cl_devices = vec![];
+            for d in devices {
+                let owned_device = d.upgrade().ok_or(map_invalid_context(
+                    "failed to get owning reference to device".to_owned(),
+                ))?;
+                cl_devices.push(owned_device.get_cl_handle());
+            }
+            set_info_array!(cl_device_id, cl_devices, param_value, param_value_size_ret)
+        }
+        ContextInfoNames::Properties => {
+            let props: [cl_context_properties; 0] = [];
+            set_info_array!(
+                cl_context_properties,
+                props,
+                param_value,
+                param_value_size_ret
+            )
+        }
+    }
 }
 
 #[cl_api]
