@@ -1,27 +1,55 @@
 use crate::api::cl_types::*;
-use crate::interface::{ContextKind, DeviceImpl, DeviceKind, PlatformKind, QueueKind};
+use crate::interface::{
+    ContextKind, DeviceImpl, DeviceKind, DeviceLimits, PlatformKind, QueueKind, VectorCaps,
+};
 use crate::sync::{self, *};
 use cpmetal::Device as MTLDevice;
 use librecl_compiler::Compiler;
 use ocl_type_wrapper::ClObjImpl;
+use ocl_type_wrapper::DeviceLimitsInterface;
 use std::sync::Arc;
 
 use super::InOrderQueue;
 
-#[derive(ClObjImpl)]
+#[derive(ClObjImpl, DeviceLimitsInterface)]
 pub struct Device {
     platform: WeakPtr<PlatformKind>,
     device: MTLDevice,
     compiler: Arc<Compiler>,
+    device_limits: DeviceLimits,
+    #[cl_handle]
     handle: UnsafeHandle<cl_device_id>,
 }
 
 impl Device {
     pub fn new(platform: &SharedPtr<PlatformKind>, device: MTLDevice) -> SharedPtr<DeviceKind> {
+        // TODO figure out real limits
+        let vec_limits = VectorCaps {
+            vector_width_char: 1,
+            vector_width_short: 1,
+            vector_width_int: 1,
+            vector_width_long: 1,
+            vector_width_float: 1,
+            vector_width_double: 1,
+            vector_width_half: 1,
+        };
+
+        let device_limits = DeviceLimits {
+            max_compute_units: 1,
+            max_work_item_dimensions: 3,
+            max_work_item_sizes: [0, 0, 0],
+            max_work_group_size: 0,
+            preferred_vector_caps: vec_limits.clone(),
+            native_vector_caps: vec_limits,
+            max_mem_alloc_size: 0,
+            preferred_work_group_size_multiple: 32,
+        };
+
         let device = Device {
             platform: SharedPtr::downgrade(platform),
             device,
             compiler: Compiler::new(),
+            device_limits,
             handle: UnsafeHandle::null(),
         }
         .into();
@@ -70,18 +98,6 @@ impl DeviceImpl for Device {
     }
 
     fn get_vendor_id(&self) -> cl_uint {
-        unimplemented!()
-    }
-
-    fn get_max_compute_units(&self) -> cl_uint {
-        unimplemented!()
-    }
-
-    fn get_max_work_item_dimensions(&self) -> cl_uint {
-        unimplemented!()
-    }
-
-    fn get_max_work_item_sizes(&self) -> [cl_size_t; 3] {
         unimplemented!()
     }
 
