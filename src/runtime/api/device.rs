@@ -1,6 +1,6 @@
 use super::error_handling::ClError;
 use crate::api::cl_types::*;
-use crate::interface::{DeviceImpl, DeviceKind, PlatformImpl, PlatformKind};
+use crate::interface::{DeviceImpl, DeviceKind, PlatformImpl, PlatformKind, DeviceLimitsInterface};
 use crate::{lcl_contract, set_info_array, set_info_int, set_info_str, success};
 use ocl_type_wrapper::cl_api;
 use std::ops::Deref;
