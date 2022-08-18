@@ -41,6 +41,10 @@ pub fn cl_object(args: TokenStream, item: TokenStream) -> TokenStream {
                 return ptr;
             }
 
+            pub fn reference_count(&self) -> usize {
+                self.ref_count.load(std::sync::atomic::Ordering::Relaxed)
+            }
+
             pub fn retain(&mut self) {
                 self.ref_count.fetch_add(1 as usize, std::sync::atomic::Ordering::SeqCst);
             }
