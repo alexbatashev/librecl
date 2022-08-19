@@ -252,7 +252,7 @@ struct CallPattern : public OpConversionPattern<LLVM::CallOp> {
     if (!op.getCallee())
       return failure();
 
-    auto calleeName = op.getCallee().getValue();
+    auto calleeName = op.getCallee().value();
 
     if (calleeName.startswith("llvm.lifetime")) {
       rewriter.eraseOp(op);
@@ -366,7 +366,7 @@ struct StructGEPPattern : public OpConversionPattern<LLVM::GEPOp> {
     if (!op.getElemType().hasValue())
       return failure();
 
-    if (adaptor.getIndices().size() != 1)
+    if (adaptor.getDynamicIndices().size() != 1)
       return failure();
 
     // Skip GEPs to regular pointers.
@@ -382,7 +382,7 @@ struct StructGEPPattern : public OpConversionPattern<LLVM::GEPOp> {
     auto castedAddr = rewriter.create<rawmem::ReinterpretCastOp>(
         op.getLoc(), ptrType, adaptor.getBase());
 
-    auto origIndex = adaptor.getIndices()[0];
+    auto origIndex = adaptor.getDynamicIndices()[0];
     auto index = rewriter.create<arith::IndexCastOp>(
         op.getLoc(), rewriter.getIndexType(), origIndex);
 
@@ -394,8 +394,8 @@ struct StructGEPPattern : public OpConversionPattern<LLVM::GEPOp> {
 
     // TODO use member names instead.
     llvm::SmallVector<int32_t, 1> intIndices;
-    for (auto idx : op.getStructIndices()) {
-      intIndices.push_back(idx.getSExtValue());
+    for (auto idx : op.getRawConstantIndices()) {
+      intIndices.push_back(idx);
     }
 
     // TODO support more than one index
@@ -433,7 +433,7 @@ struct GEPPattern : public OpConversionPattern<LLVM::GEPOp> {
     if (!op.getElemType().hasValue())
       return failure();
 
-    if (adaptor.getIndices().size() != 1)
+    if (adaptor.getDynamicIndices().size() != 1)
       return failure();
 
     // Skip GEPs to structures.
@@ -449,7 +449,7 @@ struct GEPPattern : public OpConversionPattern<LLVM::GEPOp> {
     auto castedAddr = rewriter.create<rawmem::ReinterpretCastOp>(
         op.getLoc(), ptrType, adaptor.getBase());
 
-    auto origIndex = adaptor.getIndices()[0];
+    auto origIndex = adaptor.getDynamicIndices()[0];
     auto index = rewriter.create<arith::IndexCastOp>(
         op.getLoc(), rewriter.getIndexType(), origIndex);
 
