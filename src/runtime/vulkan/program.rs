@@ -81,8 +81,8 @@ impl ProgramImpl for Program {
             }
             ProgramContent::SPIRV(spirv) => {
                 // TODO pass spec constants
-                let options: [String; 2] =
-                    [String::from("-c"), String::from("--target=vulkan-spv")];
+                let split_options = vec!["--targets=vulkan-spirv".to_owned(), "-c".to_owned()];
+                let options = parse_options(&split_options).expect("options");
                 let result = device.get_compiler().compile_spirv(spirv, &options);
                 Some(result)
             }
