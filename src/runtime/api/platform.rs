@@ -42,7 +42,7 @@ static mut GLOBAL_PLATFORMS: Lazy<Vec<SharedPtr<PlatformKind>>> = Lazy::new(|| {
                 crate::cpu::Platform::create_platforms(platforms.as_mut());
             }
         } else {
-            #[cfg(test)]
+            info!("Adding mock platform");
             crate::mock::Platform::create_platforms(platforms.as_mut());
         }
     }
