@@ -12,6 +12,7 @@ use vulkano::shader::ShaderModule;
 
 pub enum ProgramContent {
     Source(String),
+    SPIRV(Vec<i8>),
 }
 
 #[derive(ClObjImpl)]
@@ -76,6 +77,13 @@ impl ProgramImpl for Program {
                 let result = device
                     .get_compiler()
                     .compile_source(source.as_str(), &options);
+                Some(result)
+            }
+            ProgramContent::SPIRV(spirv) => {
+                // TODO pass spec constants
+                let options: [String; 2] =
+                    [String::from("-c"), String::from("--target=vulkan-spv")];
+                let result = device.get_compiler().compile_spirv(spirv, &options);
                 Some(result)
             }
         };

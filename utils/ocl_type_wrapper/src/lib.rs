@@ -41,6 +41,10 @@ pub fn cl_object(args: TokenStream, item: TokenStream) -> TokenStream {
                 return ptr;
             }
 
+            pub fn reference_count(&self) -> usize {
+                self.ref_count.load(std::sync::atomic::Ordering::Relaxed)
+            }
+
             pub fn retain(&mut self) {
                 self.ref_count.fetch_add(1 as usize, std::sync::atomic::Ordering::SeqCst);
             }
@@ -235,6 +239,241 @@ pub fn cl_api(_args: TokenStream, item: TokenStream) -> TokenStream {
         fn #impl_name(#args) -> #return_type #body
 
         #api
+    };
+
+    gen.into()
+}
+
+#[proc_macro_derive(DeviceLimitsInterface)]
+pub fn derive_device_limits(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let name = &input.ident;
+
+    if name.to_string() == "DeviceKind" {}
+
+    let gen = if name.to_string() == "DeviceKind" {
+        let variants = match &input.data {
+            syn::Data::Enum(ref data) => &data.variants,
+            _ => panic!("unknown path"),
+        };
+
+        let mut idents = vec![];
+        for v in variants {
+            idents.push(&v.ident);
+        }
+        let mut methods = vec![];
+
+        methods.push(quote! {
+            fn max_compute_units(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.max_compute_units(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn max_work_item_dimensions(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.max_work_item_dimensions(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn max_work_item_sizes(&self) -> [cl_size_t;3] {
+                match self {
+                    #(#name::#idents(ref var) => var.max_work_item_sizes(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn max_work_group_size(&self) -> cl_size_t {
+                match self {
+                    #(#name::#idents(ref var) => var.max_work_group_size(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn preferred_vector_width_char(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.preferred_vector_width_char(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn preferred_vector_width_short(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.preferred_vector_width_short(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn preferred_vector_width_int(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.preferred_vector_width_int(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn preferred_vector_width_long(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.preferred_vector_width_long(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn preferred_vector_width_float(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.preferred_vector_width_float(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn preferred_vector_width_double(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.preferred_vector_width_double(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn preferred_vector_width_half(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.preferred_vector_width_half(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn native_vector_width_char(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.native_vector_width_char(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn native_vector_width_short(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.native_vector_width_short(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn native_vector_width_int(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.native_vector_width_int(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn native_vector_width_long(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.native_vector_width_long(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn native_vector_width_float(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.native_vector_width_float(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn native_vector_width_double(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.native_vector_width_double(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn native_vector_width_half(&self) -> cl_uint {
+                match self {
+                    #(#name::#idents(ref var) => var.native_vector_width_half(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn max_mem_alloc_size(&self) -> cl_ulong {
+                match self {
+                    #(#name::#idents(ref var) => var.max_mem_alloc_size(), )*
+                }
+            }
+        });
+        methods.push(quote! {
+            fn preferred_work_group_size_multiple(&self) -> cl_size_t {
+                match self {
+                    #(#name::#idents(ref var) => var.preferred_work_group_size_multiple(), )*
+                }
+            }
+        });
+
+        quote! {
+            impl crate::interface::DeviceLimitsInterface for #name {
+                #(#methods)*
+            }
+        }
+    } else {
+        quote! {
+            impl crate::interface::DeviceLimitsInterface for #name {
+                fn max_compute_units(&self) -> cl_uint {
+                    self.device_limits.max_compute_units
+                }
+                fn max_work_item_dimensions(&self) -> cl_uint {
+                    self.device_limits.max_work_item_dimensions
+                }
+                fn max_work_item_sizes(&self) -> [cl_size_t;3] {
+                    self.device_limits.max_work_item_sizes
+                }
+                fn max_work_group_size(&self) -> cl_size_t {
+                    self.device_limits.max_work_group_size
+                }
+                fn preferred_vector_width_char(&self) -> cl_uint {
+                    self.device_limits.preferred_vector_caps.vector_width_char
+                }
+                fn preferred_vector_width_short(&self) -> cl_uint {
+                    self.device_limits.preferred_vector_caps.vector_width_short
+                }
+                fn preferred_vector_width_int(&self) -> cl_uint {
+                    self.device_limits.preferred_vector_caps.vector_width_int
+                }
+                fn preferred_vector_width_long(&self) -> cl_uint {
+                    self.device_limits.preferred_vector_caps.vector_width_long
+                }
+                fn preferred_vector_width_float(&self) -> cl_uint {
+                    self.device_limits.preferred_vector_caps.vector_width_float
+                }
+                fn preferred_vector_width_double(&self) -> cl_uint {
+                    self.device_limits.preferred_vector_caps.vector_width_double
+                }
+                fn preferred_vector_width_half(&self) -> cl_uint {
+                    self.device_limits.preferred_vector_caps.vector_width_double
+                }
+                fn native_vector_width_char(&self) -> cl_uint {
+                    self.device_limits.native_vector_caps.vector_width_char
+                }
+                fn native_vector_width_short(&self) -> cl_uint {
+                    self.device_limits.native_vector_caps.vector_width_short
+                }
+                fn native_vector_width_int(&self) -> cl_uint {
+                    self.device_limits.native_vector_caps.vector_width_int
+                }
+                fn native_vector_width_long(&self) -> cl_uint {
+                    self.device_limits.native_vector_caps.vector_width_long
+                }
+                fn native_vector_width_float(&self) -> cl_uint {
+                    self.device_limits.native_vector_caps.vector_width_float
+                }
+                fn native_vector_width_double(&self) -> cl_uint {
+                    self.device_limits.native_vector_caps.vector_width_double
+                }
+                fn native_vector_width_half(&self) -> cl_uint {
+                    self.device_limits.native_vector_caps.vector_width_double
+                }
+                fn max_mem_alloc_size(&self) -> cl_ulong {
+                    self.device_limits.max_mem_alloc_size
+                }
+                fn preferred_work_group_size_multiple(&self) -> cl_size_t {
+                    self.device_limits.preferred_work_group_size_multiple
+                }
+            }
+        }
     };
 
     gen.into()

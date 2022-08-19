@@ -79,6 +79,7 @@ pub trait ClObjectImpl<T> {
 }
 
 pub type cl_device_info = libc::c_uint;
+pub type cl_context_info = libc::c_uint;
 
 pub const CL_DEVICE_TYPE_DEFAULT: libc::c_ulong = 1;
 pub const CL_DEVICE_TYPE_CPU: libc::c_ulong = 1 << 1;
@@ -90,15 +91,16 @@ pub const CL_DEVICE_TYPE_ALL: libc::c_ulong = 0xFFFFFFFF;
 bitflags! {
     #[repr(C)]
     pub struct cl_device_type: libc::c_ulong {
-        const DefaultDevice = 0;
-        const CPU = 1;
-        const GPU = 2;
-        const ACC = 3;
-        const CustomDevice = 4;
+        const DefaultDevice = 0b00000001;
+        const CPU = 0b00000010;
+        const GPU = 0b00000100;
+        const ACC = 0b00001000;
+        const CustomDevice = 0b00010000;
     }
 }
 
-include!("cl_device_info.rs");
+include!("info/cl_device_info.rs");
+include!("info/cl_context_info.rs");
 
 pub type cl_platform_info = cl_uint;
 
@@ -155,14 +157,7 @@ impl TryFrom<cl_uint> for PlatformInfoNames {
     }
 }
 
-#[repr(u32)]
-pub enum cl_context_info {
-    CL_CONTEXT_REFERENCE_COUNT = 0x1080,
-    CL_CONTEXT_DEVICES = 0x1081,
-    CL_CONTEXT_PROPERTIES = 0x1082,
-    CL_CONTEXT_NUM_DEVICES = 0x1083,
-}
-
+#[derive(Clone, Copy)]
 #[repr(usize)]
 pub enum cl_context_properties {
     CL_CONTEXT_PLATFORM = 0x1084,

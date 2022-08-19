@@ -1,9 +1,9 @@
 use crate::api::cl_types::*;
 use crate::interface::{ContextKind, DeviceKind, KernelKind, ProgramImpl, ProgramKind};
 use crate::sync::{self, *};
+use cpmetal::{CompileOptions, Library};
 use librecl_compiler::CompileResult;
 use librecl_compiler::KernelInfo;
-use metal_api::{CompileOptions, Library};
 use ocl_type_wrapper::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -12,6 +12,7 @@ use super::Kernel;
 
 pub enum ProgramContent {
     Source(String),
+    SPIRV(Vec<i8>),
 }
 
 #[derive(ClObjImpl)]
@@ -66,8 +67,13 @@ impl ProgramImpl for Program {
                     .compile_source(source.as_str(), &options);
                 Some(result)
             }
-            #[allow(unreachable_patterns)]
-            _ => None,
+            ProgramContent::SPIRV(spirv) => {
+                // TODO pass spec constants
+                let options: [String; 2] =
+                    [String::from("-c"), String::from("--targets=metal-macos")];
+                let result = device.get_compiler().compile_spirv(spirv, &options);
+                Some(result)
+            }
         };
 
         self.compile_result = compile_result;
@@ -88,7 +94,7 @@ impl ProgramImpl for Program {
 
         let compiler = device.get_compiler();
         let modules = vec![self.compile_result.as_ref().unwrap().clone()];
-        let options: [String; 1] = [String::from("--target=metal-macos")];
+        let options: [String; 1] = [String::from("--targets=metal-macos")];
         let result = compiler.link(&modules, &options);
 
         self.kernels = result.get_kernels();
@@ -101,10 +107,8 @@ impl ProgramImpl for Program {
         };
         // TODO proper error handling
         let options = CompileOptions::new();
-        let locked_device = device.lock().unwrap();
         self.library = Some(
-            locked_device
-                .value()
+            device
                 .new_library_with_source(std::str::from_utf8(&msl).unwrap(), &options)
                 .unwrap(),
         );

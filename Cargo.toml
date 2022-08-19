@@ -12,4 +12,5 @@ members = [
   "tools/lcloc",
   "utils/ocl_args",
   "utils/ocl_type_wrapper",
+  "utils/cpmetal",
 ]

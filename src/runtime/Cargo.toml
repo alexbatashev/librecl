@@ -21,6 +21,11 @@ ocl_type_wrapper = { path = "../../utils/ocl_type_wrapper" }
 ocl_args = { path = "../../utils/ocl_args" }
 tracing = "0.1.36"
 pytorch-cpuinfo = "0.1.1"
+cpmetal = { path = "../../utils/cpmetal", optional = true }
+vulkano = { git = " https://github.com/alexbatashev/vulkano", branch = "vma", features = ["vma"], optional = true }
+vk-mem = { git = "https://github.com/gwihlidal/vk-mem-rs", rev = "0be8984", optional = true }
+ash = { version = ">=0.35", optional = true }
+parking_lot = "0.12.1"
 
 [lib]
 crate-type = ["cdylib"]
@@ -28,18 +33,9 @@ name = "lcl_icd_runtime"
 path = "./lib.rs"
 
 [features]
-# default = ["vulkan"]
-vulkan = []
-metal = []
-
-[target.'cfg(target_os="macos")'.dependencies]
-metal_api = { version = "0.24.0", optional = false, package = "metal" }
-
-[target.'cfg(not(target_os="macos"))'.dependencies]
-vulkano = { git = " https://github.com/alexbatashev/vulkano", branch = "vma", features = ["vma"] }
-vk-mem = { git = "https://github.com/gwihlidal/vk-mem-rs", rev = "0be8984" }
-ash = ">=0.35"
-parking_lot = "0.12.1"
+default = ["vulkan", "metal"]
+vulkan = ["vulkano", "vk-mem", "ash"]
+metal = ["cpmetal"]
 
 [build-dependencies]
 build-target = "0.4.0"
