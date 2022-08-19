@@ -6,8 +6,21 @@ use crate::{lcl_contract, set_info_array, set_info_int, set_info_str, success};
 use ocl_type_wrapper::cl_api;
 use once_cell::sync::Lazy;
 use std::ops::Deref;
+use tracing::dispatcher::{self, Dispatch};
+use tracing::info;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::Registry;
 
 static mut GLOBAL_PLATFORMS: Lazy<Vec<SharedPtr<PlatformKind>>> = Lazy::new(|| {
+    let has_tracing = std::env::var("LIBRECL_TRACE");
+
+    if has_tracing.is_ok() {
+        let subscriber = Registry::default().with(tracing_logfmt::layer());
+
+        dispatcher::set_global_default(Dispatch::new(subscriber))
+            .expect("Global logger has already been set!");
+    }
+
     let mut platforms: Vec<SharedPtr<PlatformKind>> = vec![];
 
     cfg_if::cfg_if! {
@@ -15,11 +28,13 @@ static mut GLOBAL_PLATFORMS: Lazy<Vec<SharedPtr<PlatformKind>>> = Lazy::new(|| {
             let filter = std::env::var("LIBRECL_PLATFORM_FILTER").unwrap_or("all".to_owned());
             #[cfg(feature = "vulkan")]
             if filter.contains("vulkan") || filter.contains("all") {
+                info!("Searching for Vulkan devices");
                 crate::vulkan::Platform::create_platforms(platforms.as_mut());
             }
 
             #[cfg(feature = "metal")]
             if filter.contains("metal") || filter.contains("all") {
+                info!("Searching for Apple Metal devices");
                 crate::metal::Platform::create_platforms(platforms.as_mut());
             }
 
