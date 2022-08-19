@@ -621,6 +621,18 @@ private:
   llvm::LLVMContext &mContext;
 };
 
+static CompileResult do_compile(llvm::SmallVectorImpl<std::unique_ptr<CompilerJob>> &jobs, JobInput &input) {
+    for (auto &job : jobs) {
+      input = job->compile(input);
+    }
+
+    if (std::holds_alternative<CompileResult>(input)) {
+      return std::move(std::get<CompileResult>(input));
+    } else {
+      return CompileResult{"Failed to produce correct result"};
+    }
+}
+
 CompileResult Compiler::compile(std::span<const char> source,
                                 const ::Options &options) {
   llvm::SmallVector<std::unique_ptr<CompilerJob>, 10> jobs;
@@ -652,24 +664,16 @@ CompileResult Compiler::compile(std::span<const char> source,
   jobs.push_back(createOptimizeLLVMIRJob(options));
   jobs.push_back(createConvertToMLIRJob(options));
 
-  bool compileOnly = options.compile_only;
-
-  if (options.target_vulkan_spv) {
-    jobs.push_back(createConvertMLIRToVulkanSPIRVJob(options));
-  }
-  if (options.target_metal_macos || options.target_metal_ios) {
-    jobs.push_back(createConvertMLIRToMSLJob(options));
-  }
-
-  for (auto &job : jobs) {
-    input = job->compile(input);
+  if (!options.compile_only) {
+    if (options.target_vulkan_spv) {
+      jobs.push_back(createConvertMLIRToVulkanSPIRVJob(options));
+    }
+    if (options.target_metal_macos || options.target_metal_ios) {
+      jobs.push_back(createConvertMLIRToMSLJob(options));
+    }
   }
 
-  if (std::holds_alternative<CompileResult>(input)) {
-    return std::move(std::get<CompileResult>(input));
-  } else {
-    return CompileResult{"Failed to produce correct result"};
-  }
+  return do_compile(jobs, input);
 }
 
 CompileResult Compiler::compile(std::span<CompileResult *> modules,
@@ -699,15 +703,7 @@ CompileResult Compiler::compile(std::span<CompileResult *> modules,
     jobs.push_back(createConvertMLIRToMSLJob(options));
   }
 
-  for (auto &job : jobs) {
-    input = job->compile(input);
-  }
-
-  if (std::holds_alternative<CompileResult>(input)) {
-    return std::move(std::get<CompileResult>(input));
-  } else {
-    return CompileResult{"Failed to produce correct result"};
-  }
+  return do_compile(jobs, input);
 }
 
 std::unique_ptr<CompilerJob>
