@@ -9,6 +9,7 @@
 #pragma once
 
 #include "visibility.hpp"
+#include "Options.h"
 
 #include <stddef.h>
 
@@ -23,10 +24,10 @@ LCL_COMP_EXPORT void lcl_release_compiler(lcl::Compiler *);
 
 LCL_COMP_EXPORT lcl::CompileResult *
 lcl_compile(lcl::Compiler *compiler, size_t sourceLen, const char *source,
-            size_t numOptions, const char **opts);
+            Options options);
 LCL_COMP_EXPORT lcl::CompileResult *
 lcl_link(lcl::Compiler *compiler, size_t numModules, lcl::CompileResult **,
-         size_t numOptions, const char **opts);
+         Options options);
 
 LCL_COMP_EXPORT void lcl_release_result(lcl::CompileResult *result);
 

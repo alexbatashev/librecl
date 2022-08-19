@@ -18,6 +18,7 @@ cfg-if = "1.0.0"
 tokio = { version = "1.20.0", features = ["rt-multi-thread"] }
 bytemuck = "1.11.0"
 ocl_type_wrapper = { path = "../../utils/ocl_type_wrapper" }
+ocl_args = { path = "../../utils/ocl_args" }
 tracing = "0.1.36"
 pytorch-cpuinfo = "0.1.1"
 cpmetal = { path = "../../utils/cpmetal", optional = true }

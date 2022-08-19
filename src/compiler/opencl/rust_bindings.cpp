@@ -37,60 +37,19 @@ LCL_COMP_EXPORT void lcl_release_compiler(lcl::Compiler *compiler) {
   }
 }
 
-static std::vector<lcl::Option> parseOptions(size_t numOptions,
-                                             const char **options) {
-  std::vector<lcl::Option> parsedOptions;
-  parsedOptions.reserve(numOptions);
-
-  for (size_t i = 0; i < numOptions; i++) {
-    std::string_view option{options[i]};
-
-    if (option == lcl::CompileOnly::getOption()) {
-      parsedOptions.push_back(lcl::CompileOnly{});
-    } else if (option == lcl::NoOpt::getOption()) {
-      parsedOptions.push_back(lcl::NoOpt{});
-    } else if (option == lcl::MLIRPrintAfterAll::getOption()) {
-      parsedOptions.push_back(lcl::MLIRPrintAfterAll{});
-    } else if (option == lcl::MLIRPrintBeforeAll::getOption()) {
-      parsedOptions.push_back(lcl::MLIRPrintBeforeAll{});
-    } else if (option.starts_with(lcl::Target::getPrefix())) {
-      if (option.ends_with("vulkan-spv")) {
-        parsedOptions.push_back(
-            lcl::Target{.targetKind = lcl::Target::Kind::VulkanSPIRV});
-      }
-      if (option.ends_with("metal-ios")) {
-        parsedOptions.push_back(
-            lcl::Target{.targetKind = lcl::Target::Kind::MSL});
-      }
-      if (option.ends_with("metal-macos")) {
-        parsedOptions.push_back(
-            lcl::Target{.targetKind = lcl::Target::Kind::MSL});
-      }
-      // TODO better option handling
-    } else {
-      parsedOptions.push_back(option);
-    }
-  }
-
-  return parsedOptions;
-}
-
 LCL_COMP_EXPORT lcl::CompileResult *
 lcl_compile(lcl::Compiler *compiler, size_t sourceLen, const char *source,
-            size_t numOptions, const char **options) {
-  auto parsedOptions = parseOptions(numOptions, options);
-  auto result = compiler->compile(std::span{source, sourceLen}, parsedOptions);
+            Options options) {
+  auto result = compiler->compile(std::span{source, sourceLen}, options);
 
   return new lcl::CompileResult(std::move(result));
 }
 
 LCL_COMP_EXPORT lcl::CompileResult *
 lcl_link(lcl::Compiler *compiler, size_t numModules,
-         lcl::CompileResult **results, size_t numOptsions, const char **opts) {
-  auto parsedOptions = parseOptions(numOptsions, opts);
-
+         lcl::CompileResult **results, Options options) {
   auto result =
-      compiler->compile(std::span{results, numModules}, parsedOptions);
+      compiler->compile(std::span{results, numModules}, options);
 
   return new lcl::CompileResult(std::move(result));
 }

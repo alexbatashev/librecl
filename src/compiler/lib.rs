@@ -1,6 +1,7 @@
 #![allow(non_camel_case_types)]
 mod ffi;
 
+use ocl_args::{CompilerArgs, OptLevel};
 use std::{ffi::CString, sync::Arc};
 
 type get_compiler_t = unsafe extern "C" fn() -> *mut ffi::lcl_Compiler;
@@ -9,15 +10,13 @@ type compile_t = unsafe extern "C" fn(
     *mut ffi::lcl_Compiler,
     ffi::size_t,
     *const i8,
-    ffi::size_t,
-    *mut *const i8,
+    ffi::Options,
 ) -> *mut ffi::lcl_CompileResult;
 type link_t = unsafe extern "C" fn(
     *mut ffi::lcl_Compiler,
     ffi::size_t,
     *mut *mut ffi::lcl_CompileResult,
-    ffi::size_t,
-    *mut *const i8,
+    ffi::Options,
 ) -> *mut ffi::lcl_CompileResult;
 type release_result_t = unsafe extern "C" fn(*mut ffi::lcl_CompileResult);
 type get_num_kernels_t = unsafe extern "C" fn(*mut ffi::lcl_CompileResult) -> ffi::size_t;
@@ -67,8 +66,7 @@ impl Context {
         compiler: *mut ffi::lcl_Compiler,
         src_size: ffi::size_t,
         source: *const i8,
-        num_opts: ffi::size_t,
-        opts: *mut *const i8,
+        opts: ffi::Options,
     ) -> Result<*mut ffi::lcl_CompileResult, String> {
         let library = self
             .library
@@ -76,7 +74,7 @@ impl Context {
             .ok_or("Compiler not available".to_string())?;
         let sym = unsafe { library.get::<compile_t>("lcl_compile".as_bytes()) }
             .map_err(|_| "Failed to find symbol".to_owned())?;
-        Ok(unsafe { sym(compiler, src_size, source, num_opts, opts) })
+        Ok(unsafe { sym(compiler, src_size, source, opts) })
     }
 
     pub fn link(
@@ -84,8 +82,7 @@ impl Context {
         compiler: *mut ffi::lcl_Compiler,
         num_modules: ffi::size_t,
         modules: *mut *mut ffi::lcl_CompileResult,
-        num_opts: ffi::size_t,
-        opts: *mut *const i8,
+        opts: ffi::Options,
     ) -> Result<*mut ffi::lcl_CompileResult, String> {
         let library = self
             .library
@@ -93,7 +90,7 @@ impl Context {
             .ok_or("Compiler not available".to_string())?;
         let sym = unsafe { library.get::<link_t>("lcl_link".as_bytes()) }
             .map_err(|_| "Failed to find symbol".to_owned())?;
-        Ok(unsafe { sym(compiler, num_modules, modules, num_opts, opts) })
+        Ok(unsafe { sym(compiler, num_modules, modules, opts) })
     }
 
     pub fn release_result(&self, res: *mut ffi::lcl_CompileResult) -> Result<(), String> {
@@ -241,6 +238,56 @@ pub struct CompileResult {
 unsafe impl Send for CompileResult {}
 unsafe impl Sync for CompileResult {}
 
+struct OptionsWrapper {
+    pub options: ffi::Options,
+    _cstr_opts: Vec<std::ffi::CString>,
+    _c_opts: Vec<*const i8>,
+}
+
+impl From<&CompilerArgs> for OptionsWrapper {
+    fn from(args: &CompilerArgs) -> Self {
+        let opt_level: i32 = match args.opt_level {
+            OptLevel::OptNone => 0,
+            OptLevel::O1 => 1,
+            OptLevel::O2 => 2,
+            OptLevel::O3 => 3,
+        };
+
+        let mut cstr_opts: Vec<_> = vec![];
+        let mut c_opts: Vec<_> = vec![];
+
+        for opt in &args.other_options {
+            cstr_opts.push(std::ffi::CString::new(opt.clone()).unwrap());
+            c_opts.push(cstr_opts.last().as_ref().unwrap().as_ptr());
+        }
+
+        let options = ffi::Options {
+            compile_only: args.compile_only,
+            target_vulkan_spv: args.targets.contains(&ocl_args::Target::VulkanSPIRV),
+            target_opencl_spv: args.targets.contains(&ocl_args::Target::OpenCLSPIRV),
+            target_metal_macos: args.targets.contains(&ocl_args::Target::MetalMacOS),
+            target_metal_ios: args.targets.contains(&ocl_args::Target::MetalIOS),
+            target_nvptx: args.targets.contains(&ocl_args::Target::NVPTX),
+            target_amdgpu: args.targets.contains(&ocl_args::Target::AMDGPU),
+            print_before_mlir: args.print_before_all_mlir,
+            print_after_mlir: args.print_after_all_mlir,
+            print_before_llvm: args.print_before_all_llvm,
+            print_after_llvm: args.print_after_all_llvm,
+            opt_level,
+            mad_enable: args.mad_enable,
+            kernel_arg_info: args.kernel_arg_info,
+            other_options: c_opts.as_mut_ptr(),
+            num_other_options: c_opts.len() as u64,
+        };
+
+        OptionsWrapper {
+            options,
+            _cstr_opts: cstr_opts,
+            _c_opts: c_opts,
+        }
+    }
+}
+
 impl CompileResult {
     fn from_raw(context: Arc<Context>, handle: *mut ffi::lcl_CompileResult) -> Arc<CompileResult> {
         Arc::new(CompileResult { context, handle })
@@ -342,16 +389,10 @@ impl Compiler {
         self.context.is_available()
     }
 
-    pub fn compile_source(&self, source: &str, options: &[String]) -> Arc<CompileResult> {
-        let mut c_opts = vec![];
-        let mut char_opts = vec![];
-
-        for o in options {
-            c_opts.push(CString::new(o.as_str()).unwrap());
-            char_opts.push(c_opts.last().unwrap().as_ptr());
-        }
-
+    pub fn compile_source(&self, source: &str, options: &CompilerArgs) -> Arc<CompileResult> {
         let c_source = CString::new(source).unwrap();
+
+        let c_opts = OptionsWrapper::from(options);
 
         let result = self
             .context
@@ -359,22 +400,15 @@ impl Compiler {
                 self.handle,
                 source.len() as ffi::size_t,
                 c_source.as_ptr(),
-                char_opts.len() as ffi::size_t,
-                char_opts.as_ptr() as *mut *const i8,
+                c_opts.options,
             )
             .unwrap();
 
         CompileResult::from_raw(self.context.clone(), result)
     }
 
-    pub fn compile_spirv(&self, source: &[i8], options: &[String]) -> Arc<CompileResult> {
-        let mut c_opts = vec![];
-        let mut char_opts = vec![];
-
-        for o in options {
-            c_opts.push(CString::new(o.as_str()).unwrap());
-            char_opts.push(c_opts.last().unwrap().as_ptr());
-        }
+    pub fn compile_spirv(&self, source: &[i8], options: &CompilerArgs) -> Arc<CompileResult> {
+        let c_opts = OptionsWrapper::from(options);
 
         let result = self
             .context
@@ -382,24 +416,20 @@ impl Compiler {
                 self.handle,
                 source.len() as ffi::size_t,
                 source.as_ptr(),
-                char_opts.len() as ffi::size_t,
-                char_opts.as_ptr() as *mut *const i8,
+                c_opts.options,
             )
             .unwrap();
 
         CompileResult::from_raw(self.context.clone(), result)
     }
 
-    pub fn link(&self, modules: &[Arc<CompileResult>], options: &[String]) -> Arc<CompileResult> {
-        let mut c_opts = vec![];
-        let mut char_opts = vec![];
-
-        for o in options {
-            c_opts.push(CString::new(o.as_str()).unwrap());
-            char_opts.push(c_opts.last().unwrap().as_ptr());
-        }
-
+    pub fn link(
+        &self,
+        modules: &[Arc<CompileResult>],
+        options: &CompilerArgs,
+    ) -> Arc<CompileResult> {
         let mut c_modules = vec![];
+        let c_opts = OptionsWrapper::from(options);
 
         for m in modules {
             c_modules.push(m.handle);
@@ -411,8 +441,7 @@ impl Compiler {
                 self.handle,
                 modules.len() as ffi::size_t,
                 c_modules.as_mut_ptr(),
-                char_opts.len() as ffi::size_t,
-                char_opts.as_ptr() as *mut *const i8,
+                c_opts.options,
             )
             .unwrap();
 

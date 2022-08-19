@@ -9,6 +9,7 @@
 #pragma once
 
 #include "kernel_info.hpp"
+#include "Options.h"
 
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
@@ -23,32 +24,6 @@
 #include <vector>
 
 namespace lcl {
-
-struct CompileOnly {
-  static std::string getOption() { return "-c"; }
-};
-
-struct NoOpt {
-  static std::string getOption() { return "-cl-opt-disable"; }
-};
-
-struct MLIRPrintAfterAll {
-  static std::string getOption() { return "-print-after-all-mlir"; }
-};
-
-struct MLIRPrintBeforeAll {
-  static std::string getOption() { return "-print-before-all-mlir"; }
-};
-
-struct Target {
-  static std::string getPrefix() { return "--target="; }
-  enum class Kind { VulkanSPIRV, MSL, PTX, AMDGPU };
-
-  Kind targetKind;
-};
-
-using Option = std::variant<Target, CompileOnly, NoOpt, MLIRPrintBeforeAll,
-                            MLIRPrintAfterAll, std::string_view>;
 
 class CompileResult {
 public:
@@ -101,9 +76,9 @@ class CompilerJob;
 class Compiler {
 public:
   CompileResult compile_from_mlir(std::string_view); // Placeholder
-  CompileResult compile(std::span<const char> input, std::span<Option> options);
+  CompileResult compile(std::span<const char> input, const Options &options);
   CompileResult compile(std::span<CompileResult *> inputs,
-                        std::span<Option> options);
+                        const Options &options);
 
 private:
   llvm::LLVMContext mLLVMContext;
@@ -111,23 +86,23 @@ private:
 
   // Frontend jobs
   std::unique_ptr<CompilerJob>
-  createStandardClangJob(std::span<Option> options);
+  createStandardClangJob(const Options &options);
   std::unique_ptr<CompilerJob>
-  createSPIRVTranslatorJob(std::span<Option> options);
+  createSPIRVTranslatorJob(const Options &options);
 
   // Optimization jobs
   std::unique_ptr<CompilerJob>
-  createOptimizeLLVMIRJob(std::span<Option> options);
+  createOptimizeLLVMIRJob(const Options &options);
   std::unique_ptr<CompilerJob>
-  createOptimizeMLIRJob(std::span<Option> options); // Placeholder
+  createOptimizeMLIRJob(const Options &options); // Placeholder
 
   // Conversion jobs
   std::unique_ptr<CompilerJob>
-  createConvertToMLIRJob(std::span<Option> options);
+  createConvertToMLIRJob(const Options &options);
   std::unique_ptr<CompilerJob>
-  createConvertMLIRToVulkanSPIRVJob(std::span<Option> options);
+  createConvertMLIRToVulkanSPIRVJob(const Options &options);
   std::unique_ptr<CompilerJob>
-  createConvertMLIRToMSLJob(std::span<Option> options);
+  createConvertMLIRToMSLJob(const Options &options);
   std::unique_ptr<CompilerJob> createConvertMLIRToPTXJob();    // Placeholder
   std::unique_ptr<CompilerJob> createConvertMLIRToAMDGPUJob(); // Placeholder
 };
