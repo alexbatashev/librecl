@@ -120,9 +120,7 @@ target_link_libraries(lcl_compiler PRIVATE
   clangCodeGen
   clangFrontend
   clangFrontendTool
-  MLIRDLTI
   MLIRIR
-  MLIRLLVMIR
   MLIRTargetLLVMIRImport
   MLIRTargetLLVMIRExport
   MLIRLLVMIRTransforms
