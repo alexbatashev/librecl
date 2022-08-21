@@ -72,7 +72,7 @@ impl ProgramImpl for Program {
         */
         let compile_result = match &mut self.program_content {
             ProgramContent::Source(source) => {
-                let split_options = vec!["--targets=vulkan-spirv".to_owned(), "-c".to_owned()];
+                let split_options = vec!["--targets=vulkan-spirv".to_owned()];
                 let options = parse_options(&split_options).expect("options");
                 let result = device
                     .get_compiler()
@@ -81,7 +81,7 @@ impl ProgramImpl for Program {
             }
             ProgramContent::SPIRV(spirv) => {
                 // TODO pass spec constants
-                let split_options = vec!["--targets=vulkan-spirv".to_owned(), "-c".to_owned()];
+                let split_options = vec!["--targets=vulkan-spirv".to_owned()];
                 let options = parse_options(&split_options).expect("options");
                 let result = device.get_compiler().compile_spirv(spirv, &options);
                 Some(result)
@@ -110,7 +110,11 @@ impl ProgramImpl for Program {
         };
 
         let compiler = device.get_compiler();
-        let modules = vec![self.compile_result.as_ref().unwrap().clone()];
+        let mut modules = vec![self.compile_result.as_ref().unwrap().clone()];
+        for lib in device.get_builtin_libs() {
+            modules.push(lib.clone());
+        }
+
         let split_options = vec![String::from("--targets=vulkan-spirv")];
         let options = parse_options(&split_options).expect("options");
         let result = compiler.link(&modules, &options);

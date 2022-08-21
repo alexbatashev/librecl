@@ -11,7 +11,6 @@
 #include <stddef.h>
 
 struct Options {
-  bool compile_only;
   bool target_vulkan_spv;
   bool target_opencl_spv;
   bool target_metal_macos;
@@ -28,4 +27,3 @@ struct Options {
   const char **other_options;
   size_t num_other_options;
 };
-

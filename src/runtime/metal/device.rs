@@ -4,18 +4,21 @@ use crate::interface::{
 };
 use crate::sync::{self, *};
 use cpmetal::Device as MTLDevice;
-use librecl_compiler::Compiler;
+use librecl_compiler::{CompileResult, Compiler};
 use ocl_type_wrapper::ClObjImpl;
 use ocl_type_wrapper::DeviceLimitsInterface;
 use std::sync::Arc;
 
 use super::InOrderQueue;
 
+const COMMON_BUILTINS: &str = include_str!("../builtin/common.mlir");
+
 #[derive(ClObjImpl, DeviceLimitsInterface)]
 pub struct Device {
     platform: WeakPtr<PlatformKind>,
     device: MTLDevice,
     compiler: Arc<Compiler>,
+    builtin_libraries: Vec<Arc<CompileResult>>,
     device_limits: DeviceLimits,
     #[cl_handle]
     handle: UnsafeHandle<cl_device_id>,
@@ -45,10 +48,21 @@ impl Device {
             preferred_work_group_size_multiple: 32,
         };
 
+        let compiler = Compiler::new();
+        let mut builtin_libraries = vec![];
+
+        if compiler.is_available() {
+            println!("{}", COMMON_BUILTINS);
+            let split_opts = ["--targets=metal-ios,metal-macos".to_owned()];
+            let options = ocl_args::parse_options(&split_opts).unwrap();
+            builtin_libraries.push(compiler.compile_mlir(COMMON_BUILTINS, &options));
+        }
+
         let device = Device {
             platform: SharedPtr::downgrade(platform),
             device,
-            compiler: Compiler::new(),
+            compiler,
+            builtin_libraries,
             device_limits,
             handle: UnsafeHandle::null(),
         }
@@ -56,6 +70,10 @@ impl Device {
 
         let raw_device = _cl_device_id::wrap(device);
         return DeviceKind::try_from_cl(raw_device).unwrap();
+    }
+
+    pub fn get_builtin_libs(&self) -> &[Arc<CompileResult>] {
+        &self.builtin_libraries
     }
 
     pub fn get_native_device(&self) -> &MTLDevice {

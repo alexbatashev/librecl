@@ -8,13 +8,15 @@ use crate::interface::QueueKind;
 use crate::interface::VectorCaps;
 use crate::interface::{DeviceImpl, PlatformKind};
 use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
-use librecl_compiler::Compiler;
+use librecl_compiler::{CompileResult, Compiler};
 use ocl_type_wrapper::ClObjImpl;
 use ocl_type_wrapper::DeviceLimitsInterface;
 use std::sync::Arc;
 use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType, QueueFamily};
 use vulkano::device::Queue;
 use vulkano::device::{Device as VkDevice, DeviceCreateInfo, Features, QueueCreateInfo};
+
+const COMMON_BUILTINS: &str = include_str!("../builtin/common.mlir");
 
 #[derive(ClObjImpl, Clone, DeviceLimitsInterface)]
 pub struct Device {
@@ -25,6 +27,7 @@ pub struct Device {
     platform: WeakPtr<PlatformKind>,
     queue: Arc<Queue>,
     compiler: Arc<Compiler>,
+    builtin_libraries: Vec<Arc<CompileResult>>,
     extension_names: Vec<&'static str>,
     extension_versions: Vec<cl_version>,
     device_limits: DeviceLimits,
@@ -109,6 +112,16 @@ impl Device {
             preferred_work_group_size_multiple: 32,
         };
 
+        let compiler = Compiler::new();
+        let mut builtin_libraries = vec![];
+
+        if compiler.is_available() {
+            println!("{}", COMMON_BUILTINS);
+            let split_opts = ["--targets=vulkan-spirv".to_owned()];
+            let options = ocl_args::parse_options(&split_opts).unwrap();
+            builtin_libraries.push(compiler.compile_mlir(COMMON_BUILTINS, &options));
+        }
+
         let device = Device {
             vendor_name: vendor_name.to_owned(),
             physical_device,
@@ -116,7 +129,8 @@ impl Device {
             device_type,
             platform,
             queue: queues.next().unwrap(),
-            compiler: Compiler::new(),
+            compiler,
+            builtin_libraries,
             extension_names,
             extension_versions,
             device_limits,
@@ -126,6 +140,10 @@ impl Device {
         // This is intentional
         let raw_device = _cl_device_id::wrap(device);
         return DeviceKind::try_from_cl(raw_device).unwrap();
+    }
+
+    pub fn get_builtin_libs(&self) -> &[Arc<CompileResult>] {
+        &self.builtin_libraries
     }
 
     pub fn get_logical_device(&self) -> Arc<VkDevice> {

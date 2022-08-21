@@ -38,6 +38,14 @@ LCL_COMP_EXPORT void lcl_release_compiler(lcl::Compiler *compiler) {
 }
 
 LCL_COMP_EXPORT lcl::CompileResult *
+lcl_compile_mlir(lcl::Compiler *compiler, size_t sourceLen, const char *source,
+            Options options) {
+  auto result = compiler->compile_from_mlir(std::span{source, sourceLen}, options);
+
+  return new lcl::CompileResult(std::move(result));
+}
+
+LCL_COMP_EXPORT lcl::CompileResult *
 lcl_compile(lcl::Compiler *compiler, size_t sourceLen, const char *source,
             Options options) {
   auto result = compiler->compile(std::span{source, sourceLen}, options);
@@ -48,8 +56,7 @@ lcl_compile(lcl::Compiler *compiler, size_t sourceLen, const char *source,
 LCL_COMP_EXPORT lcl::CompileResult *
 lcl_link(lcl::Compiler *compiler, size_t numModules,
          lcl::CompileResult **results, Options options) {
-  auto result =
-      compiler->compile(std::span{results, numModules}, options);
+  auto result = compiler->link(std::span{results, numModules}, options);
 
   return new lcl::CompileResult(std::move(result));
 }

@@ -12,6 +12,12 @@ type compile_t = unsafe extern "C" fn(
     *const i8,
     ffi::Options,
 ) -> *mut ffi::lcl_CompileResult;
+type compile_mlir_t = unsafe extern "C" fn(
+    *mut ffi::lcl_Compiler,
+    ffi::size_t,
+    *const i8,
+    ffi::Options,
+) -> *mut ffi::lcl_CompileResult;
 type link_t = unsafe extern "C" fn(
     *mut ffi::lcl_Compiler,
     ffi::size_t,
@@ -73,6 +79,22 @@ impl Context {
             .as_ref()
             .ok_or("Compiler not available".to_string())?;
         let sym = unsafe { library.get::<compile_t>("lcl_compile".as_bytes()) }
+            .map_err(|_| "Failed to find symbol".to_owned())?;
+        Ok(unsafe { sym(compiler, src_size, source, opts) })
+    }
+
+    pub fn compile_mlir(
+        &self,
+        compiler: *mut ffi::lcl_Compiler,
+        src_size: ffi::size_t,
+        source: *const i8,
+        opts: ffi::Options,
+    ) -> Result<*mut ffi::lcl_CompileResult, String> {
+        let library = self
+            .library
+            .as_ref()
+            .ok_or("Compiler not available".to_string())?;
+        let sym = unsafe { library.get::<compile_mlir_t>("lcl_compile_mlir".as_bytes()) }
             .map_err(|_| "Failed to find symbol".to_owned())?;
         Ok(unsafe { sym(compiler, src_size, source, opts) })
     }
@@ -262,7 +284,6 @@ impl From<&CompilerArgs> for OptionsWrapper {
         }
 
         let options = ffi::Options {
-            compile_only: args.compile_only,
             target_vulkan_spv: args.targets.contains(&ocl_args::Target::VulkanSPIRV),
             target_opencl_spv: args.targets.contains(&ocl_args::Target::OpenCLSPIRV),
             target_metal_macos: args.targets.contains(&ocl_args::Target::MetalMacOS),
@@ -390,16 +411,15 @@ impl Compiler {
     }
 
     pub fn compile_source(&self, source: &str, options: &CompilerArgs) -> Arc<CompileResult> {
-        let c_source = CString::new(source).unwrap();
-
         let c_opts = OptionsWrapper::from(options);
+        let c_str = CString::new(source).unwrap();
 
         let result = self
             .context
             .compile(
                 self.handle,
                 source.len() as ffi::size_t,
-                c_source.as_ptr(),
+                c_str.as_ptr(),
                 c_opts.options,
             )
             .unwrap();
@@ -416,6 +436,23 @@ impl Compiler {
                 self.handle,
                 source.len() as ffi::size_t,
                 source.as_ptr(),
+                c_opts.options,
+            )
+            .unwrap();
+
+        CompileResult::from_raw(self.context.clone(), result)
+    }
+
+    pub fn compile_mlir(&self, source: &str, options: &CompilerArgs) -> Arc<CompileResult> {
+        let c_opts = OptionsWrapper::from(options);
+        let c_str = CString::new(source).unwrap();
+
+        let result = self
+            .context
+            .compile_mlir(
+                self.handle,
+                source.len() as ffi::size_t,
+                c_str.as_ptr(),
                 c_opts.options,
             )
             .unwrap();
