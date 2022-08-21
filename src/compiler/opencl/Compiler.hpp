@@ -75,7 +75,7 @@ class CompilerJob;
 
 class Compiler {
 public:
-  CompileResult compile_from_mlir(std::string_view); // Placeholder
+  CompileResult compile_from_mlir(std::span<const char>, const Options&);
   CompileResult compile(std::span<const char> input, const Options &options);
   CompileResult compile(std::span<CompileResult *> inputs,
                         const Options &options);
@@ -89,6 +89,9 @@ private:
   createStandardClangJob(const Options &options);
   std::unique_ptr<CompilerJob>
   createSPIRVTranslatorJob(const Options &options);
+
+  std::unique_ptr<CompilerJob>
+  createMergeMLIRJob(const Options &options);
 
   // Optimization jobs
   std::unique_ptr<CompilerJob>

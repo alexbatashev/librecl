@@ -21,6 +21,8 @@ namespace {
 void expandGetGlobalId(func::FuncOp func) {
   OpBuilder builder(func.getContext());
 
+  func->setAttr("ocl_builtin", builder.getUnitAttr());
+
   Block &entry = func.getBody().emplaceBlock();
   entry.addArgument(builder.getI32Type(), builder.getUnknownLoc());
 

@@ -390,16 +390,15 @@ impl Compiler {
     }
 
     pub fn compile_source(&self, source: &str, options: &CompilerArgs) -> Arc<CompileResult> {
-        let c_source = CString::new(source).unwrap();
-
         let c_opts = OptionsWrapper::from(options);
+        let c_str = CString::new(source).unwrap();
 
         let result = self
             .context
             .compile(
                 self.handle,
                 source.len() as ffi::size_t,
-                c_source.as_ptr(),
+                c_str.as_ptr(),
                 c_opts.options,
             )
             .unwrap();
@@ -421,6 +420,10 @@ impl Compiler {
             .unwrap();
 
         CompileResult::from_raw(self.context.clone(), result)
+    }
+
+    pub fn compile_mlir(&self, source: &str, options: &CompilerArgs) -> Arc<CompileResult> {
+        unimplemented!()
     }
 
     pub fn link(
