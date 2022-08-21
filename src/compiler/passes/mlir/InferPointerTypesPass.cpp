@@ -242,6 +242,9 @@ template <typename FuncT> Optional<bool> isFunctionLegal(FuncT func) {
 
   Region *body;
   if constexpr (std::is_same_v<func::FuncOp, FuncT>) {
+    if (func.isDeclaration()) {
+      return Optional(true);
+    }
     body = &func.getBody();
   } else {
     body = &func.body();

@@ -50,7 +50,7 @@ impl CompilerArgs {
             out: "a.out".to_owned(),
             inputs: vec![],
             compile_only: false,
-            opt_level: OptLevel::OptNone,
+            opt_level: OptLevel::O2,
             mad_enable: false,
             kernel_arg_info: false,
             print_before_all_mlir: false,
