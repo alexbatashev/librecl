@@ -9,6 +9,7 @@
 // Derived from mlir/lib/Target/Cpp/TranslateToCpp.cpp
 
 #include "CppEmitter.hpp"
+#include "LibreCL/IR/LibreCLOps.h"
 #include "RawMemory/RawMemoryOps.h"
 #include "RawMemory/RawMemoryTypes.h"
 
@@ -354,7 +355,7 @@ static LogicalResult printOperation(CppEmitter &emitter,
 }
 
 static LogicalResult printOperation(CppEmitter &emitter,
-                                    arith::ExtUIOp castOp) {
+                                    lcl::AnyCastOp castOp) {
   raw_ostream &os = emitter.ostream();
   Operation &op = *castOp.getOperation();
 
@@ -1163,7 +1164,7 @@ LogicalResult CppEmitter::emitOperation(Operation &op, bool trailingSemicolon) {
               [&](auto op) { return printOperation(*this, op); })
           .Case<arith::IndexCastOp>(
               [&](auto op) { return printOperation(*this, op); })
-          .Case<arith::TruncIOp, arith::ExtSIOp, arith::ExtUIOp>(
+          .Case<arith::TruncIOp, arith::ExtSIOp, lcl::AnyCastOp>(
               [&](auto op) { return printOperation(*this, op); })
           .Case<arith::AddFOp>(
               [&](auto op) { return printOperation(*this, op); })

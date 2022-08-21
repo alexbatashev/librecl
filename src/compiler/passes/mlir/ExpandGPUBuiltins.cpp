@@ -6,6 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "LibreCL/IR/LibreCLDialect.h"
+#include "LibreCL/IR/LibreCLOps.h"
 #include "passes.hpp"
 
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
@@ -60,10 +62,8 @@ struct GloaglIDPattern : public OpConversionPattern<gpu::GlobalIdOp> {
 
     Value extracted =
         rewriter.create<vector::ExtractElementOp>(op.getLoc(), gidArg, id);
-    Value extended = rewriter.create<arith::ExtUIOp>(
-        op.getLoc(), rewriter.getI64Type(), extracted);
-    rewriter.replaceOpWithNewOp<arith::IndexCastOp>(op, rewriter.getIndexType(),
-                                                    extended);
+    rewriter.replaceOpWithNewOp<lcl::AnyCastOp>(op, rewriter.getIndexType(),
+                                                extracted);
 
     return success();
   }
@@ -96,6 +96,7 @@ struct ExpandGPUBuiltinsPass
     target.addIllegalOp<mlir::gpu::GlobalIdOp>();
     target.addLegalDialect<vector::VectorDialect>();
     target.addLegalDialect<arith::ArithmeticDialect>();
+    target.addLegalDialect<lcl::LibreCLDialect>();
 
     RewritePatternSet patterns{&getContext()};
     patterns.add<GloaglIDPattern>(typeConverter, patterns.getContext());
