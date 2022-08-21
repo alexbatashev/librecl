@@ -50,7 +50,7 @@ impl CompilerArgs {
             out: "a.out".to_owned(),
             inputs: vec![],
             compile_only: false,
-            opt_level: OptLevel::OptNone,
+            opt_level: OptLevel::O2,
             mad_enable: false,
             kernel_arg_info: false,
             print_before_all_mlir: false,
@@ -201,7 +201,7 @@ mod test {
         let input: Vec<String> = "--targets=nvptx,vulkan-spirv,metal-ios -D test=1 -Dtest2 -D test3 -w -cl-opt-disable -print-after-all-mlir".split_whitespace().map(|s| s.to_owned()).collect();
         let opts = parse_options(&input).expect("failed to parse options");
 
-        assert!(opts.opt_level == OptLevel::OptNone);
+        assert!(opts.opt_level == OptLevel::O2);
         assert!(opts.print_after_all_mlir == true);
         assert!(opts.targets.contains(&Target::NVPTX));
         assert!(opts.targets.contains(&Target::VulkanSPIRV));

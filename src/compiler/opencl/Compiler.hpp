@@ -75,10 +75,10 @@ class CompilerJob;
 
 class Compiler {
 public:
+  Compiler();
   CompileResult compile_from_mlir(std::span<const char>, const Options&);
   CompileResult compile(std::span<const char> input, const Options &options);
-  CompileResult compile(std::span<CompileResult *> inputs,
-                        const Options &options);
+  CompileResult link(std::span<CompileResult *> inputs, const Options &options);
 
 private:
   llvm::LLVMContext mLLVMContext;
@@ -96,6 +96,7 @@ private:
   // Optimization jobs
   std::unique_ptr<CompilerJob>
   createOptimizeLLVMIRJob(const Options &options);
+  std::unique_ptr<CompilerJob> createMLIRLTOJob(const Options &options);
   std::unique_ptr<CompilerJob>
   createOptimizeMLIRJob(const Options &options); // Placeholder
 

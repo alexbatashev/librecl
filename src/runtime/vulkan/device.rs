@@ -116,6 +116,7 @@ impl Device {
         let mut builtin_libraries = vec![];
 
         if compiler.is_available() {
+            println!("{}", COMMON_BUILTINS);
             let split_opts = ["--targets=vulkan-spirv".to_owned()];
             let options = ocl_args::parse_options(&split_opts).unwrap();
             builtin_libraries.push(compiler.compile_mlir(COMMON_BUILTINS, &options));
@@ -139,6 +140,10 @@ impl Device {
         // This is intentional
         let raw_device = _cl_device_id::wrap(device);
         return DeviceKind::try_from_cl(raw_device).unwrap();
+    }
+
+    pub fn get_builtin_libs(&self) -> &[Arc<CompileResult>] {
+        &self.builtin_libraries
     }
 
     pub fn get_logical_device(&self) -> Arc<VkDevice> {

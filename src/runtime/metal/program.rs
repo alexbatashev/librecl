@@ -96,7 +96,11 @@ impl ProgramImpl for Program {
         };
 
         let compiler = device.get_compiler();
-        let modules = vec![self.compile_result.as_ref().unwrap().clone()];
+        let mut modules = vec![self.compile_result.as_ref().unwrap().clone()];
+        for lib in device.get_builtin_libs() {
+            modules.push(lib.clone());
+        }
+
         let split_options: [String; 1] = [String::from("--targets=metal-macos")];
         let options = parse_options(&split_options).expect("options");
         let result = compiler.link(&modules, &options);
