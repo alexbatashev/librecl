@@ -283,7 +283,7 @@ private:
 
 struct StructType
     : public Type::TypeBase<StructType, Type, detail::StructTypeStorage,
-                            DataLayoutTypeInterface::Trait> {
+                            DataLayoutTypeInterface::Trait, TypeTrait::IsMutable> {
   using Base::Base;
 
   /// Checks if the given type can be contained in a structure type.

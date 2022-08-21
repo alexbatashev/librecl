@@ -8,14 +8,15 @@
 
 #include "Compiler.hpp"
 #include "CppEmitter.hpp"
+#include "LibreCL/IR/LibreCLDialect.h"
+#include "Options.h"
 #include "RawMemory/RawMemoryDialect.h"
 #include "Struct/StructDialect.h"
 #include "passes/llvm/FixupStructuredCFGPass.h"
 #include "passes/mlir/passes.hpp"
-#include "Options.h"
 
 #include "LLVMSPIRVLib.h"
-#include "mlir/Dialect/GPU/GPUDialect.h"
+#include "mlir/Dialect/GPU/IR/GPUDialect.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVOps.h"
 #include "mlir/Dialect/SPIRV/Transforms/Passes.h"
 #include "mlir/Parser/Parser.h"
@@ -334,6 +335,7 @@ public:
     DialectRegistry registry;
     registry.insert<rawmem::RawMemoryDialect>();
     registry.insert<structure::StructDialect>();
+    registry.insert<lcl::LibreCLDialect>();
     mContext->appendDialectRegistry(registry);
     mContext->loadAllAvailableDialects();
     registerAllPasses();
