@@ -71,25 +71,6 @@ struct UnrealizedPattern
   }
 };
 
-/*
-struct AddrOfPattern
-    : public OpConversionPattern<structure::AddressOfOp> {
-  using Base = OpConversionPattern<structure::AddressOfOp>;
-  using Base::OpConversionPattern;
-
-  LogicalResult
-  matchAndRewrite(structure::AddressOfOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto oldPtrType = op.getResult().cast<rawmem::PointerType>();
-    auto structType = op.addr().getType().cast<structure::StructType>();
-    rewriter.replaceOpWithNewOp<>(Operation *op, Args &&args...)
-    rewriter.replaceOp(op, adaptor.getOperands()[0]);
-    rewriter.eraseOp(op);
-    return success();
-  }
-};
-*/
-
 template <typename FuncT>
 struct FunctionPattern : public OpConversionPattern<FuncT> {
   using Base = OpConversionPattern<FuncT>;

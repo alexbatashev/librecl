@@ -14,6 +14,8 @@
 #include "../../dialects/Struct/StructDialect.h"
 #include "../../dialects/Struct/StructOps.h"
 #include "../../dialects/Struct/StructTypes.h"
+#include "../../dialects/LibreCL/IR/LibreCLOps.h"
+#include "../../dialects/LibreCL/IR/LibreCLDialect.h"
 #include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
@@ -44,6 +46,7 @@ struct GPUTarget : public ConversionTarget {
     addLegalDialect<func::FuncDialect>();
     addLegalDialect<rawmem::RawMemoryDialect>();
     addLegalDialect<structure::StructDialect>();
+    addLegalDialect<lcl::LibreCLDialect>();
 
     addIllegalDialect<LLVM::LLVMDialect>();
   }
@@ -199,6 +202,24 @@ struct DirectConversion : public OpConversionPattern<LLVMTy> {
   }
 };
 
+struct AddrSpacePattern : public OpConversionPattern<LLVM::AddrSpaceCastOp> {
+  using Base = OpConversionPattern<LLVM::AddrSpaceCastOp>;
+  using Base::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(LLVM::AddrSpaceCastOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+
+    Type resType = getTypeConverter()->convertType(op.getRes().getType());
+
+    auto cast = rewriter.createOrFold<rawmem::ReinterpretCastOp>(
+        op.getLoc(), resType, adaptor.getArg());
+    rewriter.replaceOp(op, cast);
+
+    return success();
+  }
+};
+
 struct LoadPattern : public OpConversionPattern<LLVM::LoadOp> {
   using Base = OpConversionPattern<LLVM::LoadOp>;
   using Base::OpConversionPattern;
@@ -212,10 +233,12 @@ struct LoadPattern : public OpConversionPattern<LLVM::LoadOp> {
     rawmem::PointerType ptrType = rawmem::PointerType::get(
         resType,
         op.getAddr().getType().cast<LLVM::LLVMPointerType>().getAddressSpace());
-    auto castedAddr = rewriter.create<rawmem::ReinterpretCastOp>(
+    auto castedAddr = rewriter.createOrFold<rawmem::ReinterpretCastOp>(
         op.getLoc(), ptrType, adaptor.getAddr());
-    rewriter.replaceOpWithNewOp<rawmem::LoadOp>(op, resType, castedAddr,
+    auto l = rewriter.replaceOpWithNewOp<rawmem::LoadOp>(op, resType, castedAddr,
                                                 ValueRange{}, false);
+    castedAddr.dump();
+    l->dump();
 
     return success();
   }
@@ -232,7 +255,7 @@ struct StorePattern : public OpConversionPattern<LLVM::StoreOp> {
     rawmem::PointerType ptrType = rawmem::PointerType::get(
         elemType,
         op.getAddr().getType().cast<LLVM::LLVMPointerType>().getAddressSpace());
-    auto castedAddr = rewriter.create<rawmem::ReinterpretCastOp>(
+    auto castedAddr = rewriter.createOrFold<rawmem::ReinterpretCastOp>(
         op.getLoc(), ptrType, adaptor.getAddr());
     rewriter.replaceOpWithNewOp<rawmem::StoreOp>(
         op, adaptor.getValue(), castedAddr, ValueRange{}, false);
@@ -254,8 +277,11 @@ struct CallPattern : public OpConversionPattern<LLVM::CallOp> {
 
     auto calleeName = op.getCallee().value();
 
-    if (calleeName.startswith("llvm.lifetime")) {
+    if (calleeName.startswith("llvm.lifetime") || calleeName.startswith("__itt")) {
       rewriter.eraseOp(op);
+      return success();
+    } else if (calleeName == "llvm.assume") {
+      rewriter.replaceOpWithNewOp<lcl::AssumeOp>(op, adaptor.getOperands().front());
       return success();
     }
 
@@ -542,7 +568,8 @@ void populateSPIRToGPUConversionPatterns(TypeConverter &converter,
     BrPattern,
     ReturnPattern,
     StructGEPPattern,
-    GEPPattern
+    GEPPattern,
+    AddrSpacePattern
       // clang-format on
       >(converter, patterns.getContext());
 }

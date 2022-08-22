@@ -19,5 +19,13 @@ def LibreCL_AnyCastOp : LibreCL_Op<"any_cast"> {
   let assemblyFormat = "attr-dict $val `:` type($val) `->` type($res)";
 }
 
+def LibreCL_AssumeOp : LibreCL_Op<"assume"> {
+  // TODO restrict types
+  let arguments = (ins AnyI1:$val);
+  let results = (outs);
+
+  let assemblyFormat = "attr-dict $val `:` type($val)";
+}
+
 #endif // LIBRECL_OPS
 

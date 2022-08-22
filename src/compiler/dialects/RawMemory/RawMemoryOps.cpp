@@ -8,7 +8,6 @@
 
 #include "RawMemoryOps.h"
 #include "RawMemoryDialect.h"
-// #include "Struct/StructDialect.h"
 #include "Struct/StructOps.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/PatternMatch.h"
@@ -142,6 +141,12 @@ LogicalResult ReinterpretCastOp::canonicalize(ReinterpretCastOp op,
     rewriter.eraseOp(op);
     return success();
   }
+
+  if (auto other = op.addr().getDefiningOp<ReinterpretCastOp>()) {
+    rewriter.replaceOpWithNewOp<ReinterpretCastOp>(op, op.getResult().getType(), other.addr());
+    return success();
+  }
+
   return failure();
 }
 

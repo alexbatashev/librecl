@@ -30,6 +30,10 @@ module {
       %3 = arith.extsi %2 : i32 to i64
       return %3 : i64
     }
+    func.func private @_Z33__spirv_BuiltInGlobalInvocationIdi(%dim : i32) -> i64 attributes {ocl_builtin} {
+      %0 = func.call @_Z13get_global_idj(%dim) : (i32) -> i64
+      return %0 : i64
+    }
     func.func private @_Z12get_local_idj(%arg0: i32) -> i64 attributes {ocl_builtin} {
       %c0 = arith.constant 0 : index
       %c2_i32 = arith.constant 2 : i32

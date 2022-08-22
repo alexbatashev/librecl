@@ -16,6 +16,8 @@
 #include "../../dialects/Struct/StructDialect.h"
 #include "../../dialects/Struct/StructOps.h"
 #include "../../dialects/Struct/StructTypes.h"
+#include "../../dialects/LibreCL/IR/LibreCLDialect.h"
+#include "../../dialects/LibreCL/IR/LibreCLOps.h"
 #include "mlir/Conversion/ArithmeticToSPIRV/ArithmeticToSPIRV.h"
 #include "mlir/Conversion/ControlFlowToSPIRV/ControlFlowToSPIRV.h"
 #include "mlir/Conversion/FuncToSPIRV/FuncToSPIRV.h"
@@ -215,20 +217,22 @@ struct ReinterpretCastPattern
                   ConversionPatternRewriter &rewriter) const override {
     rawmem::PointerType ptrType =
         op.out().getType().cast<rawmem::PointerType>();
-    Type resType;
-    // TODO come up with a more elegant way
-    /*
-    if (llvm::isa<rawmem::OffsetOp>(op.out().getDefiningOp())) {
-      Type elementType = ptrType.getElementType();
-      resType =
-    spirv::PointerType::get(getTypeConverter()->convertType(elementType),
-    addrSpaceToVulkanStorageClass(ptrType.getAddressSpace())); } else {
-    */
-    resType = getTypeConverter()->convertType(ptrType);
-    /*
-  }
-  */
+    Type resType = getTypeConverter()->convertType(ptrType);
+
     rewriter.replaceOpWithNewOp<spirv::BitcastOp>(op, resType, adaptor.addr());
+    return success();
+  }
+};
+
+struct AssumePattern
+    : public OpConversionPattern<lcl::AssumeOp> {
+  using Base = OpConversionPattern<lcl::AssumeOp>;
+  using Base::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(lcl::AssumeOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOpWithNewOp<spirv::AssumeTrueKHROp>(op, adaptor.getOperands().front());
     return success();
   }
 };
@@ -279,13 +283,69 @@ struct FuncPattern : public OpConversionPattern<func::FuncOp> {
     return success();
   }
 };
+
+struct GPUFuncPattern : public OpConversionPattern<gpu::GPUFuncOp> {
+  using Base = OpConversionPattern<gpu::GPUFuncOp>;
+  using Base::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(gpu::GPUFuncOp funcOp, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (funcOp.isKernel())
+      return failure();
+
+    auto fnType = funcOp.getFunctionType();
+
+    // Update the signature to valid SPIR-V types and add the ABI
+    // attributes. These will be "materialized" by using the
+    // LowerABIAttributesPass.
+    TypeConverter::SignatureConversion signatureConverter(
+        fnType.getNumInputs());
+    {
+      for (const auto &argType :
+           enumerate(funcOp.getFunctionType().getInputs())) {
+        auto convertedType = getTypeConverter()->convertType(argType.value());
+        signatureConverter.addInputs(argType.index(), convertedType);
+      }
+    }
+    SmallVector<Type, 1> retTypes;
+    for (auto t : fnType.getResults()) {
+      retTypes.push_back(getTypeConverter()->convertType(t));
+    }
+    auto newFuncOp = rewriter.create<spirv::FuncOp>(
+        funcOp.getLoc(), funcOp.getName(),
+        rewriter.getFunctionType(signatureConverter.getConvertedTypes(),
+                                 retTypes));
+    for (const auto &namedAttr : funcOp->getAttrs()) {
+      if (namedAttr.getName() == FunctionOpInterface::getTypeAttrName() ||
+          namedAttr.getName() == SymbolTable::getSymbolAttrName())
+        continue;
+      newFuncOp->setAttr(namedAttr.getName(), namedAttr.getValue());
+    }
+
+    rewriter.inlineRegionBefore(funcOp.getBody(), newFuncOp.getBody(),
+                                newFuncOp.end());
+    if (failed(rewriter.convertRegionTypes(
+            &newFuncOp.getBody(), *getTypeConverter(), &signatureConverter)))
+      return failure();
+    rewriter.eraseOp(funcOp);
+
+    return success();
+  }
+};
 } // namespace
 
 static mlir::spirv::StorageClass
 addrSpaceToVulkanStorageClass(unsigned addrSpace) {
   switch (addrSpace) {
+  case 0:
+    return spirv::StorageClass::Function;
   case 1:
     return spirv::StorageClass::StorageBuffer;
+  case 2:
+    return spirv::StorageClass::UniformConstant;
+  case 3:
+    return spirv::StorageClass::Workgroup;
   default:
     llvm_unreachable("Unknown address space");
   }
@@ -339,7 +399,7 @@ void lcl::populateRawMemoryToSPIRVTypeConversions(
 void lcl::populateRawMemoryToSPIRVConversionPatterns(
     mlir::TypeConverter &converter, mlir::RewritePatternSet &patterns) {
   patterns.add<LoadPattern, StorePattern, OffsetPattern, ReinterpretCastPattern,
-               FuncPattern, StructStorePattern>(converter,
+               FuncPattern, GPUFuncPattern, StructStorePattern, AssumePattern>(converter,
                                                 patterns.getContext());
 }
 

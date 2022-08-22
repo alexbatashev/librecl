@@ -50,6 +50,7 @@
 #include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
 #include "llvm/ExecutionEngine/Orc/IRTransformLayer.h"
 #include "llvm/ExecutionEngine/Orc/ObjectTransformLayer.h"
+#include "llvm/Transforms/Scalar/InferAddressSpaces.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
@@ -225,9 +226,10 @@ public:
     // TODO right now compiler requires O2 pipeline in order to be able to
     // consume LLVM IR. This should be something like O0 if -cl-opt-none is
     // passed.
-    mPassManager = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O2);
+    mPassManager = PB.buildPerModuleDefaultPipeline(OptimizationLevel::O0);
     mPassManager.addPass(
         createModuleToFunctionPassAdaptor(clspv::FixupStructuredCFGPass()));
+    mPassManager.addPass(createModuleToFunctionPassAdaptor(InferAddressSpacesPass(4)));
   }
 
   CompileResult compile(const JobInput &input) override {
@@ -329,17 +331,7 @@ private:
 class MergeMLIRJob : public CompilerJob {
 public:
   MergeMLIRJob(mlir::MLIRContext *context, const ::Options &options)
-      : mContext(context), mBuilder(context) {
-    using namespace mlir;
-    registerAllDialects(*mContext);
-    DialectRegistry registry;
-    registry.insert<rawmem::RawMemoryDialect>();
-    registry.insert<structure::StructDialect>();
-    registry.insert<lcl::LibreCLDialect>();
-    mContext->appendDialectRegistry(registry);
-    mContext->loadAllAvailableDialects();
-    registerAllPasses();
-  }
+      : mContext(context), mBuilder(context) {}
 
   CompileResult compile(const JobInput &input) override {
     if (!std::holds_alternative<std::span<CompileResult*>>(input)) {
@@ -432,13 +424,6 @@ public:
   ConvertMLIRToMSLJob(mlir::MLIRContext *context, const ::Options &options)
       : mContext(context), mPassManager(context) {
     using namespace mlir;
-    registerAllDialects(*mContext);
-    DialectRegistry registry;
-    registry.insert<rawmem::RawMemoryDialect>();
-    registry.insert<structure::StructDialect>();
-    mContext->appendDialectRegistry(registry);
-    mContext->loadAllAvailableDialects();
-    registerAllPasses();
 
     const bool debugMLIR = std::getenv("LIBRECL_DEBUG_MLIR") != nullptr;
     bool printBeforeAll = debugMLIR || options.print_before_mlir;
@@ -555,13 +540,6 @@ public:
   ConvertMLIRToSPIRVJob(mlir::MLIRContext *context, const ::Options &options)
       : mContext(context), mPassManager(context) {
     using namespace mlir;
-    registerAllDialects(*mContext);
-    DialectRegistry registry;
-    registry.insert<rawmem::RawMemoryDialect>();
-    registry.insert<structure::StructDialect>();
-    mContext->appendDialectRegistry(registry);
-    mContext->loadAllAvailableDialects();
-    registerAllPasses();
 
     const bool debugMLIR = std::getenv("LIBRECL_DEBUG_MLIR") != nullptr;
     bool printBeforeAll = debugMLIR || options.print_before_mlir;
@@ -686,13 +664,6 @@ public:
   MLIRLTOJob(mlir::MLIRContext *context, const ::Options &options)
       : mContext(context), mPassManager(context) {
     using namespace mlir;
-    registerAllDialects(*mContext);
-    DialectRegistry registry;
-    registry.insert<rawmem::RawMemoryDialect>();
-    registry.insert<structure::StructDialect>();
-    mContext->appendDialectRegistry(registry);
-    mContext->loadAllAvailableDialects();
-    registerAllPasses();
 
     const bool debugMLIR = std::getenv("LIBRECL_DEBUG_MLIR") != nullptr;
     bool printBeforeAll = debugMLIR || options.print_before_mlir;
@@ -824,6 +795,7 @@ Compiler::Compiler() {
   DialectRegistry registry;
   registry.insert<rawmem::RawMemoryDialect>();
   registry.insert<structure::StructDialect>();
+  registry.insert<lcl::LibreCLDialect>();
   mMLIRContext.appendDialectRegistry(registry);
   mMLIRContext.loadAllAvailableDialects();
   registerAllPasses();
