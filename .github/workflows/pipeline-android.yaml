@@ -26,7 +26,12 @@ jobs:
           wget -P /tmp/ https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
           tar -xvf /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz -C /tmp/
           sudo install /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl/sccache /usr/bin/sccache
-          cargo install cargo-ndk
+      - name: Install cargo-ndk
+        uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-ndk
+          version: latest
+          use-tool-cache: true
       - name: Install Rust targets
         uses: actions-rs/toolchain@v1
         with:
