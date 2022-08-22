@@ -1,0 +1,43 @@
+name: Pulldown
+
+on:
+  schedule:
+  - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    if: github.repository == 'alexbatashev/librecl'
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          submodules: true
+      - name: Update
+        env:
+          PD_BRANCH: pulldown
+          MAIN_BRANCH: develop
+          TOKEN: ${{ secrets.LIBRECL_SYNC_TOKEN }}
+        run: |
+          branch_exist=`git ls-remote --heads origin $PD_BRANCH | wc -l`
+          if [ $branch_exist -eq 0 ]; then
+            git checkout -b $PD_BRANCH
+          else
+            git checkout $PD_BRANCH
+          fi
+
+          git merge --no-edit $MAIN_BRANCH
+          cd third_party/llvm-project
+          git fetch
+          git merge --no-edit main
+          cd ../SPIRV-LLVM-Translator
+          git fetch
+          git merge --no-edit main
+
+          cd ../../
+
+          git push https://$TOKEN@github.com/${{ github.repository }} ${PD_BRANCH}
+
+
