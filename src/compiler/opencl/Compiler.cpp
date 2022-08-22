@@ -760,16 +760,6 @@ private:
   mlir::PassManager mPassManager;
 };
 
-template <typename DataT, typename TraitsT = std::char_traits<DataT>>
-class spanbuffer : public std::basic_streambuf<DataT, TraitsT> {
-  using Base = std::basic_streambuf<DataT, TraitsT>;
-
-public:
-  spanbuffer(std::span<DataT> &span) {
-    Base::setg(span.data(), span.data(), span.data() + span.size());
-  }
-};
-
 class SPIRVTranslatorJob : public CompilerJob {
 public:
   // TODO support specialization constants
@@ -784,15 +774,26 @@ public:
 
     std::string errMessage;
 
-    spanbuffer buffer{spirv};
-    std::istream stream{&buffer};
+    llvm::StringRef spirvInput = llvm::StringRef(spirv.data(), spirv.size());
+    std::istringstream stream(spirvInput.str());
+
     llvm::Module *modulePtr;
-    if (!llvm::readSpirv(mContext, stream, modulePtr, errMessage)) {
+    SPIRV::TranslatorOpts opts;
+    opts.enableAllExtensions();
+    opts.setFPContractMode(SPIRV::FPContractMode::On);
+    opts.setDesiredBIsRepresentation(SPIRV::BIsRepresentation::SPIRVFriendlyIR);
+    if (!llvm::readSpirv(mContext, opts, stream, modulePtr, errMessage)) {
       return CompileResult{errMessage};
     }
 
     if (!modulePtr) {
       return CompileResult{errMessage};
+    }
+
+    modulePtr->materializeAll();
+
+    if (std::getenv("LIBRECL_DEBUG_LLVM") != nullptr) {
+      modulePtr->print(llvm::dbgs(), nullptr);
     }
 
     std::unique_ptr<llvm::Module> module{modulePtr};
@@ -861,6 +862,7 @@ CompileResult Compiler::compile(std::span<const char> source,
   if (std::holds_alternative<SourceInput>(input)) {
     jobs.push_back(createStandardClangJob(options));
   } else if (std::holds_alternative<SPIRVInput>(input)) {
+    llvm::errs() << "COMPILING SPIR-V\n";
     jobs.push_back(createSPIRVTranslatorJob(options));
   } else {
     return CompileResult{"Failed to choose frontend"};
