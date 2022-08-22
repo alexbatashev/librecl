@@ -13,6 +13,10 @@ jobs:
     with:
       runs-on: "ubuntu-22.04"
       test-config: "linux"
+  android:
+    needs: [linux]
+    name: Android aarch64
+    uses: ./.github/workflows/pipeline-android.yaml
   macos:
     name: macOS
     uses: ./.github/workflows/pipeline.yaml
