@@ -27,6 +27,10 @@ jobs:
           tar -xvf /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz -C /tmp/
           sudo install /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl/sccache /usr/bin/sccache
           cargo install cargo-ndk
+      - name: Install Rust targets
+        uses: actions-rs/toolchain@v1
+        with:
+          targets: aarch64-linux-android
       - uses: actions/checkout@v3
         with:
           submodules: true
