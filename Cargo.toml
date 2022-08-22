@@ -14,3 +14,4 @@ members = [
   "utils/ocl_type_wrapper",
   "utils/cpmetal",
 ]
+exclude = ["utils/llvm_native"]
