@@ -30,7 +30,7 @@ jobs:
       - name: Install Rust targets
         uses: actions-rs/toolchain@v1
         with:
-          targets: aarch64-linux-android
+          target: aarch64-linux-android
           toolchain: stable
       - uses: actions/checkout@v3
         with:
