@@ -4,6 +4,7 @@ on:
   push:
     branches:
     - develop
+    - pulldown
 
 jobs:
   linux:
