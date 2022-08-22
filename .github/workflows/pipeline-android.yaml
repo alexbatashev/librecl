@@ -31,6 +31,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           targets: aarch64-linux-android
+          toolchain: stable
       - uses: actions/checkout@v3
         with:
           submodules: true
