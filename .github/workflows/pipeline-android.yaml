@@ -50,7 +50,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ runner.os }}-${{ runner.arch }}-binaries
+          name: android-aarch64-binaries
           path: |
             target/aarch64-linux-android/debug/*lcl_icd_runtime*
             target/aarch64-linux-android/release/*lcl_icd_runtime*
