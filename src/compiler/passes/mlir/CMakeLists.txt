@@ -1,7 +1,6 @@
 add_library(LCLPasses STATIC
   AIRKernelABIPass.cpp
   SPIRToGPUConversion.cpp
-  ExpandOpenCLFunctionsPass.cpp
   GPUToSPIRVPass.cpp
   InferPointerTypesPass.cpp
   ExpandGPUBuiltins.cpp

@@ -4,6 +4,7 @@ use crate::interface::{ContextKind, DeviceKind, KernelKind, ProgramImpl, Program
 use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
 use librecl_compiler::CompileResult;
 use librecl_compiler::KernelInfo;
+use ocl_args::parse_options;
 use ocl_type_wrapper::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -71,8 +72,8 @@ impl ProgramImpl for Program {
         */
         let compile_result = match &mut self.program_content {
             ProgramContent::Source(source) => {
-                let options: [String; 2] =
-                    [String::from("-c"), String::from("--target=vulkan-spv")];
+                let split_options = vec!["--targets=vulkan-spirv".to_owned()];
+                let options = parse_options(&split_options).expect("options");
                 let result = device
                     .get_compiler()
                     .compile_source(source.as_str(), &options);
@@ -80,8 +81,8 @@ impl ProgramImpl for Program {
             }
             ProgramContent::SPIRV(spirv) => {
                 // TODO pass spec constants
-                let options: [String; 2] =
-                    [String::from("-c"), String::from("--target=vulkan-spv")];
+                let split_options = vec!["--targets=vulkan-spirv".to_owned()];
+                let options = parse_options(&split_options).expect("options");
                 let result = device.get_compiler().compile_spirv(spirv, &options);
                 Some(result)
             }
@@ -109,8 +110,13 @@ impl ProgramImpl for Program {
         };
 
         let compiler = device.get_compiler();
-        let modules = vec![self.compile_result.as_ref().unwrap().clone()];
-        let options: [String; 1] = [String::from("--target=vulkan-spv")];
+        let mut modules = vec![self.compile_result.as_ref().unwrap().clone()];
+        for lib in device.get_builtin_libs() {
+            modules.push(lib.clone());
+        }
+
+        let split_options = vec![String::from("--targets=vulkan-spirv")];
+        let options = parse_options(&split_options).expect("options");
         let result = compiler.link(&modules, &options);
 
         if !result.is_ok() {

@@ -8,15 +8,18 @@
 
 #include "Compiler.hpp"
 #include "CppEmitter.hpp"
+#include "LibreCL/IR/LibreCLDialect.h"
+#include "Options.h"
 #include "RawMemory/RawMemoryDialect.h"
 #include "Struct/StructDialect.h"
 #include "passes/llvm/FixupStructuredCFGPass.h"
 #include "passes/mlir/passes.hpp"
 
 #include "LLVMSPIRVLib.h"
-#include "mlir/Dialect/GPU/GPUDialect.h"
+#include "mlir/Dialect/GPU/IR/GPUDialect.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVOps.h"
 #include "mlir/Dialect/SPIRV/Transforms/Passes.h"
+#include "mlir/Parser/Parser.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/DialectRegistry.h"
@@ -61,11 +64,18 @@
 #include <cstdlib>
 #include <exception>
 #include <istream>
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/Casting.h>
 #include <memory>
+#include <mlir/Dialect/Func/IR/FuncOps.h>
+#include <mlir/Dialect/SPIRV/IR/TargetAndABI.h>
+#include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/Operation.h>
 #include <streambuf>
 #include <string>
 #include <string_view>
 #include <variant>
+#include <vector>
 
 namespace lcl {
 
@@ -77,7 +87,7 @@ struct SPIRVInput {
   std::span<char> binary;
 };
 
-using JobInput = std::variant<SourceInput, SPIRVInput, CompileResult>;
+using JobInput = std::variant<SourceInput, SPIRVInput, CompileResult, std::span<CompileResult *>>;
 
 class CompilerJob {
 public:
@@ -87,7 +97,7 @@ public:
 
 class ClangFrontendJob : public CompilerJob {
 public:
-  ClangFrontendJob(llvm::LLVMContext &context, std::span<Option> options)
+  ClangFrontendJob(llvm::LLVMContext &context, const ::Options &options)
       : mContext(context), mCompiler(nullptr) {
     mCompiler = std::make_unique<clang::CompilerInstance>();
 
@@ -96,12 +106,9 @@ public:
 
     mDiagOpts->ShowPresumedLoc = true;
 
-    for (auto opt : options) {
-      if (std::holds_alternative<std::string_view>(opt)) {
-        std::string_view optView = std::get<std::string_view>(opt);
-        mOptsStorage.emplace_back(optView);
-        mOpts.push_back(mOptsStorage.back().c_str());
-      }
+    for (size_t i = 0; i < options.num_other_options; i++) {
+      mOptsStorage.emplace_back(options.other_options[i]);
+      mOpts.push_back(mOptsStorage.back().c_str());
     }
     mOpts.push_back("-x");
     mOpts.push_back("cl");
@@ -204,7 +211,7 @@ private:
 
 class LLVMIROptimizeJob : public CompilerJob {
 public:
-  LLVMIROptimizeJob(std::span<Option> options) {
+  LLVMIROptimizeJob(const ::Options &options) {
     using namespace llvm;
 
     PassBuilder PB;
@@ -253,27 +260,13 @@ private:
 
 class ConvertToMLIRJob : public CompilerJob {
 public:
-  ConvertToMLIRJob(mlir::MLIRContext *context, std::span<Option> options)
+  ConvertToMLIRJob(mlir::MLIRContext *context, const ::Options &options)
       : mContext(context), mPassManager(context) {
     using namespace mlir;
-    registerAllDialects(*mContext);
-    DialectRegistry registry;
-    registry.insert<rawmem::RawMemoryDialect>();
-    registry.insert<structure::StructDialect>();
-    mContext->appendDialectRegistry(registry);
-    mContext->loadAllAvailableDialects();
-    registerAllPasses();
 
     const bool debugMLIR = std::getenv("LIBRECL_DEBUG_MLIR") != nullptr;
-    bool printBeforeAll = debugMLIR;
-    bool printAfterAll = debugMLIR;
-
-    for (const auto &opt : options) {
-      if (std::holds_alternative<MLIRPrintAfterAll>(opt))
-        printAfterAll = true;
-      if (std::holds_alternative<MLIRPrintAfterAll>(opt))
-        printAfterAll = true;
-    }
+    bool printBeforeAll = debugMLIR || options.print_before_mlir;
+    bool printAfterAll = debugMLIR || options.print_after_mlir;
 
     if (printBeforeAll || printAfterAll) {
       const auto shouldPrintBeforeAll = [printBeforeAll](mlir::Pass *,
@@ -295,10 +288,6 @@ public:
     mPassManager.addPass(mlir::createCanonicalizerPass());
     mPassManager.addPass(createSPIRToGPUPass());
     mPassManager.addPass(mlir::createCanonicalizerPass());
-    // TODO this pass should not be necessary
-    mPassManager.addNestedPass<mlir::gpu::GPUModuleOp>(
-        createExpandOpenCLFunctionsPass());
-    mPassManager.addPass(mlir::createCanonicalizerPass());
     mPassManager.addPass(lcl::createInferPointerTypesPass());
     mPassManager.addPass(mlir::createCanonicalizerPass());
     mPassManager.addNestedPass<mlir::gpu::GPUModuleOp>(
@@ -307,7 +296,7 @@ public:
 
   CompileResult compile(const JobInput &input) override {
     if (!std::holds_alternative<CompileResult>(input)) {
-      return CompileResult{"invalid LLVM optimizer input"};
+      return CompileResult{"invalid MLIR conversion input"};
     }
 
     auto &result = std::get<CompileResult>(input);
@@ -337,9 +326,110 @@ private:
   mlir::PassManager mPassManager;
 };
 
+class MergeMLIRJob : public CompilerJob {
+public:
+  MergeMLIRJob(mlir::MLIRContext *context, const ::Options &options)
+      : mContext(context), mBuilder(context) {
+    using namespace mlir;
+    registerAllDialects(*mContext);
+    DialectRegistry registry;
+    registry.insert<rawmem::RawMemoryDialect>();
+    registry.insert<structure::StructDialect>();
+    registry.insert<lcl::LibreCLDialect>();
+    mContext->appendDialectRegistry(registry);
+    mContext->loadAllAvailableDialects();
+    registerAllPasses();
+  }
+
+  CompileResult compile(const JobInput &input) override {
+    if (!std::holds_alternative<std::span<CompileResult*>>(input)) {
+      return CompileResult{"invalid merge job input"};
+    }
+
+    const bool debugMLIR = std::getenv("LIBRECL_DEBUG_MLIR") != nullptr;
+
+    auto mlirModule = mlir::OwningOpRef<mlir::ModuleOp>(mlir::ModuleOp::create(mBuilder.getUnknownLoc()));
+    mBuilder.setInsertionPointToStart(mlirModule->getBody());
+    auto gpuModule = mBuilder.create<mlir::gpu::GPUModuleOp>(mBuilder.getUnknownLoc(), "ocl_program");
+
+    const auto &modules = std::get<std::span<CompileResult *>>(input);
+
+    for (const auto &res : modules) {
+      if (!res) {
+        return CompileResult{"one of the modules being linked is invalid"};
+      }
+      if (res->isError()) {
+        return CompileResult{res->getError()};
+      }
+      const auto &m = res->getMLIR();
+
+      if (m.get()->hasAttr(mlir::spirv::getTargetEnvAttrName())) {
+        if (!mlirModule->getOperation()->hasAttr(
+                mlir::spirv::getTargetEnvAttrName())) {
+          mlirModule->getOperation()->setAttr(
+              mlir::spirv::getTargetEnvAttrName(),
+              m.get()->getAttr(mlir::spirv::getTargetEnvAttrName()));
+        }
+      }
+
+      mlir::BlockAndValueMapping mapping;
+      m.get()->walk([&](mlir::gpu::GPUModuleOp gm) {
+        mlir::OpBuilder::InsertionGuard _{mBuilder};
+        mBuilder.setInsertionPoint(gpuModule.body().front().getTerminator());
+        for (auto &op : gm.body().front()) {
+          bool skip = llvm::isa<mlir::gpu::ModuleEndOp>(op);
+
+          if (auto func = llvm::dyn_cast<mlir::func::FuncOp>(op)) {
+            if (func.isDeclaration() &&
+                gpuModule.lookupSymbol(func.getName())) {
+              skip = true;
+            }
+            if (!func.isDeclaration()) {
+              auto otherFunc =
+                  gpuModule.lookupSymbol<mlir::func::FuncOp>(func.getName());
+              if (otherFunc) {
+                if (otherFunc.isDeclaration()) {
+                  otherFunc.erase();
+                } else {
+                  // TODO how to return errors?
+                  return; // CompileResult{"can not have multiple functions with
+                          // the same name"};
+                }
+              }
+            }
+          }
+          /*
+          if (auto func = llvm::dyn_cast<mlir::func::FuncOp>(op)) {
+            if (gpuModule.lookupSymbol(func.getSymName())
+          }
+          */
+          if (!skip)
+            mBuilder.clone(op, mapping);
+        }
+      });
+      // TODO currently LibreCL compiler emits only device code. The plan is to
+      // produce a fat binary with WebAssembly and device-native parts. This
+      // would require cloning functions and other metadata from outside of gpu
+      // module region.
+    }
+
+    if (debugMLIR) {
+      mlirModule->dump();
+    }
+
+    return CompileResult{std::move(mlirModule)};
+  }
+
+  ~MergeMLIRJob() = default;
+
+private:
+  mlir::MLIRContext *mContext;
+  mlir::OpBuilder mBuilder;
+};
+
 class ConvertMLIRToMSLJob : public CompilerJob {
 public:
-  ConvertMLIRToMSLJob(mlir::MLIRContext *context, std::span<Option> options)
+  ConvertMLIRToMSLJob(mlir::MLIRContext *context, const ::Options &options)
       : mContext(context), mPassManager(context) {
     using namespace mlir;
     registerAllDialects(*mContext);
@@ -351,15 +441,8 @@ public:
     registerAllPasses();
 
     const bool debugMLIR = std::getenv("LIBRECL_DEBUG_MLIR") != nullptr;
-    bool printBeforeAll = debugMLIR;
-    bool printAfterAll = debugMLIR;
-
-    for (const auto &opt : options) {
-      if (std::holds_alternative<MLIRPrintAfterAll>(opt))
-        printAfterAll = true;
-      if (std::holds_alternative<MLIRPrintAfterAll>(opt))
-        printAfterAll = true;
-    }
+    bool printBeforeAll = debugMLIR || options.print_before_mlir;
+    bool printAfterAll = debugMLIR || options.print_after_mlir;
 
     if (printBeforeAll || printAfterAll) {
       const auto shouldPrintBeforeAll = [printBeforeAll](mlir::Pass *,
@@ -441,7 +524,7 @@ public:
     auto passResult = mPassManager.run(*mlirModule);
 
     if (mlir::failed(passResult)) {
-      return CompileResult{"failed to convert LLVM to MLIR"};
+      return CompileResult{"failed to lower MLIR for MSL conversion"};
     }
 
     std::string source;
@@ -469,7 +552,7 @@ private:
 };
 class ConvertMLIRToSPIRVJob : public CompilerJob {
 public:
-  ConvertMLIRToSPIRVJob(mlir::MLIRContext *context, std::span<Option> options)
+  ConvertMLIRToSPIRVJob(mlir::MLIRContext *context, const ::Options &options)
       : mContext(context), mPassManager(context) {
     using namespace mlir;
     registerAllDialects(*mContext);
@@ -481,15 +564,8 @@ public:
     registerAllPasses();
 
     const bool debugMLIR = std::getenv("LIBRECL_DEBUG_MLIR") != nullptr;
-    bool printBeforeAll = debugMLIR;
-    bool printAfterAll = debugMLIR;
-
-    for (const auto &opt : options) {
-      if (std::holds_alternative<MLIRPrintAfterAll>(opt))
-        printAfterAll = true;
-      if (std::holds_alternative<MLIRPrintAfterAll>(opt))
-        printAfterAll = true;
-    }
+    bool printBeforeAll = debugMLIR || options.print_before_mlir;
+    bool printAfterAll = debugMLIR || options.print_after_mlir;
 
     if (printBeforeAll || printAfterAll) {
       const auto shouldPrintBeforeAll = [printBeforeAll](mlir::Pass *,
@@ -513,11 +589,17 @@ public:
         lcl::createLowerABIAttributesPass());
     mPassManager.addNestedPass<mlir::spirv::ModuleOp>(
         mlir::spirv::createUpdateVersionCapabilityExtensionPass());
+    // TODO should not be necessary
+    if (options.opt_level >= 2) {
+      mPassManager.addNestedPass<mlir::spirv::ModuleOp>(
+          mlir::createInlinerPass());
+      mPassManager.addNestedPass<mlir::spirv::ModuleOp>(mlir::createCSEPass());
+    }
   }
 
   CompileResult compile(const JobInput &input) override {
     if (!std::holds_alternative<CompileResult>(input)) {
-      return CompileResult{"invalid LLVM optimizer input"};
+      return CompileResult{"invalid MLIR optimizer input"};
     }
 
     auto &result = std::get<CompileResult>(input);
@@ -534,7 +616,7 @@ public:
     auto passResult = mPassManager.run(*mlirModule);
 
     if (mlir::failed(passResult)) {
-      return CompileResult{"failed to convert LLVM to MLIR"};
+      return CompileResult{"failed to convert MLIR to SPIR-V"};
     }
 
     llvm::SmallVector<uint32_t, 10000> binary;
@@ -599,14 +681,83 @@ private:
   mlir::PassManager mPassManager;
 };
 
-template <typename DataT, typename TraitsT = std::char_traits<DataT>>
-class spanbuffer : public std::basic_streambuf<DataT, TraitsT> {
-  using Base = std::basic_streambuf<DataT, TraitsT>;
-
+class MLIRLTOJob : public CompilerJob {
 public:
-  spanbuffer(std::span<DataT> &span) {
-    Base::setg(span.data(), span.data(), span.data() + span.size());
+  MLIRLTOJob(mlir::MLIRContext *context, const ::Options &options)
+      : mContext(context), mPassManager(context) {
+    using namespace mlir;
+    registerAllDialects(*mContext);
+    DialectRegistry registry;
+    registry.insert<rawmem::RawMemoryDialect>();
+    registry.insert<structure::StructDialect>();
+    mContext->appendDialectRegistry(registry);
+    mContext->loadAllAvailableDialects();
+    registerAllPasses();
+
+    const bool debugMLIR = std::getenv("LIBRECL_DEBUG_MLIR") != nullptr;
+    bool printBeforeAll = debugMLIR || options.print_before_mlir;
+    bool printAfterAll = debugMLIR || options.print_after_mlir;
+
+    if (printBeforeAll || printAfterAll) {
+      const auto shouldPrintBeforeAll = [printBeforeAll](mlir::Pass *,
+                                                         mlir::Operation *) {
+        return printBeforeAll;
+      };
+      const auto shouldPrintAfterAll = [printAfterAll](mlir::Pass *,
+                                                       mlir::Operation *) {
+        return printAfterAll;
+      };
+      mContext->disableMultithreading();
+      mPassManager.enableIRPrinting(shouldPrintBeforeAll, shouldPrintAfterAll);
+    }
+    if (debugMLIR) {
+      mPassManager.enableTiming();
+      mPassManager.enableStatistics();
+    }
+
+    mPassManager.addPass(mlir::createCanonicalizerPass());
+    mPassManager.addPass(mlir::createSymbolDCEPass());
+    if (options.opt_level >= 2) {
+      llvm::StringMap<mlir::OpPassManager> pipelines;
+      const auto createPipeline = [](mlir::OpPassManager &pm) {
+        pm.addPass(mlir::createCanonicalizerPass());
+        pm.addPass(mlir::createCSEPass());
+      };
+      mPassManager.addNestedPass<mlir::gpu::GPUModuleOp>(
+          mlir::createInlinerPass(pipelines, createPipeline));
+    }
   }
+
+  CompileResult compile(const JobInput &input) override {
+    if (!std::holds_alternative<CompileResult>(input)) {
+      return CompileResult{"MLIRLTOJob: invalid input"};
+    }
+    const auto &result = std::get<CompileResult>(input);
+    if (result.isError()) {
+      return CompileResult{result.getError()};
+    }
+    if (!result.hasMLIR()) {
+      return CompileResult{"MLIRLTOJob: input does not contain MLIR module"};
+    }
+
+    auto mlirModule = mlir::OwningOpRef<mlir::ModuleOp>(
+        const_cast<mlir::OwningOpRef<mlir::ModuleOp> &>(result.getMLIR())
+            ->clone());
+
+    auto passResult = mPassManager.run(mlirModule.get());
+
+    if (mlir::failed(passResult)) {
+      return CompileResult{"failed to optimize MLIR module"};
+    }
+
+    return CompileResult{std::move(mlirModule)};
+  }
+
+  ~MLIRLTOJob() = default;
+
+private:
+  mlir::MLIRContext *mContext;
+  mlir::PassManager mPassManager;
 };
 
 class SPIRVTranslatorJob : public CompilerJob {
@@ -623,15 +774,26 @@ public:
 
     std::string errMessage;
 
-    spanbuffer buffer{spirv};
-    std::istream stream{&buffer};
+    llvm::StringRef spirvInput = llvm::StringRef(spirv.data(), spirv.size());
+    std::istringstream stream(spirvInput.str());
+
     llvm::Module *modulePtr;
-    if (!llvm::readSpirv(mContext, stream, modulePtr, errMessage)) {
+    SPIRV::TranslatorOpts opts;
+    opts.enableAllExtensions();
+    opts.setFPContractMode(SPIRV::FPContractMode::On);
+    opts.setDesiredBIsRepresentation(SPIRV::BIsRepresentation::SPIRVFriendlyIR);
+    if (!llvm::readSpirv(mContext, opts, stream, modulePtr, errMessage)) {
       return CompileResult{errMessage};
     }
 
     if (!modulePtr) {
       return CompileResult{errMessage};
+    }
+
+    modulePtr->materializeAll();
+
+    if (std::getenv("LIBRECL_DEBUG_LLVM") != nullptr) {
+      modulePtr->print(llvm::dbgs(), nullptr);
     }
 
     std::unique_ptr<llvm::Module> module{modulePtr};
@@ -644,8 +806,40 @@ private:
   llvm::LLVMContext &mContext;
 };
 
+static CompileResult do_compile(llvm::SmallVectorImpl<std::unique_ptr<CompilerJob>> &jobs, JobInput &input) {
+    for (auto &job : jobs) {
+      input = job->compile(input);
+    }
+
+    if (std::holds_alternative<CompileResult>(input)) {
+      return std::move(std::get<CompileResult>(input));
+    } else {
+      return CompileResult{"Failed to produce correct result"};
+    }
+}
+
+Compiler::Compiler() {
+  using namespace mlir;
+  registerAllDialects(mMLIRContext);
+  DialectRegistry registry;
+  registry.insert<rawmem::RawMemoryDialect>();
+  registry.insert<structure::StructDialect>();
+  mMLIRContext.appendDialectRegistry(registry);
+  mMLIRContext.loadAllAvailableDialects();
+  registerAllPasses();
+}
+
+CompileResult Compiler::compile_from_mlir(std::span<const char> source,
+                                const ::Options &options) {
+  auto module = mlir::parseSourceString<mlir::ModuleOp>(llvm::StringRef{source.data(), source.size()}, &mMLIRContext);
+  if (std::getenv("LIBRECL_DEBUG_MLIR") != nullptr) {
+    module->dump();
+  }
+  return CompileResult{std::move(module)};
+}
+
 CompileResult Compiler::compile(std::span<const char> source,
-                                std::span<Option> options) {
+                                const ::Options &options) {
   llvm::SmallVector<std::unique_ptr<CompilerJob>, 10> jobs;
 
   auto input = [&]() {
@@ -668,6 +862,7 @@ CompileResult Compiler::compile(std::span<const char> source,
   if (std::holds_alternative<SourceInput>(input)) {
     jobs.push_back(createStandardClangJob(options));
   } else if (std::holds_alternative<SPIRVInput>(input)) {
+    llvm::errs() << "COMPILING SPIR-V\n";
     jobs.push_back(createSPIRVTranslatorJob(options));
   } else {
     return CompileResult{"Failed to choose frontend"};
@@ -675,127 +870,80 @@ CompileResult Compiler::compile(std::span<const char> source,
   jobs.push_back(createOptimizeLLVMIRJob(options));
   jobs.push_back(createConvertToMLIRJob(options));
 
-  bool compileOnly = false;
-  for (auto &opt : options) {
-    if (std::holds_alternative<CompileOnly>(opt)) {
-      compileOnly = true;
-      break;
-    }
-  }
-
-  if (!compileOnly) {
-    for (auto &opt : options) {
-      if (std::holds_alternative<Target>(opt)) {
-        auto kind = std::get<Target>(opt).targetKind;
-        switch (kind) {
-        case Target::Kind::VulkanSPIRV:
-          jobs.push_back(createConvertMLIRToVulkanSPIRVJob(options));
-          break;
-        case Target::Kind::MSL:
-          jobs.push_back(createConvertMLIRToMSLJob(options));
-          break;
-        default:
-          std::terminate();
-        };
-
-        break;
-      }
-    }
-  }
-
-  for (auto &job : jobs) {
-    input = job->compile(input);
-  }
-
-  if (std::holds_alternative<CompileResult>(input)) {
-    return std::move(std::get<CompileResult>(input));
-  } else {
-    return CompileResult{"Failed to produce correct result"};
-  }
+  return do_compile(jobs, input);
 }
 
-CompileResult Compiler::compile(std::span<CompileResult *> modules,
-                                std::span<Option> options) {
-  // TODO actually link modules
-  auto &module = *modules.front();
-
-  if (module.isError()) {
-    return CompileResult{module.getError()};
+CompileResult Compiler::link(std::span<CompileResult *> modules,
+                             const ::Options &options) {
+  if (modules.size() == 0) {
+    return CompileResult{"There must be at least 1 module for linking"};
   }
 
-  if (!module.hasMLIR()) {
-    return CompileResult{"Not a valid MLIR module"};
-  }
-
-  auto clone = mlir::OwningOpRef<mlir::ModuleOp>(
-      const_cast<mlir::OwningOpRef<mlir::ModuleOp> &>(module.getMLIR())
-          ->clone());
-  JobInput input = CompileResult{std::move(clone)};
+  JobInput input{modules};
 
   llvm::SmallVector<std::unique_ptr<CompilerJob>, 10> jobs;
 
-  for (auto &opt : options) {
-    if (std::holds_alternative<Target>(opt)) {
-      auto kind = std::get<Target>(opt).targetKind;
-      switch (kind) {
-      case Target::Kind::VulkanSPIRV:
-        jobs.push_back(createConvertMLIRToVulkanSPIRVJob(options));
-        break;
-      case Target::Kind::MSL:
-        jobs.push_back(createConvertMLIRToMSLJob(options));
-        break;
-      default:
-        std::terminate();
-      };
+  jobs.push_back(createMergeMLIRJob(options));
 
-      break;
-    }
+  if (options.opt_level > 1) {
+    jobs.push_back(createMLIRLTOJob(options));
   }
 
-  for (auto &job : jobs) {
-    input = job->compile(input);
+  if (options.target_vulkan_spv) {
+    jobs.push_back(createConvertMLIRToVulkanSPIRVJob(options));
   }
 
-  if (std::holds_alternative<CompileResult>(input)) {
-    return std::move(std::get<CompileResult>(input));
-  } else {
-    return CompileResult{"Failed to produce correct result"};
+  if (options.target_metal_macos || options.target_metal_ios) {
+    jobs.push_back(createConvertMLIRToMSLJob(options));
   }
+
+  return do_compile(jobs, input);
 }
 
 std::unique_ptr<CompilerJob>
-Compiler::createStandardClangJob(std::span<Option> options) {
+Compiler::createStandardClangJob(const ::Options &options) {
   auto ptr = std::make_unique<ClangFrontendJob>(mLLVMContext, options);
   return ptr;
 }
 
 std::unique_ptr<CompilerJob>
-Compiler::createOptimizeLLVMIRJob(std::span<Option> options) {
+Compiler::createOptimizeLLVMIRJob(const ::Options &options) {
   auto ptr = std::make_unique<LLVMIROptimizeJob>(options);
   return ptr;
 }
 
 std::unique_ptr<CompilerJob>
-Compiler::createConvertToMLIRJob(std::span<Option> options) {
+Compiler::createMergeMLIRJob(const ::Options &options) {
+  auto ptr = std::make_unique<MergeMLIRJob>(&mMLIRContext, options);
+  return ptr;
+}
+
+std::unique_ptr<CompilerJob>
+Compiler::createMLIRLTOJob(const ::Options &options) {
+  auto ptr = std::make_unique<MLIRLTOJob>(&mMLIRContext, options);
+  return ptr;
+}
+
+std::unique_ptr<CompilerJob>
+Compiler::createConvertToMLIRJob(const ::Options &options) {
   auto ptr = std::make_unique<ConvertToMLIRJob>(&mMLIRContext, options);
   return ptr;
 }
 
 std::unique_ptr<CompilerJob>
-Compiler::createConvertMLIRToVulkanSPIRVJob(std::span<Option> options) {
+Compiler::createConvertMLIRToVulkanSPIRVJob(const ::Options &options) {
   auto ptr = std::make_unique<ConvertMLIRToSPIRVJob>(&mMLIRContext, options);
   return ptr;
 }
 
 std::unique_ptr<CompilerJob>
-Compiler::createConvertMLIRToMSLJob(std::span<Option> options) {
-  return nullptr;
-  auto ptr = std::make_unique<ConvertMLIRToSPIRVJob>(&mMLIRContext, options);
+Compiler::createConvertMLIRToMSLJob(const ::Options &options) {
+  auto ptr = std::make_unique<ConvertMLIRToMSLJob>(&mMLIRContext, options);
   return ptr;
 }
 
 std::unique_ptr<CompilerJob>
-Compiler::createSPIRVTranslatorJob(std::span<Option> options) {
+Compiler::createSPIRVTranslatorJob(const ::Options &options) {
   auto ptr = std::make_unique<SPIRVTranslatorJob>(mLLVMContext);
   return ptr;
 }

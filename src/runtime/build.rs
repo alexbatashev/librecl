@@ -67,5 +67,4 @@ fn main() {
         "cargo:rustc-link-arg=-Wl,-rpath,{}/../../../lcl_compiler/lib64",
         out_dir
     );
-    println!("cargo:rustc-link-lib=dylib=lcl_compiler");
 }

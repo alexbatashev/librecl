@@ -23,7 +23,7 @@
 #include "mlir/Conversion/MemRefToSPIRV/MemRefToSPIRV.h"
 #include "mlir/Conversion/SCFToSPIRV/SCFToSPIRV.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/GPU/GPUDialect.h"
+#include "mlir/Dialect/GPU/IR/GPUDialect.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVDialect.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVOps.h"
 #include "mlir/Dialect/SPIRV/Transforms/SPIRVConversion.h"
@@ -61,6 +61,7 @@ struct GPUToSPIRVPass
     target->addIllegalDialect<rawmem::RawMemoryDialect>();
     target->addIllegalDialect<structure::StructDialect>();
     target->addLegalOp<UnrealizedConversionCastOp>();
+    target->addLegalDialect<spirv::SPIRVDialect>();
 
     SPIRVTypeConverter typeConverter(targetAttr);
     RewritePatternSet patterns(context);
@@ -78,8 +79,8 @@ struct GPUToSPIRVPass
     lcl::populateRawMemoryToSPIRVTypeConversions(typeConverter, targetAttr);
     lcl::populateRawMemoryToSPIRVConversionPatterns(typeConverter, patterns);
 
-    if (failed(applyPartialConversion(kernelModules, *target,
-                                      std::move(patterns))))
+    if (failed(
+            applyFullConversion(kernelModules, *target, std::move(patterns))))
       return signalPassFailure();
   }
 };
@@ -147,7 +148,7 @@ struct LoadPattern : public OpConversionPattern<rawmem::LoadOp> {
     Value baseAddr =
         generateAccessChain(adaptor.addr(), adaptor.indices(), rewriter);
 
-    rewriter.replaceOpWithNewOp<spirv::LoadOp>(op, baseAddr);
+    auto repl = rewriter.replaceOpWithNewOp<spirv::LoadOp>(op, baseAddr);
 
     return success();
   }

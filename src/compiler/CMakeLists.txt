@@ -9,6 +9,7 @@ include_directories(include/)
 
 add_subdirectory(dialects/RawMemory)
 add_subdirectory(dialects/Struct)
+add_subdirectory(dialects/LibreCL)
 add_subdirectory(passes/mlir)
 
 add_library(lcl_compiler SHARED
@@ -120,9 +121,7 @@ target_link_libraries(lcl_compiler PRIVATE
   clangCodeGen
   clangFrontend
   clangFrontendTool
-  MLIRDLTI
   MLIRIR
-  MLIRLLVMIR
   MLIRTargetLLVMIRImport
   MLIRTargetLLVMIRExport
   MLIRLLVMIRTransforms
