@@ -2,7 +2,7 @@ name: Pulldown
 
 on:
   schedule:
-  - cron: '0 * * * *'
+  - cron: '0 */12 * * *'
   workflow_dispatch:
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          
+
           branch_exist=`git ls-remote --heads origin $PD_BRANCH | wc -l`
           if [ $branch_exist -eq 0 ]; then
             git checkout -b $PD_BRANCH
@@ -40,7 +40,7 @@ jobs:
           git merge --no-edit main
 
           cd ../../
-          
+
           git add .
           git diff-index --quiet HEAD || git commit -m "chore: uplift LLVM and SPIR-V translator"
 
