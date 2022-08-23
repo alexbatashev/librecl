@@ -51,9 +51,7 @@ fn build_llvm(
         .profile("Release")
         .out_dir(llvm_out.as_str());
 
-    if wrapper.contains("ccache") {
-        llvm_cfg.define("LLVM_CCACHE_BUILD", "ON");
-    } else if wrapper.contains("sccache") {
+    if wrapper.contains("sccache") {
         llvm_cfg
             .define("CMAKE_CXX_COMPILER_LAUNCHER", wrapper)
             .define("CMAKE_C_COMPILER_LAUNCHER", wrapper);
