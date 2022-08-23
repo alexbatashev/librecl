@@ -31,7 +31,7 @@ jobs:
           tar -xvf /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz -C /tmp/
           sudo install /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl/sccache /usr/bin/sccache
           wget -P /tmp/ https://github.com/rui314/mold/releases/download/v1.4.1/mold-1.4.1-x86_64-linux.tar.gz
-          sudo tar -xvf https://github.com/rui314/mold/releases/download/v1.4.1/mold-1.4.1-x86_64-linux.tar.gz -C /usr
+          sudo tar -xvf /tmp/mold-1.4.1-x86_64-linux.tar.gz -C /usr
       - name: Install dependencies (macOS)
         if: ${{ runner.os == 'macOS' }}
         run: |
