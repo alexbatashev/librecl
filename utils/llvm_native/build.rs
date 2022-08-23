@@ -30,6 +30,7 @@ fn build_llvm(
     use_mold: bool,
     use_lld: bool,
     use_ninja: bool,
+    use_clang: bool,
 ) -> String {
     let llvm_out = format!("{}/../../../llvm_build", out_dir);
     fs::create_dir_all(llvm_out.as_str()).expect("failed to create target dir");
@@ -45,10 +46,14 @@ fn build_llvm(
         .define("LLVM_ENABLE_PROJECTS", "mlir;clang;lld")
         .define("LLVM_TARGETS_TO_BUILD", "host;AMDGPU;NVPTX")
         .define("CMAKE_EXPORT_COMPILE_COMMANDS", "ON")
+        .define("LLVM_ENABLE_WARNINGS", "OFF")
+        .define("LLVM_OPTIMIZED_TABLEGEN", "ON")
         .profile("Release")
         .out_dir(llvm_out.as_str());
 
-    if wrapper.contains("sccache") {
+    if wrapper.contains("ccache") {
+        llvm_cfg.define("LLVM_CCACHE_BUILD", "ON");
+    } else if wrapper.contains("sccache") {
         llvm_cfg
             .define("CMAKE_CXX_COMPILER_LAUNCHER", wrapper)
             .define("CMAKE_C_COMPILER_LAUNCHER", wrapper);
@@ -58,6 +63,22 @@ fn build_llvm(
         llvm_cfg.define("LLVM_USE_LINKER", "mold");
     } else if use_lld {
         llvm_cfg.define("LLVM_USE_LINKER", "lld");
+    }
+
+    if use_clang {
+        llvm_cfg.define("CMAKE_C_COMPILER", "clang")
+            .define("CMAKE_CXX_COMPILER", "clang++");
+        let profile = env::var("PROFILE").unwrap_or("debug".to_string());
+        if profile == "release" {
+            llvm_cfg.define("LLVM_ENABLE_LTO", "Thin");
+        }
+    }
+
+    let is_ci = env::var("CI").unwrap_or("false".to_string());
+
+    if is_ci != "true" {
+        llvm_cfg.define("LLVM_APPEND_VC_REV", "OFF");
+        llvm_cfg.define("LLVM_PARALLEL_LINK_JOBS", "2");
     }
 
     if use_ninja {
@@ -84,7 +105,9 @@ fn build_online_compiler() {
 
     let use_ninja = which("ninja").is_ok();
 
-    let llvm_out = build_llvm(&dir, &wrapper, &out_dir, use_mold, use_lld, use_ninja);
+    let use_clang = which("clang").is_ok();
+
+    let llvm_out = build_llvm(&dir, &wrapper, &out_dir, use_mold, use_lld, use_ninja, use_clang);
 
     let compiler_out = format!("{}/../../../lcl_compiler", out_dir);
     fs::create_dir_all(compiler_out.as_str()).expect("failed to create target dir");
@@ -116,6 +139,11 @@ fn build_online_compiler() {
     } else if use_lld {
         cfg.define("LIBRECL_LINKER", "lld");
         println!("cargo:rustc-link-arg=-fuse-ld=lld");
+    }
+
+    if use_clang {
+        cfg.define("CMAKE_C_COMPILER", "clang")
+            .define("CMAKE_CXX_COMPILER", "clang++");
     }
 
     if use_ninja {
