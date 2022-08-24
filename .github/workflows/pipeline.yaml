@@ -25,20 +25,18 @@ jobs:
           sudo apt install -yqq ninja-build libtbb-dev spirv-tools libvulkan-dev
           curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 15
-          sudo update-alternatives --install /usr/bin/cc cc /usr/bin/gcc-11 15
-          sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/g++-11 15
+          sudo update-alternatives --install /usr/bin/cc cc /usr/bin/clang-12 15
+          sudo update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-12 15
+          wget -P /tmp/ https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz
+          tar -xvf /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl.tar.gz -C /tmp/
+          sudo install /tmp/sccache-v0.3.0-x86_64-unknown-linux-musl/sccache /usr/bin/sccache
+          wget -P /tmp/ https://github.com/rui314/mold/releases/download/v1.4.1/mold-1.4.1-x86_64-linux.tar.gz
+          sudo tar -xvf /tmp/mold-1.4.1-x86_64-linux.tar.gz -C /usr
       - name: Install dependencies (macOS)
         if: ${{ runner.os == 'macOS' }}
         run: |
           brew install sccache ninja ncurses
           curl -LsSf https://get.nexte.st/latest/mac | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
-      - name: Install sccache (Ubuntu)
-        if: ${{ runner.os == 'Linux' }}
-        uses: actions-rs/install@v0.1
-        with:
-          crate: sccache
-          version: latest
-          use-tool-cache: true
       - uses: actions/checkout@v3
         with:
           submodules: true
@@ -53,12 +51,14 @@ jobs:
           RUSTFLAGS: "-D warnings"
           RUSTC_WRAPPER: sccache
           SCCACHE_DIR: ${{ github.workspace }}/cache
+          SCCACHE_CACHE_SIZE: "1G"
         run: cargo build --workspace -vv ${{ inputs.cargo-flags }}
       - name: Runtime smoke test
         env:
           RUSTFLAGS: "-D warnings"
           RUSTC_WRAPPER: sccache
           SCCACHE_DIR: ${{ github.workspace }}/cache
+          SCCACHE_CACHE_SIZE: "1G"
         run: cargo nextest run --all ${{ inputs.cargo-flags }}
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
