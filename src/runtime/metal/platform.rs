@@ -6,7 +6,7 @@ use crate::interface::DeviceKind;
 use crate::interface::PlatformImpl;
 use crate::interface::PlatformKind;
 use crate::sync::{self, *};
-use ocl_type_wrapper::ClObjImpl;
+use lcl_derive::ClObjImpl;
 
 use cpmetal::Device as MTLDevice;
 

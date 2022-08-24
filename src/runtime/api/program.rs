@@ -8,7 +8,7 @@ use crate::{
     interface::{ContextImpl, ContextKind, ProgramImpl},
     lcl_contract,
 };
-use ocl_type_wrapper::cl_api;
+use lcl_derive::cl_api;
 
 #[cl_api]
 fn clCreateProgramWithSource(

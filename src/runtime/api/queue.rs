@@ -10,7 +10,7 @@ use crate::{
     lcl_contract, success,
     sync::SharedPtr,
 };
-use ocl_type_wrapper::cl_api;
+use lcl_derive::cl_api;
 use std::ops::Deref;
 
 #[cl_api]

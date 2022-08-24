@@ -8,8 +8,8 @@ use crate::interface::QueueKind;
 use crate::interface::{DeviceLimits, VectorCaps};
 use crate::sync::UnsafeHandle;
 use crate::sync::{self, *};
-use ocl_type_wrapper::ClObjImpl;
-use ocl_type_wrapper::DeviceLimitsInterface;
+use lcl_derive::ClObjImpl;
+use lcl_derive::DeviceLimitsInterface;
 use pytorch_cpuinfo::Package;
 
 #[derive(ClObjImpl, DeviceLimitsInterface)]

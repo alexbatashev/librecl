@@ -6,7 +6,7 @@ use crate::interface::PlatformKind;
 use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
 use crate::vulkan::context::Context;
 use crate::vulkan::device::Device;
-use ocl_type_wrapper::ClObjImpl;
+use lcl_derive::ClObjImpl;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::ops::DerefMut;

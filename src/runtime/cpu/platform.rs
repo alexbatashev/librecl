@@ -1,4 +1,4 @@
-use ocl_type_wrapper::{self, ClObjImpl};
+use lcl_derive::{self, ClObjImpl};
 
 use super::Device;
 use crate::api::cl_types::*;

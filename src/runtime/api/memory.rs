@@ -6,7 +6,7 @@ use crate::{
     interface::{ContextImpl, ContextKind},
     lcl_contract,
 };
-use ocl_type_wrapper::cl_api;
+use lcl_derive::cl_api;
 
 #[cl_api]
 pub unsafe extern "C" fn clCreateBuffer(

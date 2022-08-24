@@ -5,8 +5,8 @@ use crate::interface::{
 use crate::sync::{self, *};
 use cpmetal::Device as MTLDevice;
 use librecl_compiler::{CompileResult, Compiler};
-use ocl_type_wrapper::ClObjImpl;
-use ocl_type_wrapper::DeviceLimitsInterface;
+use lcl_derive::ClObjImpl;
+use lcl_derive::DeviceLimitsInterface;
 use std::sync::Arc;
 
 use super::InOrderQueue;

@@ -6,7 +6,7 @@ use crate::interface::*;
 
 use crate::sync;
 use bitflags::bitflags;
-use ocl_type_wrapper::cl_object;
+use lcl_derive::cl_object;
 use std::convert::TryFrom;
 
 use super::cl_icd::_cl_icd_dispatch;

@@ -9,7 +9,7 @@ use crate::{
     sync::SharedPtr,
 };
 use librecl_compiler::KernelArgType;
-use ocl_type_wrapper::cl_api;
+use lcl_derive::cl_api;
 use std::ops::{Deref, DerefMut};
 
 #[cl_api]

@@ -6,7 +6,7 @@ use crate::interface::DeviceKind;
 use crate::interface::MemKind;
 use crate::interface::ProgramKind;
 use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
-use ocl_type_wrapper::ClObjImpl;
+use lcl_derive::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
 use tokio::runtime::Runtime;

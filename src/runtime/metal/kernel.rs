@@ -3,7 +3,7 @@ use crate::interface::{DeviceKind, KernelImpl, KernelKind, MemKind, ProgramKind}
 use crate::sync::{self, *};
 use cpmetal::{ComputeCommandEncoder, ComputePipelineState, Function, FunctionDescriptor};
 use librecl_compiler::KernelArgInfo;
-use ocl_type_wrapper::ClObjImpl;
+use lcl_derive::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
 

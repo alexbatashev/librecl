@@ -3,7 +3,7 @@ use crate::api::cl_types::*;
 use crate::interface::{PlatformImpl, PlatformKind};
 use crate::sync::SharedPtr;
 use crate::{lcl_contract, set_info_array, set_info_int, set_info_str, success};
-use ocl_type_wrapper::cl_api;
+use lcl_derive::cl_api;
 use once_cell::sync::Lazy;
 use std::ops::Deref;
 use tracing::dispatcher::{self, Dispatch};

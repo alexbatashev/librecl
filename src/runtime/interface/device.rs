@@ -67,7 +67,7 @@ pub trait DeviceLimitsInterface {
 
 #[enum_dispatch]
 #[repr(C)]
-#[derive(ocl_type_wrapper::DeviceLimitsInterface)]
+#[derive(lcl_derive::DeviceLimitsInterface)]
 pub enum DeviceKind {
     #[cfg(feature = "vulkan")]
     Vulkan(VkDevice),

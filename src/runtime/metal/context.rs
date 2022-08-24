@@ -2,7 +2,7 @@ use crate::api::cl_types::*;
 use crate::api::error_handling::{map_invalid_context, ClError};
 use crate::interface::{ContextImpl, ContextKind, DeviceKind, MemKind, ProgramKind};
 use crate::sync::{self, *};
-use ocl_type_wrapper::ClObjImpl;
+use lcl_derive::ClObjImpl;
 use tokio::runtime::Runtime;
 
 use super::Program;

@@ -5,7 +5,7 @@ use cpmetal::{CompileOptions, Library};
 use librecl_compiler::CompileResult;
 use librecl_compiler::KernelInfo;
 use ocl_args::parse_options;
-use ocl_type_wrapper::ClObjImpl;
+use lcl_derive::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
 

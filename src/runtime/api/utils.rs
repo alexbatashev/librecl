@@ -94,7 +94,7 @@ impl<T: Sized + Send + Sync> WeakPtr<T> {
 /// ```no_run
 /// # use lcl_icd_runtime::api::cl_types::*;
 /// # use lcl_icd_runtime::sync;
-/// # use ocl_type_wrapper::*;
+/// # use lcl_derive::*;
 /// # use lcl_icd_runtime::sync::UnsafeHandle;
 /// #[derive(ClObjImpl)]
 /// struct Context {

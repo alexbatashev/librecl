@@ -2,7 +2,7 @@ use crate::api::cl_types::*;
 use crate::interface::{ContextKind, DeviceKind, KernelKind, MemKind, QueueImpl, QueueKind};
 use crate::sync::{self, *};
 use cpmetal::CommandQueue;
-use ocl_type_wrapper::ClObjImpl;
+use lcl_derive::ClObjImpl;
 use std::ops::Deref;
 
 #[derive(ClObjImpl)]

@@ -11,7 +11,7 @@ members = [
   "src/runtime",
   "tools/lcloc",
   "utils/ocl_args",
-  "utils/ocl_type_wrapper",
+  "utils/lcl_derive",
   "utils/cpmetal",
 ]
 exclude = ["utils/llvm_native"]

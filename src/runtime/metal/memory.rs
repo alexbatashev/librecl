@@ -3,7 +3,7 @@ use crate::interface::{ContextImpl, ContextKind, DeviceKind, MemImpl, MemKind};
 use crate::sync::{self, *};
 use cpmetal::ResourceOptions;
 use cpmetal::{Buffer as MTLBuffer, ComputeCommandEncoder};
-use ocl_type_wrapper::ClObjImpl;
+use lcl_derive::ClObjImpl;
 use std::ops::Deref;
 
 #[derive(Clone, ClObjImpl)]

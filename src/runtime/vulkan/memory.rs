@@ -1,7 +1,7 @@
 use crate::api::cl_types::*;
 use crate::interface::{ContextImpl, ContextKind, DeviceKind, MemImpl};
 use crate::sync::{self, UnsafeHandle, WeakPtr};
-use ocl_type_wrapper::ClObjImpl;
+use lcl_derive::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
 use vulkano::{

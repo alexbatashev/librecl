@@ -4,7 +4,7 @@ use crate::interface::{KernelImpl, MemKind, ProgramKind};
 use crate::interface::{KernelKind, ProgramImpl};
 use crate::sync::{self, UnsafeHandle, WeakPtr};
 use librecl_compiler::KernelArgInfo;
-use ocl_type_wrapper::ClObjImpl;
+use lcl_derive::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};

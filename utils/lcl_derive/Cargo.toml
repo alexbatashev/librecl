@@ -1,5 +1,5 @@
 [package]
-name = "ocl_type_wrapper"
+name = "lcl_derive"
 version = "0.1.0"
 edition = "2021"
 

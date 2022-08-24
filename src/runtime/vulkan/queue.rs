@@ -1,5 +1,5 @@
 use crate::sync::{self, UnsafeHandle, WeakPtr};
-use ocl_type_wrapper::ClObjImpl;
+use lcl_derive::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
