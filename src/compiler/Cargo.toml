@@ -13,6 +13,7 @@ libc = "0.2.126"
 ocl_args = { path = "../../utils/ocl_args" }
 libloading = "0.7.3"
 llvm_native = { path = "../../utils/llvm_native", optional = true }
+lcl_derive = { path = "../../utils/lcl_derive" }
 
 [build-dependencies]
 cmake = "0.1"

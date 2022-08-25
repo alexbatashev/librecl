@@ -1,5 +1,7 @@
 extern crate proc_macro;
 use std::ops::Deref;
+use std::fs::File;
+use std::io::Read;
 
 use convert_case::{Case, Casing};
 use darling::{FromDeriveInput, FromField};
@@ -477,4 +479,67 @@ pub fn derive_device_limits(input: proc_macro::TokenStream) -> proc_macro::Token
     };
 
     gen.into()
+}
+
+fn create_loader_method(func: &syn::ItemFn) -> TokenStream {
+    unimplemented!()
+}
+
+fn create_loader_member_ty(func: &syn::ItemFn) -> TokenStream {
+    unimplemented!()
+}
+
+#[proc_macro]
+pub fn dyn_loader(input: TokenStream) -> TokenStream {
+    let mut inp_iter = input.into_iter();
+    let filename_token = inp_iter.next();
+
+    let filename = match filename_token.unwrap() {
+        proc_macro::TokenTree::Literal(lit) => lit.to_string(),
+        _ => panic!(),
+    }.replace("OUT_DIR", &std::env::var("OUT_DIR").unwrap()).replace("\"", "");
+
+    //panic!("{}", filename);
+
+
+    inp_iter.next(); // comma
+
+    let lib_name = match inp_iter.next().unwrap() {
+        proc_macro::TokenTree::Ident(ident) => ident,
+        _ => panic!(),
+    };
+
+    inp_iter.next(); // comma
+
+    let struct_name = match inp_iter.next().unwrap() {
+        proc_macro::TokenTree::Ident(ident) => ident,
+        _ => panic!(),
+    };
+    let imp = struct_name.clone();
+
+    let mut file = File::open(&filename).expect(&format!("Failed to open file {}", &filename));
+    let mut content = String::new();
+    file.read_to_string(&mut content).expect("Failed to read file");
+
+    let ast = syn::parse_file(&content).unwrap();
+
+    let mut item: Vec<syn::Item> = vec![];
+    let mut methods = vec![];
+    let mut members = vec![];
+    let mut func_names = vec![];
+
+    for c in ast.items {
+        match &c {
+            syn::Item::Fn(func) => {
+                methods.push(create_loader_method(func));
+                members.push(create_loader_member_ty(func));
+                func_names.push(func.sig.ident.to_string());
+            },
+            _ =>  item.push(c),
+        }
+    }
+
+    let res = quote! {};
+
+    res.into()
 }
