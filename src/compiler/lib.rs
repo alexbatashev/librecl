@@ -9,13 +9,13 @@ type release_compiler_t = unsafe extern "C" fn(*mut ffi::lcl_Compiler);
 type compile_t = unsafe extern "C" fn(
     *mut ffi::lcl_Compiler,
     ffi::size_t,
-    *const i8,
+    *const libc::c_char,
     ffi::Options,
 ) -> *mut ffi::lcl_CompileResult;
 type compile_mlir_t = unsafe extern "C" fn(
     *mut ffi::lcl_Compiler,
     ffi::size_t,
-    *const i8,
+    *const libc::c_char,
     ffi::Options,
 ) -> *mut ffi::lcl_CompileResult;
 type link_t = unsafe extern "C" fn(
@@ -31,12 +31,12 @@ type get_num_kernel_args_t =
 type get_kernel_args_t =
     unsafe extern "C" fn(*mut ffi::lcl_CompileResult, ffi::size_t, *mut libc::c_void);
 type get_kernel_name_t =
-    unsafe extern "C" fn(*mut ffi::lcl_CompileResult, ffi::size_t) -> *const i8;
+    unsafe extern "C" fn(*mut ffi::lcl_CompileResult, ffi::size_t) -> *const libc::c_char;
 type get_program_size_t = unsafe extern "C" fn(*mut ffi::lcl_CompileResult) -> ffi::size_t;
 type copy_program_t = unsafe extern "C" fn(*mut ffi::lcl_CompileResult, *mut libc::c_void);
 
 type is_error_t = unsafe extern "C" fn(*mut ffi::lcl_CompileResult) -> libc::c_int;
-type get_error_message_t = unsafe extern "C" fn(*mut ffi::lcl_CompileResult) -> *const i8;
+type get_error_message_t = unsafe extern "C" fn(*mut ffi::lcl_CompileResult) -> *const libc::c_char;
 
 struct Context {
     library: Option<Arc<libloading::Library>>,
@@ -71,7 +71,7 @@ impl Context {
         &self,
         compiler: *mut ffi::lcl_Compiler,
         src_size: ffi::size_t,
-        source: *const i8,
+        source: *const libc::c_char,
         opts: ffi::Options,
     ) -> Result<*mut ffi::lcl_CompileResult, String> {
         let library = self
@@ -87,7 +87,7 @@ impl Context {
         &self,
         compiler: *mut ffi::lcl_Compiler,
         src_size: ffi::size_t,
-        source: *const i8,
+        source: *const libc::c_char,
         opts: ffi::Options,
     ) -> Result<*mut ffi::lcl_CompileResult, String> {
         let library = self
@@ -169,7 +169,7 @@ impl Context {
         &self,
         res: *mut ffi::lcl_CompileResult,
         idx: ffi::size_t,
-    ) -> Result<*const i8, String> {
+    ) -> Result<*const libc::c_char, String> {
         let library = self
             .library
             .as_ref()
@@ -216,7 +216,7 @@ impl Context {
         Ok(unsafe { sym(res) })
     }
 
-    pub fn get_error_message(&self, res: *mut ffi::lcl_CompileResult) -> Result<*const i8, String> {
+    pub fn get_error_message(&self, res: *mut ffi::lcl_CompileResult) -> Result<*const libc::c_char, String> {
         let library = self
             .library
             .as_ref()
@@ -237,6 +237,8 @@ impl Context {
         let maybe_library = unsafe { libloading::Library::new("liblcl_compiler.so") };
         #[cfg(target_os = "macos")]
         let maybe_library = unsafe { libloading::Library::new("liblcl_compiler.dylib") };
+        #[cfg(target_os = "android")]
+        let maybe_library = unsafe { libloading::Library::new("liblcl_compiler.so") };
 
         if maybe_library.is_err() {
             return Arc::new(Context::default());
@@ -263,7 +265,7 @@ unsafe impl Sync for CompileResult {}
 struct OptionsWrapper {
     pub options: ffi::Options,
     _cstr_opts: Vec<std::ffi::CString>,
-    _c_opts: Vec<*const i8>,
+    _c_opts: Vec<*const libc::c_char>,
 }
 
 impl From<&CompilerArgs> for OptionsWrapper {
@@ -280,7 +282,7 @@ impl From<&CompilerArgs> for OptionsWrapper {
 
         for opt in &args.other_options {
             cstr_opts.push(std::ffi::CString::new(opt.clone()).unwrap());
-            c_opts.push(cstr_opts.last().as_ref().unwrap().as_ptr());
+            c_opts.push(cstr_opts.last().as_ref().unwrap().as_ptr() as *const libc::c_char);
         }
 
         let options = ffi::Options {
@@ -435,7 +437,7 @@ impl Compiler {
             .compile(
                 self.handle,
                 source.len() as ffi::size_t,
-                source.as_ptr(),
+                source.as_ptr() as *const libc::c_char,
                 c_opts.options,
             )
             .unwrap();
