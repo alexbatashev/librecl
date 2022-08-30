@@ -30,6 +30,8 @@ def RawMemory_Dialect : Dialect {
 // Type constraint accepting any pointer type.
 def RawMem_AnyPointer : Type<CPred<"$_self.isa<::mlir::rawmem::PointerType>()">,
                                  "Pointer type", "::mlir::rawmem::PointerType">;
+def RawMem_AnyArray : Type<CPred<"$_self.isa<::mlir::rawmem::StaticArrayType>()">,
+                                 "Static array type", "::mlir::rawmem::StaticArrayType">;
 
 //===----------------------------------------------------------------------===//
 // Base raw memory operation definition.

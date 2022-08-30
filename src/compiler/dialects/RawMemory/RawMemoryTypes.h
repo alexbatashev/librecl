@@ -15,9 +15,9 @@
 namespace mlir {
 namespace rawmem {
 namespace detail {
-/// Storage type for LLVM dialect pointer types. These are uniqued by a pair of
-/// element type and address space. The element type may be null indicating that
-/// the pointer is opaque.
+/// Storage type for RawMem dialect pointer types. These are uniqued by a pair
+/// of element type and address space. The element type may be null indicating
+/// that the pointer is opaque.
 struct PointerTypeStorage : public TypeStorage {
   using KeyTy = std::tuple<Type, unsigned>;
 
@@ -36,6 +36,28 @@ struct PointerTypeStorage : public TypeStorage {
 
   Type pointeeType;
   unsigned addressSpace;
+};
+
+/// Storage type for RawMem dialect static array types. These are uniqued by a
+/// pair of element type and array size.
+struct StaticArrayTypeStorage : public TypeStorage {
+  using KeyTy = std::tuple<Type, unsigned>;
+
+  StaticArrayTypeStorage(const KeyTy &key)
+      : elementType(std::get<0>(key)), size(std::get<1>(key)) {}
+
+  static StaticArrayTypeStorage *construct(TypeStorageAllocator &allocator,
+                                           const KeyTy &key) {
+    return new (allocator.allocate<StaticArrayTypeStorage>())
+        StaticArrayTypeStorage(key);
+  }
+
+  bool operator==(const KeyTy &key) const {
+    return std::make_tuple(elementType, size) == key;
+  }
+
+  Type elementType;
+  unsigned size;
 };
 } // namespace detail
 } // namespace rawmem
@@ -89,6 +111,42 @@ public:
                               MLIRContext *context, unsigned) {
     return success();
   }
+
+  /// Hooks for DataLayoutTypeInterface. Should not be called directly. Obtain a
+  /// DataLayout instance and query it instead.
+  unsigned getTypeSizeInBits(const DataLayout &dataLayout,
+                             DataLayoutEntryListRef params) const;
+  unsigned getABIAlignment(const DataLayout &dataLayout,
+                           DataLayoutEntryListRef params) const;
+  unsigned getPreferredAlignment(const DataLayout &dataLayout,
+                                 DataLayoutEntryListRef params) const;
+  bool areCompatible(DataLayoutEntryListRef oldLayout,
+                     DataLayoutEntryListRef newLayout) const;
+  LogicalResult verifyEntries(DataLayoutEntryListRef entries,
+                              Location loc) const;
+};
+
+class StaticArrayType : public Type::TypeBase<StaticArrayType, Type,
+                                              detail::StaticArrayTypeStorage,
+                                              DataLayoutTypeInterface::Trait> {
+public:
+  /// Inherit base constructors.
+  using Base::Base;
+
+  static StaticArrayType get(Type pointee, unsigned size);
+  static StaticArrayType
+  getChecked(function_ref<InFlightDiagnostic()> emitError, Type pointee,
+             unsigned size);
+
+  /// Returns the pointed-to type.
+  Type getElementType() const;
+
+  /// Returns the size of the array.
+  unsigned getSize() const;
+
+  /// Verifies that the type about to be constructed is well-formed.
+  static LogicalResult verify(function_ref<InFlightDiagnostic()> emitError,
+                              Type pointee, unsigned);
 
   /// Hooks for DataLayoutTypeInterface. Should not be called directly. Obtain a
   /// DataLayout instance and query it instead.

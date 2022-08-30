@@ -34,7 +34,7 @@ void RawMemoryDialect::initialize() {
 #define GET_OP_LIST
 #include "RawMemory/RawMemoryOps.cpp.inc"
       >();
-  addTypes<PointerType>();
+  addTypes<PointerType, StaticArrayType>();
 }
 
 static void dispatchPrint(AsmPrinter &printer, Type type);

@@ -138,7 +138,14 @@ struct FuncConversionPattern : public OpConversionPattern<LLVM::LLVMFuncOp> {
         funcType.getNumParams());
 
     for (auto &t : llvm::enumerate(funcType.getParams())) {
-      Type newType = typeConverter.convertType(t.value());
+      Type newType;
+      if (auto attr = func.getArgAttrOfType<TypeAttr>(
+              t.index(), LLVM::LLVMDialect::getByValAttrName())) {
+        newType = typeConverter.convertType(attr.getValue());
+        newType.dump();
+      } else {
+        newType = typeConverter.convertType(t.value());
+      }
       signatureConverter.addInputs(t.index(), newType);
     }
 
@@ -160,6 +167,43 @@ struct FuncConversionPattern : public OpConversionPattern<LLVM::LLVMFuncOp> {
       rewriter.inlineRegionBefore(func.getBody(), gpuFunc.getBody(),
                                   gpuFunc.getBody().begin());
       gpuFunc.body().back().erase();
+
+      SmallVector<Value, 5> remappedInputs;
+      Block *oldEntry = &gpuFunc.body().front();
+      Block *conversionBB = rewriter.createBlock(oldEntry, gpuType.getInputs());
+
+      gpuFunc.dump();
+
+      for (const auto &arg : llvm::enumerate(gpuType.getInputs())) {
+        Value blockArg = conversionBB->getArgument(arg.index());
+        if (arg.value().isa<structure::StructType>()) {
+          OpBuilder::InsertionGuard _{rewriter};
+          rewriter.setInsertionPointToEnd(conversionBB);
+          auto ptr = rawmem::PointerType::get(arg.value());
+          Value size = rewriter.create<arith::ConstantOp>(
+              rewriter.getUnknownLoc(), rewriter.getIndexAttr(1));
+          Value alloc = rewriter.create<rawmem::AllocaOp>(
+              rewriter.getUnknownLoc(), ptr, size);
+          rewriter.create<rawmem::StoreOp>(rewriter.getUnknownLoc(), blockArg,
+                                           alloc, ValueRange{}, false);
+          Value finalPtr = rewriter.create<rawmem::ReinterpretCastOp>(
+              rewriter.getUnknownLoc(), rawmem::PointerType::get(getContext()),
+              alloc);
+          remappedInputs.push_back(finalPtr);
+        } else {
+          remappedInputs.push_back(blockArg);
+        }
+        // blockArg.dump();
+      }
+
+      gpuFunc.dump();
+
+      {
+        OpBuilder::InsertionGuard _{rewriter};
+        rewriter.create<cf::BranchOp>(rewriter.getUnknownLoc(), oldEntry,
+                                      conversionBB->getArguments());
+      }
+
       if (failed(rewriter.convertRegionTypes(&gpuFunc.getBody(), typeConverter,
                                              &signatureConverter))) {
 
@@ -514,6 +558,7 @@ void populateSPIRToGPUTypeConversions(TypeConverter &converter) {
   converter.addConversion(
       [&converter](LLVM::LLVMStructType type) -> mlir::Type {
         if (type.isOpaque()) {
+          llvm_unreachable("Opaque structure");
           return mlir::Type();
         }
 
@@ -530,7 +575,7 @@ void populateSPIRToGPUTypeConversions(TypeConverter &converter) {
           }
         }
 
-        // TODO unidentified types
+        llvm_unreachable("Unidentified structure");
 
         return mlir::Type();
       });

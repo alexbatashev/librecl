@@ -208,3 +208,136 @@ LogicalResult PointerType::verifyEntries(DataLayoutEntryListRef entries,
   }
   return success();
 }
+
+StaticArrayType StaticArrayType::get(Type pointee, unsigned size) {
+  assert(pointee && "expected non-null subtype");
+  return Base::get(pointee.getContext(), pointee, size);
+}
+
+StaticArrayType
+StaticArrayType::getChecked(function_ref<InFlightDiagnostic()> emitError,
+                            Type pointee, unsigned size) {
+  return Base::getChecked(emitError, pointee.getContext(), pointee, size);
+}
+
+Type StaticArrayType::getElementType() const { return getImpl()->elementType; }
+
+unsigned StaticArrayType::getSize() const { return getImpl()->size; }
+
+LogicalResult StaticArrayType::verify(function_ref<InFlightDiagnostic()>, Type,
+                                      unsigned) {
+  return success();
+}
+
+/// Returns the part of the data layout entry that corresponds to `pos` for the
+/// given `type` by interpreting the list of entries `params`. For the pointer
+/// type in the default address space, returns the default value if the entries
+/// do not provide a custom one, for other address spaces returns None.
+static Optional<unsigned> getArrayDataLayoutEntry(DataLayoutEntryListRef params,
+                                                  StaticArrayType type,
+                                                  DLEntryPos pos) {
+  // First, look for the entry for the pointer in the current address space.
+  Attribute currentEntry;
+  for (DataLayoutEntryInterface entry : params) {
+    if (!entry.isTypeEntry())
+      continue;
+    if (entry.getKey().get<Type>().cast<StaticArrayType>().getSize() ==
+        type.getSize()) {
+      currentEntry = entry.getValue();
+      break;
+    }
+  }
+  if (currentEntry) {
+    return extractPointerSpecValue(currentEntry, pos) /
+           (pos == DLEntryPos::Size ? 1 : kBitsInByte);
+  }
+
+  return llvm::None;
+}
+
+unsigned
+StaticArrayType::getTypeSizeInBits(const DataLayout &dataLayout,
+                                   DataLayoutEntryListRef params) const {
+  if (Optional<unsigned> size =
+          getArrayDataLayoutEntry(params, *this, DLEntryPos::Size))
+    return *size;
+
+  return dataLayout.getTypeSizeInBits(getElementType()) * getSize();
+}
+
+unsigned StaticArrayType::getABIAlignment(const DataLayout &dataLayout,
+                                          DataLayoutEntryListRef params) const {
+  if (Optional<unsigned> alignment =
+          getArrayDataLayoutEntry(params, *this, DLEntryPos::Abi))
+    return *alignment;
+
+  return dataLayout.getTypeABIAlignment(get(getElementType(), getSize()));
+}
+
+unsigned
+StaticArrayType::getPreferredAlignment(const DataLayout &dataLayout,
+                                       DataLayoutEntryListRef params) const {
+  if (Optional<unsigned> alignment =
+          getArrayDataLayoutEntry(params, *this, DLEntryPos::Preferred))
+    return *alignment;
+
+  return dataLayout.getTypePreferredAlignment(get(getElementType(), getSize()));
+}
+
+bool StaticArrayType::areCompatible(DataLayoutEntryListRef oldLayout,
+                                    DataLayoutEntryListRef newLayout) const {
+  for (DataLayoutEntryInterface newEntry : newLayout) {
+    if (!newEntry.isTypeEntry())
+      continue;
+    unsigned size = kDefaultPointerSizeBits;
+    unsigned abi = kDefaultPointerAlignment;
+    auto newType = newEntry.getKey().get<Type>().cast<StaticArrayType>();
+    const auto *it =
+        llvm::find_if(oldLayout, [&](DataLayoutEntryInterface entry) {
+          if (auto type = entry.getKey().dyn_cast<Type>()) {
+            return type.cast<StaticArrayType>().getSize() == newType.getSize();
+          }
+          return false;
+        });
+    if (it == oldLayout.end()) {
+      return false;
+    }
+    if (it != oldLayout.end()) {
+      size = extractPointerSpecValue(*it, DLEntryPos::Size);
+      abi = extractPointerSpecValue(*it, DLEntryPos::Abi);
+    }
+
+    Attribute newSpec = newEntry.getValue().cast<DenseIntElementsAttr>();
+    unsigned newSize = extractPointerSpecValue(newSpec, DLEntryPos::Size);
+    unsigned newAbi = extractPointerSpecValue(newSpec, DLEntryPos::Abi);
+    if (size != newSize || abi < newAbi || abi % newAbi != 0)
+      return false;
+  }
+  return true;
+}
+
+LogicalResult StaticArrayType::verifyEntries(DataLayoutEntryListRef entries,
+                                             Location loc) const {
+  for (DataLayoutEntryInterface entry : entries) {
+    if (!entry.isTypeEntry())
+      continue;
+    auto key = entry.getKey().get<Type>().cast<StaticArrayType>();
+    auto values = entry.getValue().dyn_cast<DenseIntElementsAttr>();
+    if (!values || (values.size() != 3 && values.size() != 4)) {
+      return emitError(loc)
+             << "expected layout attribute for " << entry.getKey().get<Type>()
+             << " to be a dense integer elements attribute with 3 or 4 "
+                "elements";
+    }
+    if (key.getElementType() && !key.getElementType().isInteger(8)) {
+      return emitError(loc) << "unexpected layout attribute for pointer to "
+                            << key.getElementType();
+    }
+    if (extractPointerSpecValue(values, DLEntryPos::Abi) >
+        extractPointerSpecValue(values, DLEntryPos::Preferred)) {
+      return emitError(loc) << "preferred alignment is expected to be at least "
+                               "as large as ABI alignment";
+    }
+  }
+  return success();
+}

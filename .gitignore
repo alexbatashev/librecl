@@ -1,6 +1,7 @@
 .cache
 build
 .DS_Store
+compile_commands.json
 
 
 # Added by cargo
