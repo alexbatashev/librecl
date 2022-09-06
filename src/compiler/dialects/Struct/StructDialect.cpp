@@ -20,6 +20,7 @@
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/ErrorHandling.h"
 
 #include <type_traits>
 #include <utility>
@@ -123,7 +124,9 @@ Type StructDialect::parseType(DialectAsmParser &parser) const {
 }
 
 void dispatchPrint(AsmPrinter &printer, Type type) {
-  if (!type.isa<IntegerType, FloatType, VectorType>())
+  if (!type)
+    llvm_unreachable("invalid type");
+  if (type.isa<StructType>())
     return mlir::structure::detail::printType(type, printer);
   printer.printType(type);
 }

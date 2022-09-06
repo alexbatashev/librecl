@@ -44,6 +44,7 @@ static ParseResult dispatchParse(AsmParser &parser, Type &type);
 static StringRef getTypeKeyword(Type type) {
   return TypeSwitch<Type, StringRef>(type)
       .Case<rawmem::PointerType>([&](Type) { return "ptr"; })
+      .Case<rawmem::StaticArrayType>([&](Type) { return "array"; })
       .Default([](Type) -> StringRef {
         llvm_unreachable("unexpected 'rawmem' type kind");
       });
@@ -71,6 +72,12 @@ static void printType(Type type, AsmPrinter &printer) {
       printer << ", " << ptrType.getAddressSpace();
     printer << '>';
     return;
+  }
+
+  if (auto arrayType = type.dyn_cast<StaticArrayType>()) {
+    printer << '<';
+    dispatchPrint(printer, arrayType.getElementType());
+    printer << ", " << arrayType.getSize() << '>';
   }
 }
 static Type parseType(DialectAsmParser &parser) {

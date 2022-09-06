@@ -172,10 +172,14 @@ struct FuncConversionPattern : public OpConversionPattern<LLVM::LLVMFuncOp> {
       Block *oldEntry = &gpuFunc.body().front();
       Block *conversionBB = rewriter.createBlock(oldEntry, gpuType.getInputs());
 
+      assert(conversionBB->isEntryBlock());
+      // llvm::errs() << "BB args: " << conversionBB->getNumArguments() << " input args: " << gpuType.getNumInputs() << "\n";
+      // assert(conversionBB->getNumArguments() == gpuType.getNumInputs());
+      // conversionBB->dump();
       gpuFunc.dump();
 
       for (const auto &arg : llvm::enumerate(gpuType.getInputs())) {
-        Value blockArg = conversionBB->getArgument(arg.index());
+        Value blockArg = gpuFunc.body().getArgument(arg.index());
         if (arg.value().isa<structure::StructType>()) {
           OpBuilder::InsertionGuard _{rewriter};
           rewriter.setInsertionPointToEnd(conversionBB);
@@ -579,6 +583,10 @@ void populateSPIRToGPUTypeConversions(TypeConverter &converter) {
 
         return mlir::Type();
       });
+  converter.addConversion([&converter](LLVM::LLVMArrayType type) {
+    auto elementType = converter.convertType(type.getElementType());
+    return rawmem::StaticArrayType::get(elementType, type.getNumElements());
+  });
   converter.addConversion([&converter](LLVM::LLVMPointerType type) {
     if (type.isOpaque()) {
       return rawmem::PointerType::get(type.getContext(),
