@@ -13,7 +13,7 @@
 #include "RawMemory/RawMemoryOps.h"
 #include "RawMemory/RawMemoryTypes.h"
 #include "Struct/StructOps.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/GPU/IR/GPUDialect.h"
@@ -114,7 +114,7 @@ struct FunctionPattern : public OpConversionPattern<FuncT> {
     if constexpr (std::is_same_v<func::FuncOp, FuncT>) {
       oldRegion = &func.getBody();
     } else {
-      oldRegion = &func.body();
+      oldRegion = &func.getBody();
     }
 
     llvm::SmallSet<unsigned, 10> replacedArgs;
@@ -160,7 +160,7 @@ struct FunctionPattern : public OpConversionPattern<FuncT> {
     if constexpr (std::is_same_v<func::FuncOp, FuncT>) {
       newRegion = &newFunc.getBody();
     } else {
-      newRegion = &newFunc.body();
+      newRegion = &newFunc.getBody();
     }
 
     BlockAndValueMapping mapping;
@@ -247,7 +247,7 @@ template <typename FuncT> Optional<bool> isFunctionLegal(FuncT func) {
     }
     body = &func.getBody();
   } else {
-    body = &func.body();
+    body = &func.getBody();
   }
 
   SmallVector<bool, 10> isValid;
@@ -278,7 +278,7 @@ struct InferPointerTypesPass
 
     target.addLegalDialect<gpu::GPUDialect>();
     target.addLegalDialect<cf::ControlFlowDialect>();
-    target.addLegalDialect<arith::ArithmeticDialect>();
+    target.addLegalDialect<arith::ArithDialect>();
     target.addLegalDialect<func::FuncDialect>();
     target.addLegalDialect<rawmem::RawMemoryDialect>();
     // target.addDynamicallyLegalOp<structure::AddressOfOp>(isAddrOfLegal);

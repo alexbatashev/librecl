@@ -16,7 +16,7 @@
 #include "../../dialects/Struct/StructDialect.h"
 #include "../../dialects/Struct/StructOps.h"
 #include "../../dialects/Struct/StructTypes.h"
-#include "mlir/Conversion/ArithmeticToSPIRV/ArithmeticToSPIRV.h"
+#include "mlir/Conversion/ArithToSPIRV/ArithToSPIRV.h"
 #include "mlir/Conversion/ControlFlowToSPIRV/ControlFlowToSPIRV.h"
 #include "mlir/Conversion/FuncToSPIRV/FuncToSPIRV.h"
 #include "mlir/Conversion/GPUToSPIRV/GPUToSPIRV.h"
@@ -69,7 +69,7 @@ struct GPUToSPIRVPass
 
     // TODO: Change SPIR-V conversion to be progressive and remove the following
     // patterns.
-    mlir::arith::populateArithmeticToSPIRVPatterns(typeConverter, patterns);
+    mlir::arith::populateArithToSPIRVPatterns(typeConverter, patterns);
     populateMemRefToSPIRVPatterns(typeConverter, patterns);
     populateFuncToSPIRVPatterns(typeConverter, patterns);
     cf::populateControlFlowToSPIRVPatterns(typeConverter, patterns);
@@ -130,8 +130,8 @@ struct StructLoadPattern : public OpConversionPattern<structure::LoadOp> {
   matchAndRewrite(structure::LoadOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    rewriter.replaceOpWithNewOp<spirv::CompositeExtractOp>(op, adaptor.addr(),
-                                                           adaptor.index());
+    rewriter.replaceOpWithNewOp<spirv::CompositeExtractOp>(
+        op, adaptor.getAddr(), adaptor.getIndex());
 
     return success();
   }
@@ -146,7 +146,7 @@ struct LoadPattern : public OpConversionPattern<rawmem::LoadOp> {
                   ConversionPatternRewriter &rewriter) const override {
 
     Value baseAddr =
-        generateAccessChain(adaptor.addr(), adaptor.indices(), rewriter);
+        generateAccessChain(adaptor.getAddr(), adaptor.getIndices(), rewriter);
 
     auto repl = rewriter.replaceOpWithNewOp<spirv::LoadOp>(op, baseAddr);
 
@@ -162,8 +162,8 @@ struct StructStorePattern : public OpConversionPattern<structure::StoreOp> {
   matchAndRewrite(structure::StoreOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    rewriter.create<spirv::CompositeInsertOp>(op.getLoc(), adaptor.value(),
-                                              adaptor.addr(), adaptor.index());
+    rewriter.create<spirv::CompositeInsertOp>(
+        op.getLoc(), adaptor.getValue(), adaptor.getAddr(), adaptor.getIndex());
     rewriter.eraseOp(op);
 
     return success();
@@ -178,8 +178,9 @@ struct StorePattern : public OpConversionPattern<rawmem::StoreOp> {
                   ConversionPatternRewriter &rewriter) const override {
 
     Value baseAddr =
-        generateAccessChain(adaptor.addr(), adaptor.indices(), rewriter);
-    rewriter.replaceOpWithNewOp<spirv::StoreOp>(op, baseAddr, adaptor.value());
+        generateAccessChain(adaptor.getAddr(), adaptor.getIndices(), rewriter);
+    rewriter.replaceOpWithNewOp<spirv::StoreOp>(op, baseAddr,
+                                                adaptor.getValue());
 
     return success();
   }
@@ -197,7 +198,7 @@ struct OffsetPattern : public OpConversionPattern<rawmem::OffsetOp> {
         op.getLoc(), rewriter.getI64Type(),
         rewriter.getIntegerAttr(rewriter.getI64Type(), 0));
     rewriter.replaceOpWithNewOp<spirv::AccessChainOp>(
-        op, adaptor.addr(), ValueRange{base, adaptor.offset()});
+        op, adaptor.getAddr(), ValueRange{base, adaptor.getOffset()});
     // rewriter.replaceOpWithNewOp<spirv::PtrAccessChainOp>(
     //     op, adaptor.addr(), adaptor.offset(), ValueRange{});
 
@@ -214,7 +215,7 @@ struct ReinterpretCastPattern
   matchAndRewrite(rawmem::ReinterpretCastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     rawmem::PointerType ptrType =
-        op.out().getType().cast<rawmem::PointerType>();
+        op.getOut().getType().cast<rawmem::PointerType>();
     Type resType;
     // TODO come up with a more elegant way
     /*
@@ -228,7 +229,8 @@ struct ReinterpretCastPattern
     /*
   }
   */
-    rewriter.replaceOpWithNewOp<spirv::BitcastOp>(op, resType, adaptor.addr());
+    rewriter.replaceOpWithNewOp<spirv::BitcastOp>(op, resType,
+                                                  adaptor.getAddr());
     return success();
   }
 };

@@ -14,7 +14,7 @@
 #include "../../dialects/Struct/StructDialect.h"
 #include "../../dialects/Struct/StructOps.h"
 #include "../../dialects/Struct/StructTypes.h"
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -39,7 +39,7 @@ struct GPUTarget : public ConversionTarget {
   GPUTarget(MLIRContext &ctx) : ConversionTarget(ctx) {
     addLegalDialect<gpu::GPUDialect>();
     addLegalDialect<cf::ControlFlowDialect>();
-    addLegalDialect<arith::ArithmeticDialect>();
+    addLegalDialect<arith::ArithDialect>();
     addLegalDialect<memref::MemRefDialect>();
     addLegalDialect<func::FuncDialect>();
     addLegalDialect<rawmem::RawMemoryDialect>();
@@ -149,14 +149,14 @@ struct FuncConversionPattern : public OpConversionPattern<LLVM::LLVMFuncOp> {
 
     StringRef name = func.getName();
 
-    rewriter.setInsertionPoint(&gpuModule.body().front().back());
+    rewriter.setInsertionPoint(&gpuModule.getBody()->back());
 
     if (!func.getBody().empty()) {
       auto gpuFunc =
           rewriter.create<gpu::GPUFuncOp>(func.getLoc(), name, gpuType);
       rewriter.inlineRegionBefore(func.getBody(), gpuFunc.getBody(),
                                   gpuFunc.getBody().begin());
-      gpuFunc.body().back().erase();
+      gpuFunc.getBody().back().erase();
       if (failed(rewriter.convertRegionTypes(&gpuFunc.getBody(), typeConverter,
                                              &signatureConverter))) {
 
