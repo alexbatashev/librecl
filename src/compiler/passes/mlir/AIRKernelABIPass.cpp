@@ -71,7 +71,7 @@ template <typename FuncTy> static void processFunction(FuncTy func) {
       mlir::FunctionType::get(func.getContext(), argTypes, retType);
 
   if constexpr (std::is_same_v<mlir::gpu::GPUFuncOp, FuncTy>) {
-    func.function_typeAttr(mlir::TypeAttr::get(newFuncType));
+    func.setFunctionTypeAttr(mlir::TypeAttr::get(newFuncType));
   } else if constexpr (std::is_same_v<mlir::func::FuncOp, FuncTy>) {
     func.setFunctionTypeAttr(mlir::TypeAttr::get(newFuncType));
   }

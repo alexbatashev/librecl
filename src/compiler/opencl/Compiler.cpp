@@ -375,8 +375,8 @@ public:
       mlir::BlockAndValueMapping mapping;
       m.get()->walk([&](mlir::gpu::GPUModuleOp gm) {
         mlir::OpBuilder::InsertionGuard _{mBuilder};
-        mBuilder.setInsertionPoint(gpuModule.body().front().getTerminator());
-        for (auto &op : gm.body().front()) {
+        mBuilder.setInsertionPoint(gpuModule.getBody()->getTerminator());
+        for (auto &op : *gm.getBody()) {
           bool skip = llvm::isa<mlir::gpu::ModuleEndOp>(op);
 
           if (auto func = llvm::dyn_cast<mlir::func::FuncOp>(op)) {

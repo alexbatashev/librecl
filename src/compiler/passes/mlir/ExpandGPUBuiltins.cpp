@@ -10,7 +10,7 @@
 #include "LibreCL/IR/LibreCLOps.h"
 #include "passes.hpp"
 
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/GPU/IR/GPUDialect.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
@@ -45,7 +45,7 @@ struct GloaglIDPattern : public OpConversionPattern<gpu::GlobalIdOp> {
 
     Value id;
 
-    switch (op.dimension()) {
+    switch (op.getDimension()) {
     case gpu::Dimension::x:
       id = rewriter.create<arith::ConstantOp>(op.getLoc(),
                                               rewriter.getIndexAttr(0));
@@ -84,7 +84,7 @@ struct ExpandGPUBuiltinsPass
   }
 
   void getDependentDialects(::mlir::DialectRegistry &registry) const override {
-    registry.insert<arith::ArithmeticDialect>();
+    registry.insert<arith::ArithDialect>();
     registry.insert<vector::VectorDialect>();
   }
 
@@ -95,7 +95,7 @@ struct ExpandGPUBuiltinsPass
     ConversionTarget target{getContext()};
     target.addIllegalOp<mlir::gpu::GlobalIdOp>();
     target.addLegalDialect<vector::VectorDialect>();
-    target.addLegalDialect<arith::ArithmeticDialect>();
+    target.addLegalDialect<arith::ArithDialect>();
     target.addLegalDialect<lcl::LibreCLDialect>();
 
     RewritePatternSet patterns{&getContext()};

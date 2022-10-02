@@ -13,7 +13,7 @@
 #include "RawMemory/RawMemoryOps.h"
 #include "RawMemory/RawMemoryTypes.h"
 
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -387,13 +387,13 @@ static LogicalResult printOperation(CppEmitter &emitter,
   if (failed(emitter.emitAssignPrefix(*loadOp.getOperation())))
     return failure();
 
-  emitter.ostream() << emitter.getOrCreateName(loadOp.addr());
+  emitter.ostream() << emitter.getOrCreateName(loadOp.getAddr());
   // TODO support multiple indices
   emitter.ostream() << '[';
-  if (loadOp.indices().size() == 0) {
+  if (loadOp.getIndices().size() == 0) {
     emitter.ostream() << "0]";
-  } else if (loadOp.indices().size() == 1) {
-    emitter.ostream() << emitter.getOrCreateName(loadOp.indices().front())
+  } else if (loadOp.getIndices().size() == 1) {
+    emitter.ostream() << emitter.getOrCreateName(loadOp.getIndices().front())
                       << ']';
   } else {
     return emitError(loadOp.getLoc(), "Multiple indices are not supported yet");
@@ -404,13 +404,13 @@ static LogicalResult printOperation(CppEmitter &emitter,
 
 static LogicalResult printOperation(CppEmitter &emitter,
                                     rawmem::StoreOp storeOp) {
-  emitter.ostream() << emitter.getOrCreateName(storeOp.addr());
+  emitter.ostream() << emitter.getOrCreateName(storeOp.getAddr());
   // TODO support multiple indices
   emitter.ostream() << '[';
-  if (storeOp.indices().size() == 0) {
+  if (storeOp.getIndices().size() == 0) {
     emitter.ostream() << '0';
-  } else if (storeOp.indices().size() == 1) {
-    emitter.ostream() << emitter.getOrCreateName(storeOp.indices().front())
+  } else if (storeOp.getIndices().size() == 1) {
+    emitter.ostream() << emitter.getOrCreateName(storeOp.getIndices().front())
                       << ']';
   } else {
     return emitError(storeOp.getLoc(),
@@ -418,7 +418,7 @@ static LogicalResult printOperation(CppEmitter &emitter,
   }
 
   emitter.ostream() << " = ";
-  emitter.ostream() << emitter.getOrCreateName(storeOp.value());
+  emitter.ostream() << emitter.getOrCreateName(storeOp.getValue());
 
   return success();
 }

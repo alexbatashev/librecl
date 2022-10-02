@@ -29,13 +29,13 @@ static constexpr const char kElemTypeAttrName[] = "elem_type";
 void AllocaOp::print(OpAsmPrinter &p) {
   Type elemTy = getType().cast<rawmem::PointerType>().getElementType();
   if (!elemTy)
-    elemTy = *elem_type();
+    elemTy = *getElemType();
 
   auto funcTy =
-      FunctionType::get(getContext(), {arraySize().getType()}, {getType()});
+      FunctionType::get(getContext(), {getArraySize().getType()}, {getType()});
 
-  p << ' ' << arraySize() << " x " << elemTy;
-  if (alignment().hasValue() && *alignment() != 0)
+  p << ' ' << getArraySize() << " x " << elemTy;
+  if (getAlignment().hasValue() && *getAlignment() != 0)
     p.printOptionalAttrDict((*this)->getAttrs(), {kElemTypeAttrName});
   else
     p.printOptionalAttrDict((*this)->getAttrs(),
@@ -106,7 +106,7 @@ static LogicalResult verifyOpaquePtr(Operation *op, PointerType ptrType,
 
 LogicalResult AllocaOp::verify() {
   return verifyOpaquePtr(getOperation(), getType().cast<PointerType>(),
-                         elem_type());
+                         getElemType());
 }
 
 //===----------------------------------------------------------------------===//
@@ -126,11 +126,11 @@ LogicalResult StoreOp::verify() {
 }
 
 OpFoldResult ReinterpretCastOp::fold(ArrayRef<Attribute> operands) {
-  if (addr().getDefiningOp() &&
-      llvm::isa<ReinterpretCastOp>(addr().getDefiningOp())) {
-    auto otherCast = addr().getDefiningOp<ReinterpretCastOp>();
-    if (otherCast.addr().getType() == getResult().getType()) {
-      return otherCast.addr();
+  if (getAddr().getDefiningOp() &&
+      llvm::isa<ReinterpretCastOp>(getAddr().getDefiningOp())) {
+    auto otherCast = getAddr().getDefiningOp<ReinterpretCastOp>();
+    if (otherCast.getAddr().getType() == getResult().getType()) {
+      return otherCast.getAddr();
     }
   }
   return nullptr;
@@ -146,37 +146,37 @@ LogicalResult ReinterpretCastOp::canonicalize(ReinterpretCastOp op,
 }
 
 LogicalResult LoadOp::canonicalize(LoadOp op, PatternRewriter &rewriter) {
-  if (op.addr().getDefiningOp() &&
-      llvm::isa<OffsetOp>(op.addr().getDefiningOp())) {
-    auto offsetOp = op.addr().getDefiningOp<OffsetOp>();
-    rewriter.replaceOpWithNewOp<LoadOp>(op, offsetOp.addr(),
-                                        ValueRange{offsetOp.offset()});
+  if (op.getAddr().getDefiningOp() &&
+      llvm::isa<OffsetOp>(op.getAddr().getDefiningOp())) {
+    auto offsetOp = op.getAddr().getDefiningOp<OffsetOp>();
+    rewriter.replaceOpWithNewOp<LoadOp>(op, offsetOp.getAddr(),
+                                        ValueRange{offsetOp.getOffset()});
     return success();
   }
-  if (op.addr().getDefiningOp() &&
-      llvm::isa<structure::AddressOfOp>(op.addr().getDefiningOp())) {
-    auto addrOp = op.addr().getDefiningOp<structure::AddressOfOp>();
+  if (op.getAddr().getDefiningOp() &&
+      llvm::isa<structure::AddressOfOp>(op.getAddr().getDefiningOp())) {
+    auto addrOp = op.getAddr().getDefiningOp<structure::AddressOfOp>();
     rewriter.replaceOpWithNewOp<structure::LoadOp>(
-        op, op.getResult().getType(), addrOp.addr(), addrOp.index());
+        op, op.getResult().getType(), addrOp.getAddr(), addrOp.getIndex());
     return success();
   }
   return failure();
 }
 
 LogicalResult StoreOp::canonicalize(StoreOp op, PatternRewriter &rewriter) {
-  if (op.addr().getDefiningOp() &&
-      llvm::isa<OffsetOp>(op.addr().getDefiningOp())) {
-    auto offsetOp = op.addr().getDefiningOp<OffsetOp>();
-    rewriter.replaceOpWithNewOp<StoreOp>(op, op.value(), offsetOp.addr(),
-                                         ValueRange{offsetOp.offset()},
-                                         op.volatility());
+  if (op.getAddr().getDefiningOp() &&
+      llvm::isa<OffsetOp>(op.getAddr().getDefiningOp())) {
+    auto offsetOp = op.getAddr().getDefiningOp<OffsetOp>();
+    rewriter.replaceOpWithNewOp<StoreOp>(op, op.getValue(), offsetOp.getAddr(),
+                                         ValueRange{offsetOp.getOffset()},
+                                         op.getVolatility());
     return success();
   }
-  if (op.addr().getDefiningOp() &&
-      llvm::isa<structure::AddressOfOp>(op.addr().getDefiningOp())) {
-    auto addrOp = op.addr().getDefiningOp<structure::AddressOfOp>();
+  if (op.getAddr().getDefiningOp() &&
+      llvm::isa<structure::AddressOfOp>(op.getAddr().getDefiningOp())) {
+    auto addrOp = op.getAddr().getDefiningOp<structure::AddressOfOp>();
     rewriter.replaceOpWithNewOp<structure::StoreOp>(
-        op, op.value(), addrOp.addr(), addrOp.index());
+        op, op.getValue(), addrOp.getAddr(), addrOp.getIndex());
     return success();
   }
   return failure();
