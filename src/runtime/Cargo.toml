@@ -42,7 +42,7 @@ online_compiler = ["librecl_compiler/online_compiler"]
 
 [build-dependencies]
 build-target = "0.4.0"
-bindgen = "0.60.1"
+bindgen = "0.62.0"
 
 [package.metadata.generate-rpm]
 license = "Apache 2.0"
