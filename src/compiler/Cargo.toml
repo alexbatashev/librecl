@@ -11,7 +11,7 @@ path = "./lib.rs"
 [dependencies]
 libc = "0.2.126"
 ocl_args = { path = "../../utils/ocl_args" }
-libloading = "0.7.3"
+libloading = "0.8.0"
 llvm_native = { path = "../../utils/llvm_native", optional = true }
 
 [build-dependencies]
