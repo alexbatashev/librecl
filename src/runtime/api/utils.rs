@@ -51,6 +51,10 @@ impl<T: Sized + Sync + Send> SharedPtr<T> {
         let weak = Arc::downgrade(&ptr.ptr);
         return WeakPtr { ptr: weak };
     }
+
+    pub fn as_ref(&self) -> &T {
+        self.ptr.as_ref()
+    }
 }
 
 impl<T: ?Sized + Sync + Send> Deref for SharedPtr<T> {
@@ -141,6 +145,13 @@ impl<T> UnsafeHandle<T> {
     pub fn value(&self) -> &T {
         match &self.ptr {
             Some(ptr) => ptr,
+            None => panic!("No value"),
+        }
+    }
+
+    pub fn value_mut(&mut self) -> &mut T {
+        match &mut self.ptr {
+            Some(ref mut ptr) => ptr,
             None => panic!("No value"),
         }
     }

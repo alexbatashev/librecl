@@ -59,7 +59,7 @@ fn clEnqueueWriteBuffer(
     // TODO proper error handling
 
     // TODO blocking - non-blocking
-    queue.enqueue_buffer_write(ptr, SharedPtr::downgrade(&buffer_safe));
+    queue.enqueue_buffer_write(ptr, SharedPtr::downgrade(&buffer_safe))?;
 
     return success!();
 }
@@ -83,7 +83,7 @@ fn clEnqueueReadBuffer(
 
     // TODO blocking - non-blocking
     let buffer_safe = MemKind::try_from_cl(buffer).map_err(map_invalid_mem)?;
-    queue.enqueue_buffer_read(SharedPtr::downgrade(&buffer_safe), ptr);
+    queue.enqueue_buffer_read(SharedPtr::downgrade(&buffer_safe), ptr)?;
 
     return success!();
 }
@@ -98,7 +98,7 @@ fn clEnqueueNDRangeKernel(
     _local_work_size: *const cl_size_t,
     _num_events_in_wait_list: cl_uint,
     _event_wait_list: *const cl_event,
-    _event: *mut cl_event,
+    out_event: *mut cl_event,
 ) -> Result<(), ClError> {
     lcl_contract!(
         work_dim > 0 && work_dim <= 3,
@@ -128,12 +128,16 @@ fn clEnqueueNDRangeKernel(
     // TODO fix local size
     let local_size = [1u32, 1, 1];
 
-    queue.submit(
+    let event = queue.submit(
         SharedPtr::downgrade(&kernel_safe),
         offset,
         global_size,
         local_size,
-    );
+    )?;
+
+    if !out_event.is_null() {
+        unsafe { *out_event = _cl_event::wrap(event) };
+    }
 
     return success!();
 }

@@ -1,4 +1,10 @@
-use crate::sync::{self, UnsafeHandle, WeakPtr};
+use super::{Event, HostToGPUEvent};
+use crate::api::cl_types::*;
+use crate::api::error_handling::ClError;
+use crate::interface::{
+    ContextImpl, ContextKind, DeviceKind, EventKind, KernelKind, MemKind, QueueImpl, QueueKind,
+};
+use crate::sync::{self, SharedPtr, UnsafeHandle, WeakPtr};
 use ocl_type_wrapper::ClObjImpl;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -7,12 +13,9 @@ use vulkano::device::Queue as VkQueue;
 use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 use vulkano::sync::{self as sync_vk, GpuFuture};
 
-use crate::api::cl_types::*;
-use crate::interface::{ContextKind, DeviceKind, KernelKind, MemKind, QueueImpl, QueueKind};
-
 #[derive(ClObjImpl)]
 pub struct InOrderQueue {
-    _context: WeakPtr<ContextKind>,
+    context: WeakPtr<ContextKind>,
     device: WeakPtr<DeviceKind>,
     queue: Arc<VkQueue>,
     #[cl_handle]
@@ -28,7 +31,7 @@ impl InOrderQueue {
             _ => panic!(),
         };
         InOrderQueue {
-            _context: context,
+            context,
             device,
             queue,
             handle: UnsafeHandle::null(),
@@ -38,31 +41,70 @@ impl InOrderQueue {
 }
 
 impl QueueImpl for InOrderQueue {
-    fn enqueue_buffer_write(&self, src: *const libc::c_void, dst: WeakPtr<MemKind>) {
-        let owned_buffer = dst.upgrade().unwrap();
-        let transfer_fn = match owned_buffer.deref() {
-            MemKind::VulkanSDBuffer(ref buffer) => || {
-                buffer.write(src);
-            },
-            #[allow(unreachable_patterns)]
-            _ => panic!("Unexpected"),
-        };
+    fn enqueue_buffer_write(
+        &self,
+        src: *const libc::c_void,
+        dst: WeakPtr<MemKind>,
+    ) -> Result<EventKind, ClError> {
+        let owned_buffer = dst.upgrade().ok_or(ClError::InvalidMemObject(
+            "failed to acquire owning reference for buffer".into(),
+        ))?;
+        let unsafe_src = UnsafeHandle::new(src);
+        let transfer_fn =
+            |owned_buffer: sync::SharedPtr<MemKind>,
+             unsafe_src: UnsafeHandle<*const libc::c_void>| {
+                match owned_buffer.deref() {
+                    MemKind::VulkanSDBuffer(ref buffer) => buffer.write(*unsafe_src.value()),
+                    #[allow(unreachable_patterns)]
+                    _ => panic!("Unexpected"),
+                }
+            };
+
+        let context = self.context.upgrade().ok_or(ClError::InvalidCommandQueue(
+            "failed to acquire owning reference to a context associated with the queue".into(),
+        ))?;
+
+        let _guard = context.get_threading_runtime().enter();
 
         // TODO events and concurrency
-        transfer_fn();
+        let join_handle = tokio::spawn(async move {
+            transfer_fn(owned_buffer, unsafe_src);
+        });
+
+        Ok(HostToGPUEvent::new(self.context.clone(), join_handle).into())
     }
-    fn enqueue_buffer_read(&self, src: WeakPtr<MemKind>, dst: *mut libc::c_void) {
-        let owned_buffer = src.upgrade().unwrap();
-        let transfer_fn = match owned_buffer.deref() {
-            MemKind::VulkanSDBuffer(ref buffer) => || {
-                buffer.read(dst);
-            },
-            #[allow(unreachable_patterns)]
-            _ => panic!("Unexpected"),
-        };
+
+    fn enqueue_buffer_read(
+        &self,
+        src: WeakPtr<MemKind>,
+        dst: *mut libc::c_void,
+    ) -> Result<EventKind, ClError> {
+        let owned_buffer = src.upgrade().ok_or(ClError::InvalidMemObject(
+            "failed to acquire owning reference for buffer".into(),
+        ))?;
+        let unsafe_dst = UnsafeHandle::new(dst);
+        let transfer_fn =
+            |owned_buffer: sync::SharedPtr<MemKind>,
+             mut unsafe_dst: UnsafeHandle<*mut libc::c_void>| {
+                match owned_buffer.deref() {
+                    MemKind::VulkanSDBuffer(ref buffer) => buffer.read(*unsafe_dst.value_mut()),
+                    #[allow(unreachable_patterns)]
+                    _ => panic!("Unexpected"),
+                }
+            };
+
+        let context = self.context.upgrade().ok_or(ClError::InvalidCommandQueue(
+            "failed to acquire owning reference to a context associated with the queue".into(),
+        ))?;
+
+        let _guard = context.get_threading_runtime().enter();
 
         // TODO events and concurrency
-        transfer_fn();
+        let join_handle = tokio::spawn(async move {
+            transfer_fn(owned_buffer, unsafe_dst);
+        });
+
+        Ok(HostToGPUEvent::new(self.context.clone(), join_handle).into())
     }
 
     fn submit(
@@ -71,7 +113,7 @@ impl QueueImpl for InOrderQueue {
         _offset: [u32; 3],
         global_size: [u32; 3],
         local_size: [u32; 3],
-    ) {
+    ) -> Result<EventKind, ClError> {
         let owned_kernel = kernel.upgrade().unwrap();
         let kernel_safe = match owned_kernel.deref() {
             KernelKind::Vulkan(kernel) => kernel,
@@ -93,7 +135,7 @@ impl QueueImpl for InOrderQueue {
             self.queue.family(),
             CommandBufferUsage::OneTimeSubmit,
         )
-        .unwrap();
+        .map_err(|_| ClError::OutOfResources("failed to create command buffer".into()))?;
 
         builder
             .bind_pipeline_compute(pipeline.clone())
@@ -111,20 +153,21 @@ impl QueueImpl for InOrderQueue {
                 global_size[1] / local_size[1],
                 global_size[2] / local_size[2],
             ])
-            .expect("Failed to submit work");
+            .map_err(|_| ClError::OutOfResources("failed to dispatch command buffer".into()))?;
 
         let command_buffer = builder.build().unwrap();
 
+        // TODO add more details about queue and kernel
         let future = sync_vk::now(device.get_logical_device().clone())
             .then_execute(self.queue.clone(), command_buffer)
-            .unwrap()
+            .map_err(|_| ClError::OutOfResources("failed to submit Vulkan command".into()))?;
+        // TODO figure out semaphores
+        // let semaphore = SharedPtr::new(future.then_signal_semaphore());
+        let fence = future
             .then_signal_fence_and_flush()
-            .unwrap();
-        future
-            .wait(Option::None)
-            .expect("Failed to wait for result");
+            .map_err(|_| ClError::OutOfResources("failed to submit Vulkan command".into()))?;
 
-        // TODO return events.
+        Ok(Event::new(self.context.clone(), SharedPtr::new(fence)))
     }
 
     fn finish(&self) {

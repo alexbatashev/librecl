@@ -8,7 +8,8 @@ use crate::vulkan::InOrderQueue as VkInOrderQueue;
 #[cfg(feature = "metal")]
 use crate::metal::InOrderQueue as MTLInOrderQueue;
 
-use super::{KernelKind, MemKind};
+use super::{EventKind, KernelKind, MemKind};
+use crate::api::error_handling::ClError;
 
 #[enum_dispatch]
 #[repr(C)]
@@ -24,9 +25,17 @@ pub enum QueueKind {
 pub trait QueueImpl: ClObjectImpl<cl_command_queue> {
     // TODO return event, todo async
     /// Enqueues asynchronous buffer write command to queue.
-    fn enqueue_buffer_write(&self, src: *const libc::c_void, dst: WeakPtr<MemKind>);
+    fn enqueue_buffer_write(
+        &self,
+        src: *const libc::c_void,
+        dst: WeakPtr<MemKind>,
+    ) -> Result<EventKind, ClError>;
     /// Enqueues asynchronous buffer read command to queue.
-    fn enqueue_buffer_read(&self, src: WeakPtr<MemKind>, dst: *mut libc::c_void);
+    fn enqueue_buffer_read(
+        &self,
+        src: WeakPtr<MemKind>,
+        dst: *mut libc::c_void,
+    ) -> Result<EventKind, ClError>;
     /// Dispatches kernel for execution in queue.
     fn submit(
         &self,
@@ -34,7 +43,7 @@ pub trait QueueImpl: ClObjectImpl<cl_command_queue> {
         offset: [u32; 3],
         global_size: [u32; 3],
         local_size: [u32; 3],
-    );
+    ) -> Result<EventKind, ClError>;
     /// Waits for all submitted tasks to finish.
     fn finish(&self);
 }

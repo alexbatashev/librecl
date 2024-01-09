@@ -1,7 +1,7 @@
-use super::{DeviceKind, MemKind, ProgramKind};
+use super::{DeviceKind, EventKind, MemKind, ProgramKind};
 use crate::api::cl_types::*;
 use crate::api::error_handling::ClError;
-use crate::sync::WeakPtr;
+use crate::sync::{SharedPtr, WeakPtr};
 use enum_dispatch::enum_dispatch;
 use tokio::runtime::Runtime;
 
@@ -33,6 +33,8 @@ pub trait ContextImpl: ClObjectImpl<cl_context> {
     fn create_program_with_spirv(&self, spirv: &[i8]) -> Result<ProgramKind, ClError>;
     /// Creates a new buffer, bound to this context.
     fn create_buffer(&mut self, size: usize, flags: cl_mem_flags) -> MemKind;
+    /// Waits for all the events in the list.
+    fn wait_for_events(&self, events: &mut [SharedPtr<EventKind>]) -> Result<(), ClError>;
 }
 
 #[enum_dispatch]

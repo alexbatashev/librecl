@@ -61,7 +61,11 @@ pub fn map_invalid_queue(reason: String) -> ClError {
 }
 
 pub fn map_invalid_mem(reason: String) -> ClError {
-    ClError::InvalidCommandQueue(format!("invalid queue: {}", reason).into())
+    ClError::InvalidMemObject(format!("invalid mem: {}", reason).into())
+}
+
+pub fn map_invalid_event(reason: String) -> ClError {
+    ClError::InvalidEvent(format!("invalid event: {}", reason).into())
 }
 
 pub fn map_invalid_program(reason: String) -> ClError {
